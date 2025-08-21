@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>先漲→反轉收下分析線（空單）訓練 Playable</title>
+<style>
+  :root{--bg:#0f1220;--panel:#171a2b;--text:#e9ecf4;--muted:#9aa3b2;--accent:#52d3a8;--bad:#ff6b6b}
+  *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  body{margin:0;background:linear-gradient(180deg,#0d101c,#0f1220 30%)}
+  #app{max-width:900px;margin:0 auto;padding:16px}
+  .card{background:var(--panel);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:14px;color:var(--text);box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  h1{font-size:20px;margin:0 0 8px}
+  h2{font-size:16px;margin:14px 0 8px;color:#cfd7ff}
+  p,li{color:var(--muted);line-height:1.55}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .col{flex:1 1 260px}
+  button{cursor:pointer;border:0;border-radius:10px;padding:10px 14px;font-weight:700}
+  .btn{background:#29304b;color:var(--text)}
+  .btn-primary{background:var(--accent);color:#07261c}
+  .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--text)}
+  .btn-bad{background:var(--bad);color:#2a0c0c}
+  .hud{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .tag{font-size:12px;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:4px 8px;color:#cfe0ff;background:#0c1428}
+  .small{font-size:12px}
+  #chartWrap{position:relative;background:#0b0f1d;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px}
+  #chart{width:100%;height:360px;display:block}
+  .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#0e1426;color:#dfe6ff;border:1px solid rgba(255,255,255,.12);padding:10px 14px;border-radius:999px;box-shadow:0 8px 30px rgba(0,0,0,.35);font-size:13px}
+  .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35);border-radius:10px}
+  .panel{background:#151a2d;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,.12);max-width:560px}
+  .ok{color:#79e0ab}.bad{color:#ff9b9b}.hl{color:#52d3a8;font-weight:800}
+  .list{border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:8px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ====================================================
+   設定：每日可調整的關鍵價位與訓練參數
+   ==================================================== */
+const CONFIG = {
+  symbol: "XAUUSD",
+  key: {
+    breakoutHigh: 3408.99, // 可作參考顯示
+    watershed:    3403.96, // 「分析線」——判斷是否收下/收上的基準
+    breakoutLow:  3377.70
+  },
+  rrMin: 2,          // 正確單的目標預設 2R
+  signalsMin: 3,     // 每日最少訊號數
+  signalsMax: 5      // 每日最多訊號數
+};
+
+/* ====================================================
+   這套訓練的唯一正確定義（請牢記）
+   ✅ 先漲 → 反轉K → 「收下」分析線 → 空單
+   其他一律錯誤（在分析線但收上、不在分析線、非先漲後反轉…）
+   ==================================================== */
+
+/* ======================
+   工具與狀態
+   ====================== */
+const el = id => document.getElementById(id);
+const app = el('app');
+function toast(msg,ms=1500){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),ms);}
+
+const state = {
+  scene: "intro",     // intro | sim | result
+  bars: [],
+  sigs: [],           // [{idx,type,valid,note,atLine,closeRel,trendBefore}]
+  visible: 0,
+  timer: null,
+  order: null,        // 僅在「正確進場」時產生 {entry,sl,tp,status}
+  decisions: []       // [{idx,action:"enter"/"skip",correct:boolean, type, note}]
+};
+
+/* ======================
+   產生當日走勢與多訊號
+   - 基調：先緩漲（符合「先漲」），中後段偏跌
+   - 在隨機時間插入 3~5 個訊號，其中恰好 1 個正確
+   ====================== */
+function generateDay(){
+  // 32 根 15m：09:00~16:45
+  const total=32, startH=9; let last=3396;
+  const rnd=(a,b)=>a+Math.random()*(b-a);
+  const bars=[];
+  // 先漲 → 中後段偏跌（為正確空單提供趨勢背景）
+  for(let i=0;i<total;i++){
+    const o=last;
+    const phase = i<Math.floor(total*0.45) ? 0.7 : -0.9; // 前半上升、後半下降
+    const c=o + phase + rnd(-0.5,0.5);
+    const h=Math.max(o,c)+rnd(0.3,0.9), l=Math.min(o,c)-rnd(0.3,0.9);
+    const hh=startH+Math.floor(i/4), mm=(i%4)*15;
+    bars.push({t:`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`,o,h,l,c});
+    last=c;
+  }
+
+  // 決定訊號數量
+  const n = Math.floor(CONFIG.signalsMin + Math.random()*(CONFIG.signalsMax - CONFIG.signalsMin + 1));
+  // 為避免擠在一起，從區間內抽取
+  const pool = Array.from({length: total-8}, (_,k)=>k+4); // 避開過早/過晚的極端
+  const picks = [];
+  while(picks.length < n){
+    const i = pool.splice(Math.floor(Math.random()*pool.length),1)[0];
+    if(picks.every(p=>Math.abs(p-i)>=3)) picks.push(i);
+  }
+  picks.sort((a,b)=>a-b);
+
+  // 指定其中一個為「正確」訊號（靠近分析線且收下、且前面確有上漲）
+  const correctIdx = picks[Math.floor(Math.random()*picks.length)];
+  const sigs = [];
+
+  picks.forEach(idx=>{
+    const b = bars[idx];
+    const line = CONFIG.key.watershed;
+
+    // 預設訊號屬性
+    let type, valid=false, note="", atLine=false, closeRel="";
+
+    if(idx===correctIdx){
+      // ✅ 唯一正確：在分析線附近出現長上影反轉K，且「收下」
+      atLine = true;
+      valid = true;
+      type = "correct_on_line_close_below";
+      // 讓該根呈現上影且收在分析線下方
+      b.o = line + 0.6; b.h = b.o + 3.0; b.l = b.o - 2.0; b.c = line - 0.25;
+      closeRel = "below";
+      note = "先漲→反轉K，收下分析線（空訊號）";
+      // 後續偏跌，利於達成 2R
+      for(let j=idx+1;j<bars.length;j++){
+        const o = bars[j-1].c, c = o - 1.4 + rnd(-0.3,0.4);
+        const h=Math.max(o,c)+rnd(0.2,0.6), l=Math.min(o,c)-rnd(0.2,0.6);
+        bars[j] = {...bars[j],o,c,h,l};
+      }
+    }else{
+      // 錯誤情境隨機二選一：在分析線但收上 / 不在分析線
+      if(Math.random()<0.5){
+        // ❌ 在分析線，但「收上」→ 錯
+        atLine = true;
+        type = "wrong_on_line_close_above";
+        b.o = line - 0.3; b.h = b.o + 2.4; b.l = b.o - 1.5; b.c = line + 0.35;
+        closeRel = "above";
+        note = "在分析線，但K棒收上（不符合『收下』）";
+        // 之後略上行或震盪，避免誤導
+        for(let j=idx+1;j<Math.min(idx+4,bars.length);j++){
+          const o=bars[j-1].c, c=o + 0.6 + rnd(-0.3,0.4);
+          const h=Math.max(o,c)+rnd(0.2,0.6), l=Math.min(o,c)-rnd(0.2,0.6);
+          bars[j] = {...bars[j],o,c,h,l};
+        }
+      }else{
+        // ❌ 不在分析線（遠離），即便像反轉也不符合「收下分析線」條件
+        atLine = false;
+        type = "wrong_off_line";
+        const shift = (Math.random()<0.5 ? -1 : 1) * (1.2 + Math.random()*2.0);
+        b.o = line + shift; b.c = b.o + (Math.random()<0.5?-0.4:0.4);
+        b.h = Math.max(b.o,b.c)+2.2; b.l=Math.min(b.o,b.c)-1.6;
+        closeRel = b.c>line ? "above" : "below"; // 可能在下方但「不在分析線附近」
+        note = "訊號遠離分析線（位置不符合）";
+      }
+    }
+
+    sigs.push({idx,type,valid,note,atLine,closeRel});
+    bars[idx] = {...bars[idx], note: (valid?"✅ ":"❌ ")+note};
+  });
+
+  state.bars = bars;
+  state.sigs = sigs;
+  state.visible = 1;
+  state.order = null;
+  state.decisions = [];
+}
+
+/* ======================
+   畫圖（Canvas 蠟燭）
+   ====================== */
+function drawChart(canvas, bars, visible, levels=[], order=null){
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width = canvas.clientWidth;
+  const H = canvas.height = canvas.clientHeight;
+  ctx.clearRect(0,0,W,H);
+  const data = bars.slice(0,visible);
+  if(!data.length) return;
+
+  const hi = Math.max(...data.map(b=>b.h), ...levels.map(v=>v.price));
+  const lo = Math.min(...data.map(b=>b.l), ...levels.map(v=>v.price));
+  const pad = (hi-lo)*0.12 || 5, yMax=hi+pad, yMin=lo-pad;
+  const xStep = W/Math.max(32,data.length+2);
+  const y=v=>H-(v-yMin)/(yMax-yMin)*H;
+
+  // grid
+  ctx.strokeStyle="rgba(255,255,255,.06)"; ctx.lineWidth=1;
+  for(let i=0;i<6;i++){const yv=H*i/5; ctx.beginPath(); ctx.moveTo(0,yv); ctx.lineTo(W,yv); ctx.stroke();}
+
+  // levels
+  ctx.setLineDash([4,4]);
+  levels.forEach(l=>{
+    ctx.strokeStyle=l.color; ctx.beginPath(); ctx.moveTo(0,y(l.price)); ctx.lineTo(W,y(l.price)); ctx.stroke();
+    ctx.fillStyle=l.color; ctx.font="12px system-ui"; ctx.fillText(l.label, 10, y(l.price)-6);
+  });
+  ctx.setLineDash([]);
+
+  // candles
+  for(let i=0;i<data.length;i++){
+    const b=data[i], x=24+i*xStep, up=b.c>=b.o;
+    ctx.strokeStyle = up ? "rgba(140,220,180,.9)" : "rgba(255,130,130,.9)";
+    ctx.fillStyle   = up ? "rgba(140,220,180,.25)" : "rgba(255,130,130,.25)";
+    // wicks
+    ctx.beginPath(); ctx.moveTo(x,y(b.h)); ctx.lineTo(x,y(b.l)); ctx.stroke();
+    // body
+    const w=Math.max(3,xStep*0.6), y1=y(b.o), y2=y(b.c);
+    ctx.fillRect(x-w/2, Math.min(y1,y2), w, Math.max(2,Math.abs(y1-y2)));
+    if(b.note){ ctx.fillStyle="#ffd27d"; ctx.font="11px system-ui"; ctx.fillText("●", x+6, y(b.h)-6); }
+  }
+
+  // order lines（只在正確進場時顯示）
+  if(order){
+    const mark=(p,color,text)=>{ctx.strokeStyle=color; ctx.setLineDash([6,5]); ctx.beginPath(); ctx.moveTo(0,y(p)); ctx.lineTo(W,y(p)); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=color; ctx.font="12px system-ui"; ctx.fillText(text, W-140, y(p)-6);};
+    mark(order.entry, "#9bd1ff", `Entry ${order.entry.toFixed(2)}`);
+    mark(order.sl,    "#ff9b9b", `SL ${order.sl.toFixed(2)}`);
+    mark(order.tp,    "#79e0ab", `TP ${order.tp.toFixed(2)}`);
+    if(order.status){
+      ctx.fillStyle = order.status==="TP" ? "#79e0ab" : "#ff9b9b";
+      ctx.font="bold 18px system-ui"; ctx.fillText(order.status==="TP"?"✔ TAKE PROFIT":"+ STOP OUT", 20, 28);
+    }
+  }
+}
+
+/* ======================
+   UI & 流程
+   ====================== */
+function render(){
+  app.innerHTML="";
+  if(state.scene==="intro"){
+    const c=document.createElement('div'); c.className="card";
+    c.innerHTML=`
+      <h1>先漲→反轉「收下分析線」空單訓練</h1>
+      <p>完成本日模擬，你將學會：<b class="hl">交易計畫 → 交易流程 → 進場判斷 → 確認K棒是否『收下/收上』分析線</b>。<br/>每天會出現<b>多個訊號</b>，只有<b>「先漲→反轉且收下分析線」</b>那一筆才可做空；其餘都應放棄。</p>
+      <div class="hud">
+        <span class="tag">分析線 ${CONFIG.key.watershed}</span>
+        <span class="tag">唯一正確：收下分析線的反轉空</span>
+        <span class="tag">其他都錯：收上/不在分析線/非先漲</span>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-primary" id="start">開始模擬</button>
+      </div>
+      <p class="small">✅ 教學用途｜❌ 非投資建議</p>
+    `;
+    app.appendChild(c);
+    el('start').onclick=()=>{state.scene="sim"; generateDay(); render(); togglePlay(true);};
+  }
+
+  if(state.scene==="sim"){
+    const c=document.createElement('div'); c.className="card";
+    c.innerHTML=`
+      <h1>模擬盤（出現訊號時請判斷是否進場空單）</h1>
+      <div class="hud">
+        <span class="tag">可見K：${state.visible}/${state.bars.length}</span>
+        <span class="tag">今日訊號數：${state.sigs.length}</span>
+        <span class="tag">已判斷：${state.decisions.length}/${state.sigs.length}</span>
+      </div>
+      <div id="chartWrap"><canvas id="chart"></canvas><div id="overlay"></div></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn" id="play">播放/暫停</button>
+        <button class="btn" id="step">+1 K</button>
+        <button class="btn btn-ghost" id="reset">重來</button>
+      </div>
+      <div class="list small" style="margin-top:10px">
+        <b>規則提示：</b>
+        <ul>
+          <li>✅ 正確：<b>先漲</b>後的<b>反轉K</b>，且<b>收下分析線</b> → 空單</li>
+          <li>❌ 錯誤：在分析線但<b>收上</b>；或訊號出在<b>遠離分析線</b>；或<b>非先漲後反轉</b></li>
+          <li>✅ 進場後：SL=訊號高點+1、TP=2R（僅對正確單）</li>
+        </ul>
+      </div>
+    `;
+    app.appendChild(c);
+    const levels=[
+      {price:CONFIG.key.breakoutHigh,label:`突破高 ${CONFIG.key.breakoutHigh}`,color:"rgba(255,170,120,.85)"},
+      {price:CONFIG.key.watershed,label:`分析線 ${CONFIG.key.watershed}`,color:"rgba(130,170,255,.9)"},
+      {price:CONFIG.key.breakoutLow,label:`突破低 ${CONFIG.key.breakoutLow}`,color:"rgba(255,210,120,.8)"}
+    ];
+    drawChart(el('chart'), state.bars, state.visible, levels, state.order);
+    el('play').onclick=()=>togglePlay();
+    el('step').onclick=()=>stepOnce();
+    el('reset').onclick=()=>resetAll();
+  }
+
+  if(state.scene==="result"){
+    const c=document.createElement('div'); c.className="card";
+    const total=state.sigs.length, correctCount = state.decisions.filter(d=>d.correct).length;
+    const missedCorrect = state.sigs.find(s=>s.valid) && !state.decisions.find(d=>d.idx===state.sigs.find(s=>s.valid).idx && d.action==="enter");
+    c.innerHTML=`
+      <h1>成績單</h1>
+      <p>總訊號：${total}　判斷正確：<b class="ok">${correctCount}</b>　判斷錯誤：<b class="bad">${total - correctCount}</b></p>
+      ${missedCorrect?'<p class="bad">你錯過了唯一正確的進場。</p>':''}
+      ${state.order?`<p>交易結果：${state.order.status==="TP"?'<b class="ok">+2R</b>':'<b class="bad">-1R</b>'}（Entry ${state.order.entry.toFixed(2)} / SL ${state.order.sl.toFixed(2)} / TP ${state.order.tp.toFixed(2)}）</p>`:''}
+      <h2>逐筆回顧</h2>
+      <div class="list small" id="log"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+        <button class="btn" id="again">再玩一次</button>
+      </div>
+      <p class="small">訓練重點：<b>與計畫一致且『收下分析線』才下空單</b>；否則<b>放棄</b>。</p>
+    `;
+    app.appendChild(c);
+    const log=document.getElementById('log');
+    log.innerHTML = "<ol style='margin:0;padding-left:18px'>" + state.sigs.map(s=>{
+      const d = state.decisions.find(x=>x.idx===s.idx);
+      const ans = s.valid ? "應進場空單" : "應放棄";
+      const you = d ? (d.action==="enter"?"你選擇：下單":"你選擇：放棄") : "（未回應）";
+      const isRight = d ? d.correct : false;
+      return `<li style="margin:6px 0">
+        <div>${state.bars[s.idx].t} — ${s.valid?"✅":"❌"} ${s.note}</div>
+        <div>標準答案：${ans}　｜　${you}　→　${isRight?'<span class="ok">判斷正確</span>':'<span class="bad">判斷錯誤</span>'}</div>
+      </li>`;
+    }).join("") + "</ol>";
+    el('again').onclick=()=>resetAll();
+  }
+}
+
+/* ======================
+   播放控制
+   ====================== */
+function togglePlay(force){
+  const playing=!!state.timer;
+  if(playing && !force){ clearInterval(state.timer); state.timer=null; toast("暫停"); return; }
+  if(!playing){ state.timer=setInterval(stepOnce,650); toast("播放中…"); }
+}
+function stepOnce(){
+  if(state.visible < state.bars.length){
+    state.visible++;
+    render();
+
+    // 到達任一訊號，彈窗判斷
+    const sig = state.sigs.find(s=>s.idx===state.visible-1);
+    if(sig) setTimeout(()=>askDecision(sig), 60);
+
+    // 若已有正確進場單，監控 TP/SL
+    if(state.order && !state.order.status){
+      const lastC = state.bars[state.visible-1].c;
+      const hitTP = lastC <= state.order.tp;
+      const hitSL = lastC >= state.order.sl;
+      if(hitTP){ state.order.status="TP"; }
+      if(hitSL){ state.order.status="SL"; }
+      if(state.order.status){ clearInterval(state.timer); state.timer=null; setTimeout(()=>{ state.scene="result"; render(); }, 600); }
+    }
+  }else{
+    clearInterval(state.timer); state.timer=null;
+    state.scene="result"; render();
+  }
+}
+
+/* ======================
+   訊號判斷彈窗
+   ====================== */
+function askDecision(sig){
+  // 若這個訊號已回覆過，直接略過
+  if(state.decisions.find(d=>d.idx===sig.idx)) return;
+
+  const overlay = document.getElementById('overlay');
+  const b = state.bars[sig.idx];
+  overlay.innerHTML = `
+    <div class="overlay">
+      <div class="panel">
+        <h2 style="margin:0 0 6px">反轉訊號出現（${b.t}）</h2>
+        <p class="small">${b.note || "—"}</p>
+        <ul class="small">
+          <li>是否在分析線？ ${sig.atLine?'<b>大約在</b>':'<b>不在</b>'}（K棒收${sig.closeRel==="below"?"<b>下</b>":"<b>上</b>"}分析線）</li>
+          <li>你的計畫：<b>先漲→反轉且收下分析線才做空</b></li>
+        </ul>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn btn-ghost" id="skip">不符合，放棄</button>
+          <button class="btn btn-primary" id="enter">符合，進場<b>空單</b></button>
+        </div>
+      </div>
+    </div>`;
+  el('skip').onclick=()=>{
+    overlay.innerHTML="";
+    const correct = !sig.valid; // 正確作法：錯誤訊號就該放棄
+    state.decisions.push({idx:sig.idx, action:"skip", correct, type:sig.type, note:sig.note});
+  };
+  el('enter').onclick=()=>{
+    overlay.innerHTML="";
+    const correct = !!sig.valid; // 只有唯一正確訊號才應進場
+    state.decisions.push({idx:sig.idx, action:"enter", correct, type:sig.type, note:sig.note});
+    if(correct && !state.order){
+      // 只在正確那筆建立實單：SL=高點+1，TP=2R
+      const entry = b.c, sl = b.h + 1.0, R = Math.abs(entry - sl), tp = entry - CONFIG.rrMin*R;
+      state.order = {entry, sl, tp, status:null};
+      toast("✅ 依計畫進場空單");
+      render();
+    }else if(!correct){
+      toast("❌ 這筆不該進場（訓練：學會放棄）");
+    }else if(state.order){
+      toast("你已經做過正確單；其餘僅做判斷練習");
+    }
+  };
+}
+
+/* ======================
+   輔助 & 重置
+   ====================== */
+function resetAll(){
+  clearInterval(state.timer); state.timer=null;
+  state.scene="intro"; state.bars=[]; state.sigs=[]; state.visible=0; state.order=null; state.decisions=[];
+  render();
+}
+
+/* 啟動 */
+render();
+</script>
+</body>
+</html>
