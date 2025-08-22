@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
-<title>反轉分析線訓練 Playable — MT5擬真版</title>
+<title>反轉分析線訓練 Playable — 真實數據版</title>
 <style>
   :root{--bg:#0f1220;--panel:#14192b;--text:#e9ecf4;--muted:#9aa3b2;--accent:#52d3a8;--bad:#ff6b6b;--good:#79e0ab;--grid:#ffffff14}
   *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-  body{margin:0;background:linear-gradient(180deg,#0d101c,#0f1220 30%);color:var(--text)}
+  body{margin:0;background:#0f1220;color:var(--text)}
   .wrap{max-width:1180px;margin:0 auto;padding:12px}
   .toolbar{display:flex;align-items:center;gap:8px;background:#0c1222;border:1px solid #ffffff14;border-radius:10px;padding:8px 10px;box-shadow:0 6px 18px #00000040}
   .toolbar .btn{padding:6px 10px;border-radius:8px;border:1px solid #ffffff1f;background:#0f1a2e;color:#dfe6ff;cursor:pointer}
@@ -20,19 +20,23 @@
   .market h3{font-size:13px;margin:0 0 8px;color:#cbd6ff}
   .quote{display:flex;justify-content:space-between;padding:6px 8px;border-radius:8px;background:#0e1428;margin-bottom:6px}
   .quote small{color:#a8b2d1}
-  #chartWrap{position:relative;background:#0b0f1d;border:1px solid rgba(255,255,255,.08);border-radius:12px;min-height:520px}
-  #chart{width:100%;height:520px;display:block}
+  #chartWrap{position:relative;background:#0b0f1d;border:1px solid rgba(255,255,255,.08);border-radius:12px;min-height:560px}
+  #chart{width:100%;height:560px;display:block}
   .priceAxis{position:absolute;right:6px;top:6px;bottom:36px;width:70px;pointer-events:none}
   .priceAxis .tick{position:absolute;right:0;color:#cfe0ff;font-size:11px;transform:translateY(-50%)}
   .timeAxis{position:absolute;left:8px;right:8px;bottom:6px;height:24px;color:#bfc9e6;font-size:11px}
   .timeAxis .tick{position:absolute;bottom:0;transform:translateX(-50%)}
-  .volPane{position:absolute;left:0;right:70px;bottom:30px;height:90px}
   .sigBanner{position:absolute;right:14px;bottom:14px;background:#0e1426;border:1px solid #ffffff22;border-radius:12px;padding:10px 12px;box-shadow:0 12px 28px #00000066;display:flex;gap:10px;align-items:center}
   .sigBanner .count{width:56px;height:6px;background:#ffffff22;border-radius:999px;overflow:hidden}
   .sigBanner .bar{height:100%;width:100%;background:#52d3a8}
   .sigBanner .actions button{border:0;border-radius:10px;padding:8px 10px;font-weight:700;cursor:pointer}
   .sigBanner .enter{background:var(--accent);color:#06291b}
   .sigBanner .skip{background:transparent;border:1px solid #ffffff3a;color:#e9ecf4}
+  .orderDock{display:flex;gap:10px;align-items:center;background:#0e1426;border:1px solid #ffffff22;border-radius:12px;padding:10px 12px;box-shadow:0 12px 28px #00000033;margin-top:8px}
+  .orderDock input{width:90px;background:#0f1a2e;border:1px solid #ffffff24;border-radius:8px;padding:6px 8px;color:#e9ecf4}
+  .orderDock .btn{border:0;border-radius:10px;padding:8px 10px;font-weight:700;cursor:pointer}
+  .orderDock .buy{background:#79e0ab;color:#06291b}
+  .orderDock .sell{background:#ff9b9b;color:#2a0c0c}
   .alertLog{margin-top:10px;background:#0c1428;border:1px solid #ffffff14;border-radius:10px;padding:8px}
   .alertLog table{width:100%;border-collapse:collapse;font-size:12px}
   .alertLog th,.alertLog td{border-bottom:1px dashed #ffffff14;padding:6px 6px;text-align:left;color:#cfe0ff}
@@ -72,12 +76,23 @@
       <div style="font-size:12px;color:#9aa8c7">Spread <b id="qSpr">—</b></div>
     </aside>
 
-    <main id="chartWrap">
-      <canvas id="chart"></canvas>
-      <div class="priceAxis" id="priceAxis"></div>
-      <div class="volPane" id="volPane"></div>
-      <div class="timeAxis" id="timeAxis"></div>
-    </main>
+    <main id="chartCol">
+      <div id="chartWrap">
+        <canvas id="chart"></canvas>
+        <div class="priceAxis" id="priceAxis"></div>
+        <div class="timeAxis" id="timeAxis"></div>
+      </div>
+      <div class="orderDock">
+        <div style="font-weight:700;margin-right:6px">下單</div>
+        <small>資金</small><input id="acc" type="number" value="10000"/>
+        <small>風險%</small><input id="risk" type="number" value="1"/>
+        <small>SL距離(R)</small><input id="rR" type="number" value="1"/>
+        <button class="btn sell" id="btnSell">做空</button>
+        <button class="btn buy" id="btnBuy">做多</button>
+        <button class="btn" id="btnClose">平倉</button>
+        <small id="posInfo" style="margin-left:6px;color:#9fb0cf">無倉位</small>
+      </div>
+  </main>
   </div>
 
   <section class="trade">
@@ -86,162 +101,203 @@
       <span class="tag">已判斷：<b id="hudDec">0</b></span>
       <span class="tag">可見K：<b id="hudVis">0</b></span>
       <span class="tag">規則：正確僅有一筆（收上/收下分析線）</span>
+      <span class="tag">浮動損益：<b id="hudPnL">0R / $0</b></span>
     </div>
   </section>
 
   <section class="alertLog">
     <table>
-      <thead><tr><th style="width:80px">時間</th><th style="width:60px">週期</th><th style="width:60px">方向</th><th>說明</th><th style="width:120px">分析線</th><th style="width:80px">正確?</th></tr></thead>
+      <thead><tr><th style="width:80px">時間</th><th style="width:60px">週期</th><th style="width:60px">方向</th><th>說明</th><th style="width:120px">分析線價</th><th style="width:80px">正確?</th></tr></thead>
       <tbody id="logBody"></tbody>
     </table>
   </section>
 </div>
 
 <script>
+// ===== Config =====
 const CONFIG = {
   symbol: "XAUUSD",
   timeframe: "M15",
   playSpeed: 650,
   rrMin: 2,
   rrThreshold: 1.5,
-  signalsMin: 4,
+  signalsMin: 3,
   signalsMax: 5,
-  key:{
-    shortLines:[3419.40,3428.89,3458.74,3477.70],
-    longLines: [3373.96,3373.63,3353.48,3344.28,3333.33,3325.57,3297.38,3296.18,3286.97,3269.64,3247.36]
-  }
+  fibKeys:[0.236,0.382,0.5,0.618,0.786],     // 只用於計算分析線，不顯示任何文字
+  dataSources:[
+    'XAUUSD+_M15_202508010100_202508220600.csv',
+    'XAUUSD_M15.csv','data/XAUUSD_M15.csv','/data/XAUUSD_M15.csv'
+  ]
 };
 
-const state = { mode:"SHORT_ONLY", timeframe:CONFIG.timeframe, playSpeed:CONFIG.playSpeed, bars:[], sigs:[], visible:0, timer:null, order:null, analysisLine:null, decisions:[] };
+// ===== State =====
+const state = { mode:"SHORT_ONLY", timeframe:CONFIG.timeframe, playSpeed:CONFIG.playSpeed, bars:[], sigs:[], visible:0, timer:null, order:null, decisions:[], analysisLine:null, position:null, dataset:[] };
 const el=id=>document.getElementById(id);
 function toast(msg,ms=1200){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),ms);}  
 
-// -------- 擬真生成：三段式 trend → reversal → follow，並混入干擾訊號 --------
-function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
-
-function generateDay(mode = state.mode){
-  const total = state.timeframe==="M15" ? 40 : 120;     // 稍長，方便觀察
-  const minutesPerBar = state.timeframe==="M15" ? 15 : 5;
-  const startH = 9;
-  const rnd = (a,b)=>a+Math.random()*(b-a);
-
-  const bars = [];
-  let price = 3400 + rnd(-8,8);
-
-  // 1) 前段趨勢：空訓練先漲、多訓練先跌
-  const leg1 = Math.floor(total*0.42);
-  for(let i=0;i<leg1;i++){
-    const dir = (mode==='SHORT_ONLY') ? +1 : -1;
-    const step = dir*(1.0 + rnd(-0.2,0.8));
-    const o=price, c=o+step, h=Math.max(o,c)+rnd(0.2,0.6), l=Math.min(o,c)-rnd(0.2,0.6);
-    bars.push({o,h,l,c}); price=c;
+// ===== CSV loader (robust to MT5/TV exports) =====
+async function loadFirstCSV(){
+  for(const p of CONFIG.dataSources){
+    try{ const r=await fetch(p,{cache:'no-store'}); if(r.ok){ const text=await r.text(); const rows=parseOHLC(text); if(rows.length>200){ console.log('CSV loaded:',p,rows.length); return rows; } } }
+    catch(e){ /* try next */ }
   }
-
-  // 2) 反轉橋段：把價格慢慢拉到分析線附近
-  const line = (mode==='SHORT_ONLY') ? pick(CONFIG.key.shortLines) : pick(CONFIG.key.longLines);
-  state.analysisLine = line;
-
-  const bridge = 3 + Math.floor(Math.random()*4);
-  for(let i=0;i<bridge;i++){
-    const toLine = (line - price);
-    const step = Math.sign(toLine) * Math.min(Math.abs(toLine), 0.9) + rnd(-0.25,0.25);
-    const o=price, c=o+step, h=Math.max(o,c)+rnd(0.18,0.5), l=Math.min(o,c)-rnd(0.18,0.5);
-    bars.push({o,h,l,c}); price=c;
-  }
-
-  // 正確訊號K：空=開在上收在下，多=開在下收在上（必定跨越分析線）
-  let o = price + (mode==='SHORT_ONLY' ? +0.6 : -0.6);
-  let c = line  + (mode==='SHORT_ONLY' ? -0.25: +0.25);
-  let h = Math.max(o,c)+1.2, l=Math.min(o,c)-1.2;
-  const correctIdx = bars.length;
-  bars.push({o,h,l,c, note:`✅ 正確：收${mode==='SHORT_ONLY'?'下':'上'}分析線`});
-  price = c;
-
-  // 3) 後續延續：沿正確方向推動，形成合理TP/SL
-  const dirFollow = (mode==='SHORT_ONLY') ? -1 : +1;
-  while(bars.length < total){
-    const step = dirFollow*(1.2 + rnd(-0.4,0.7));
-    const o=price, c=o+step, h=Math.max(o,c)+rnd(0.2,0.5), l=Math.min(o,c)-rnd(0.2,0.5);
-    bars.push({o,h,l,c}); price=c;
-  }
-
-  // 混入錯誤訊號：在分析線但收錯邊 / 偏離分析線
-  const wantSignals = Math.floor(CONFIG.signalsMin + Math.random()*(CONFIG.signalsMax - CONFIG.signalsMin + 1));
-  const indices = new Set([correctIdx]);
-  while(indices.size < wantSignals){
-    const i = 4 + Math.floor(Math.random()*(bars.length-8));
-    if([...indices].every(x => Math.abs(x - i) >= 3)) indices.add(i);
-  }
-  const sigs = [];
-  [...indices].forEach(idx=>{
-    const b = bars[idx]; let valid=false, note="", atLine=false, closeRel="", type="";
-    if(idx===correctIdx){
-      valid=true; atLine=true; closeRel = (mode==='SHORT_ONLY'?'below':'above'); type='correct_on_line';
-    }else if(Math.random()<0.55){
-      // 在分析線，但收錯邊
-      atLine=true;
-      if(mode==='SHORT_ONLY'){ b.o=line-0.3; b.c=line+0.35; b.h=Math.max(b.o,b.c)+2.2; b.l=Math.min(b.o,b.c)-1.5; closeRel='above'; type='wrong_on_line_close_above'; note='在分析線但收上'; }
-      else { b.o=line+0.3; b.c=line-0.35; b.h=Math.max(b.o,b.c)+1.5; b.l=Math.min(b.o,b.c)-2.2; closeRel='below'; type='wrong_on_line_close_below'; note='在分析線但收下'; }
+  console.warn('CSV not found, fallback to synthetic.');
+  return [];
+}
+function parseOHLC(text){
+  const lines=text.split(/\r?\n/).filter(l=>l && !/^#/.test(l));
+  if(lines.length<2) return [];
+  const delim = (lines[0].match(/;/) && lines[0].split(';').length>=5)?';':',';
+  const out=[];
+  for(const ln of lines){
+    const a=ln.split(delim).map(s=>s.trim()); if(a.length<5) continue;
+    let dt, o,h,l,c;
+    // 形式1: 日期, 時:分, O,H,L,C
+    if(/\d{4}[.\/-]\d{2}[.\/-]\d{2}/.test(a[0]) && /\d{1,2}:\d{2}/.test(a[1])){
+      dt = a[0].replace(/[.]/g,'-')+' '+a[1]; o=parseFloat(a[2]); h=parseFloat(a[3]); l=parseFloat(a[4]); c=parseFloat(a[5]);
+    }else if(/\d{4}[.\/-]\d{2}[.\/-]\d{2}\s+\d{1,2}:\d{2}/.test(a[0])){
+      // 形式2: 日期 時間 一欄, 後接 O,H,L,C
+      dt = a[0].replace(/[.]/g,'-'); o=parseFloat(a[1]); h=parseFloat(a[2]); l=parseFloat(a[3]); c=parseFloat(a[4]);
     }else{
-      // 遠離分析線
-      atLine=false;
-      const shift=(Math.random()<0.5?-1:1)*(1.4+Math.random()*2.0);
-      b.o=line+shift; b.c=b.o+(Math.random()<0.5?-0.4:0.4);
-      b.h=Math.max(b.o,b.c)+2.0; b.l=Math.min(b.o,b.c)-1.6;
-      closeRel=b.c>line?'above':'below'; type='wrong_off_line'; note='遠離分析線的錯誤訊號';
+      // 嘗試以表頭對應
+      const lowHdr = lines[0].toLowerCase();
+      const idx=(k)=>lowHdr.split(delim).findIndex(x=>x.includes(k));
+      const ti=idx('time')>-1?idx('time'):idx('date');
+      const oi=idx('open'),hi=idx('high'),li=idx('low'),ci=idx('close');
+      if(oi>-1&&hi>-1&&li>-1&&ci>-1){ dt=a[ti]||''; o=parseFloat(a[oi]); h=parseFloat(a[hi]); l=parseFloat(a[li]); c=parseFloat(a[ci]); }
+      else continue;
     }
-    sigs.push({idx,type,valid,note:(valid?'✅ ':'❌ ')+ (note||`反轉訊號`),atLine,closeRel});
-  });
-
-  // 產生時間軸
-  let tMin=0;
-  for(let i=0;i<bars.length;i++){
-    const hh = startH + Math.floor(tMin/60), mm = tMin%60;
-    bars[i].t = `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
-    tMin += minutesPerBar;
+    if(!isFinite(o)||!isFinite(h)||!isFinite(l)||!isFinite(c)) continue;
+    out.push({t:new Date(dt),o,h,l,c});
   }
-
-  state.bars = bars;
-  state.sigs = sigs.sort((a,b)=>a.idx-b.idx);
-  state.visible = 1;
-  state.order = null;
-  state.decisions = [];
+  // 依時間排序
+  out.sort((a,b)=>a.t-b.t);
+  return out;
 }
 
-// ---------- 繪圖 ----------
+// ===== Pick a contiguous session (no weekend gaps) =====
+function pickSession(data, minutesPerBar){
+  const step = minutesPerBar*60*1000;
+  const want = (state.timeframe==='M15')?48:144; // 12小時/整天
+  // 掃描連續片段
+  let start=0, best=[]; while(start<data.length- want){
+    const seg = [data[start]]; let i=start+1; while(i<data.length && (data[i].t - data[i-1].t)===step){ seg.push(data[i]); if(seg.length>=want) break; i++; }
+    if(seg.length>=want){ best.push(seg); start=i; } else start++;
+  }
+  if(best.length===0) return [];
+  // 依需求挑選趨勢方向（SHORT:先漲; LONG:先跌）
+  const dir = state.mode==='SHORT_ONLY'?+1:-1;
+  const scored = best.map(seg=>({seg,score: dir*Math.sign(seg[Math.floor(seg.length*0.4)].c - seg[0].c)}));
+  const candidates = scored.filter(s=>s.score>0).map(s=>s.seg);
+  const chosen = (candidates.length? candidates : best)[Math.floor(Math.random()*(candidates.length?candidates.length:best.length))];
+  return chosen;
+}
+
+// ===== Build bars & signals from real session =====
+function buildFromSession(seg){
+  const minutesPerBar = state.timeframe==='M15'?15:5;
+  // 複製數據，確保每根開盤=前一根收盤（CSV 本就如此）
+  const bars = seg.map((b,i)=>({ t: `${String(b.t.getHours()).padStart(2,'0')}:${String(b.t.getMinutes()).padStart(2,'0')}`, o: i?seg[i-1].c:b.o, h:b.h, l:b.l, c:b.c }));
+
+  // 用前40%選 swing hi/lo 算費波，只取其中一條為分析線（不顯示文字）
+  const head = bars.slice(0, Math.floor(bars.length*0.4));
+  const hi = Math.max(...head.map(b=>b.h)), lo = Math.min(...head.map(b=>b.l));
+  const upTrend = head[head.length-1].c > head[0].c; // 初段方向
+  const fibs = CONFIG.fibKeys.map(k=> upTrend? (lo + k*(hi-lo)) : (hi - k*(hi-lo)));
+  state.analysisLine = fibs[Math.floor(Math.random()*fibs.length)];
+
+  // 尋找唯一正確訊號：跨越分析線且符合理論方向
+  const correct = findCorrectSignal(bars, state.analysisLine, state.mode);
+  const sigs = [];
+  if(correct) sigs.push(correct);
+  // 加入錯誤干擾（在分析線收錯邊／遠離分析線）
+  const want = Math.max(CONFIG.signalsMin-1,2);
+  const nearIdx = bars.map((b,i)=>({i,b,dist:Math.abs(b.c-state.analysisLine)})).sort((a,b)=>a.dist-b.dist).slice(0,40).map(x=>x.i);
+  let used = new Set([correct?correct.idx:-999]);
+  // 在分析線但收錯邊
+  for(const i of nearIdx){ if(used.size>=(want)) break; if(used.has(i)) continue; const b=bars[i]; const wrong = buildWrongOnLine(b,i); if(wrong){ used.add(i); sigs.push(wrong);} }
+  // 遠離分析線
+  for(let i=10;i<bars.length-10 && sigs.length<CONFIG.signalsMax; i+=5){ if(used.has(i)) continue; const b=bars[i]; if(Math.abs(b.c-state.analysisLine)> (hi-lo)*0.25){ sigs.push({idx:i,type:'wrong_off_line',valid:false,note:'遠離分析線的錯誤訊號',atLine:false,closeRel: b.c>state.analysisLine?'above':'below'}); used.add(i);} }
+
+  state.bars = bars; state.sigs = sigs.sort((a,b)=>a.idx-b.idx); state.visible=1; state.order=null; state.decisions=[]; state.position=null;
+}
+function findCorrectSignal(bars, line, mode){
+  const start = Math.floor(bars.length*0.45);
+  for(let i=start;i<bars.length-10;i++){
+    const b=bars[i];
+    if(mode==='SHORT_ONLY' && b.o>line && b.c<line) return {idx:i,type:'correct_on_line_close_below',valid:true,note:'先漲→反轉，收下分析線',atLine:true,closeRel:'below'};
+    if(mode==='LONG_ONLY'  && b.o<line && b.c>line) return {idx:i,type:'correct_on_line_close_above',valid:true,note:'先跌→反轉，收上分析線',atLine:true,closeRel:'above'};
+  }
+  // 若沒找到，放寬到整段尋找
+  for(let i=10;i<bars.length-10;i++){
+    const b=bars[i];
+    if(mode==='SHORT_ONLY' && b.o>line && b.c<line) return {idx:i,type:'correct_on_line_close_below',valid:true,note:'收下分析線',atLine:true,closeRel:'below'};
+    if(mode==='LONG_ONLY'  && b.o<line && b.c>line) return {idx:i,type:'correct_on_line_close_above',valid:true,note:'收上分析線',atLine:true,closeRel:'above'};
+  }
+  return null;
+}
+function buildWrongOnLine(b,i){
+  const above = b.c>state.analysisLine;
+  if(state.mode==='SHORT_ONLY' && above){ return {idx:i,type:'wrong_on_line_close_above',valid:false,note:'在分析線但收上',atLine:true,closeRel:'above'}; }
+  if(state.mode==='LONG_ONLY' && !above){ return {idx:i,type:'wrong_on_line_close_below',valid:false,note:'在分析線但收下',atLine:true,closeRel:'below'}; }
+  return null;
+}
+
+// ===== Rendering =====
 const canvas=el('chart'); const pxAxis=el('priceAxis'); const tmAxis=el('timeAxis');
 function draw(){
   const ctx = canvas.getContext('2d'); const W = canvas.width = canvas.clientWidth; const H = canvas.height = canvas.clientHeight;
   ctx.clearRect(0,0,W,H); const data=state.bars.slice(0,state.visible); if(!data.length) return;
-  const levels=[{price:state.analysisLine,label:`分析線 ${state.analysisLine}`,color:'rgba(130,170,255,.9)'}];
-  const hi = Math.max(...data.map(b=>b.h), ...levels.map(v=>v.price)); const lo = Math.min(...data.map(b=>b.l), ...levels.map(v=>v.price));
-  const pad=(hi-lo)*0.12||5, yMax=hi+pad, yMin=lo-pad; const xStep=W/Math.max(40,data.length+2); const y=v=>H-(v-yMin)/(yMax-yMin)*H;
-  ctx.strokeStyle='var(--grid)'; ctx.lineWidth=1; for(let i=0;i<6;i++){const yv=H*i/5; ctx.beginPath(); ctx.moveTo(0,yv); ctx.lineTo(W,yv); ctx.stroke();}
-  ctx.setLineDash([3,6]); const step=state.timeframe==='M15'?4:12; for(let i=0;i<data.length;i+=step){const x=24+i*xStep; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();} ctx.setLineDash([]);
-  ctx.setLineDash([4,4]); levels.forEach(l=>{ctx.strokeStyle=l.color; ctx.beginPath(); ctx.moveTo(0,y(l.price)); ctx.lineTo(W,y(l.price)); ctx.stroke(); ctx.fillStyle=l.color; ctx.font='12px system-ui'; ctx.fillText(l.label, 8, y(l.price)-6);}); ctx.setLineDash([]);
-  for(let i=0;i<data.length;i++){const b=data[i], x=24+i*xStep, up=b.c>=b.o; ctx.strokeStyle=up?'rgba(140,220,180,.9)':'rgba(255,130,130,.9)'; ctx.fillStyle=up?'rgba(140,220,180,.25)':'rgba(255,130,130,.25)'; ctx.beginPath(); ctx.moveTo(x,y(b.h)); ctx.lineTo(x,y(b.l)); ctx.stroke(); const w=Math.max(3,xStep*0.6), y1=y(b.o), y2=y(b.c); ctx.fillRect(x-w/2, Math.min(y1,y2), w, Math.max(2,Math.abs(y1-y2))); if(b.note){ ctx.fillStyle="#ffd27d"; ctx.font='11px system-ui'; ctx.fillText('●', x+6, y(b.h)-6);} }
+  const hi = Math.max(...data.map(b=>b.h), state.analysisLine||-Infinity); const lo = Math.min(...data.map(b=>b.l), state.analysisLine||Infinity);
+  const pad=(hi-lo)*0.12||5, yMax=hi+pad, yMin=lo-pad; const xStep=W/Math.max(48,data.length+2); const y=v=>H-(v-yMin)/(yMax-yMin)*H;
+  // grid
+  const step=state.timeframe==='M15'?4:12; ctx.strokeStyle='var(--grid)'; for(let i=0;i<6;i++){const yv=H*i/5; ctx.beginPath(); ctx.moveTo(0,yv); ctx.lineTo(W,yv); ctx.stroke();} ctx.setLineDash([3,6]); for(let i=0;i<data.length;i+=step){const x=24+i*xStep; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();} ctx.setLineDash([]);
+  // analysis line（不顯示任何費波文字，只顯示價格）
+  if(state.analysisLine){ ctx.setLineDash([4,4]); ctx.strokeStyle='rgba(190,210,120,.95)'; const yL=y(state.analysisLine); ctx.beginPath(); ctx.moveTo(0,yL); ctx.lineTo(W,yL); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle='rgba(190,210,120,.95)'; ctx.font='12px system-ui'; ctx.fillText(state.analysisLine.toFixed(2), W-70, yL-6); }
+  // candles
+  for(let i=0;i<data.length;i++){const b=data[i], x=24+i*xStep, up=b.c>=b.o; ctx.strokeStyle=up?'rgba(140,220,180,.9)':'rgba(255,130,130,.9)'; ctx.fillStyle=up?'rgba(140,220,180,.25)':'rgba(255,130,130,.25)'; ctx.beginPath(); ctx.moveTo(x,y(b.h)); ctx.lineTo(x,y(b.l)); ctx.stroke(); const w=Math.max(3,xStep*0.6), y1=y(b.o), y2=y(b.c); ctx.fillRect(x-w/2, Math.min(y1,y2), w, Math.max(2,Math.abs(y1-y2))); }
+  // order lines（自動單）
   if(state.order){ const mark=(p,color,text)=>{ctx.strokeStyle=color; ctx.setLineDash([6,5]); ctx.beginPath(); ctx.moveTo(0,y(p)); ctx.lineTo(W,y(p)); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=color; ctx.font='12px system-ui'; ctx.fillText(text, W-150, y(p)-6);}; mark(state.order.entry,'#9bd1ff',`Entry ${state.order.entry.toFixed(2)}`); mark(state.order.sl,'#ff9b9b',`SL ${state.order.sl.toFixed(2)}`); mark(state.order.tp,'#79e0ab',`TP ${state.order.tp.toFixed(2)}`); if(state.order.status){ ctx.fillStyle=state.order.status==='TP'?'#79e0ab':'#ff9b9b'; ctx.font='bold 18px system-ui'; ctx.fillText(state.order.status==='TP'?'✔ TAKE PROFIT':'+ STOP OUT', 20, 28);} }
-  pxAxis.innerHTML=''; const ticks=6; for(let i=0;i<=ticks;i++){const v=yMin+(yMax-yMin)*i/ticks; const d=document.createElement('div'); d.className='tick'; d.style.top=`${H-(H*i/ticks)}px`; d.textContent=v.toFixed(2); pxAxis.appendChild(d);} 
-  tmAxis.innerHTML=''; const tStep=state.timeframe==='M15'?4:12; for(let i=0;i<data.length;i+=tStep){const d=document.createElement('div'); d.className='tick'; d.style.left=`${(24+i*xStep)}px`; d.textContent=data[i].t; tmAxis.appendChild(d);} 
+  // manual position HUD
+  if(state.position){ const p=state.position; const color=p.side==='LONG'?'#79e0ab':'#ff9b9b'; ctx.strokeStyle=color; ctx.setLineDash([5,4]); ctx.beginPath(); ctx.moveTo(0,y(p.entry)); ctx.lineTo(W,y(p.entry)); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=color; ctx.font='12px system-ui'; ctx.fillText(`${p.side} @ ${p.entry.toFixed(2)} | ${p.pnlR.toFixed(2)}R / $${p.pnl$.toFixed(0)}`, 20, 28); }
+  // axes
+  pxAxis.innerHTML=''; const ticks=6; for(let i=0;i<=ticks;i++){const v=yMin+(yMax-yMin)*i/ticks; const d=document.createElement('div'); d.className='tick'; d.style.top=`${H-(H*i/ticks)}px`; d.textContent=v.toFixed(2); pxAxis.appendChild(d);} tmAxis.innerHTML=''; const tStep=state.timeframe==='M15'?4:12; for(let i=0;i<data.length;i+=tStep){const d=document.createElement('div'); d.className='tick'; d.style.left=`${(24+i*xStep)}px`; d.textContent=data[i].t; tmAxis.appendChild(d);} 
 }
 
-function refreshHUD(){ el('hudSig').textContent=state.sigs.length; el('hudDec').textContent=state.decisions.length; el('hudVis').textContent=`${state.visible}/${state.bars.length}`; el('hudInfo').textContent = `${CONFIG.symbol} • ${state.timeframe} • 模式 ${state.mode==='SHORT_ONLY'?'空':'多'}`; const last=state.bars[state.visible-1]; if(last){ el('qBid').textContent=last.c.toFixed(2); el('qAsk').textContent=(last.c+0.2).toFixed(2); el('qSpr').textContent='0.20'; } }
-function pushAlertLog(sig){ const b=state.bars[sig.idx]; const tr=document.createElement('tr'); tr.innerHTML=`<td>${b.t}</td><td>${state.timeframe}</td><td>${state.mode==='SHORT_ONLY'?'空':'多'}</td><td>${sig.note}</td><td>${state.analysisLine}</td><td>${sig.valid?'✅':'—'}</td>`; el('logBody').prepend(tr); }
-
+// ===== HUD & Banners =====
+function refreshHUD(){ el('hudSig').textContent=state.sigs.length; el('hudDec').textContent=state.decisions.length; el('hudVis').textContent=`${state.visible}/${state.bars.length}`; el('hudInfo').textContent = `${CONFIG.symbol} • ${state.timeframe} • 模式 ${state.mode==='SHORT_ONLY'?'空':'多'}`; const last=state.bars[state.visible-1]; if(last){ el('qBid').textContent=last.c.toFixed(2); el('qAsk').textContent=(last.c+0.2).toFixed(2); el('qSpr').textContent='0.20'; } el('hudPnL').textContent = state.position?`${state.position.pnlR.toFixed(2)}R / $${state.position.pnl$.toFixed(0)}`:'0R / $0'; }
+function pushAlertLog(sig){ const b=state.bars[sig.idx]; const tr=document.createElement('tr'); tr.innerHTML=`<td>${b.t}</td><td>${state.timeframe}</td><td>${state.mode==='SHORT_ONLY'?'空':'多'}</td><td>${sig.note}</td><td>${state.analysisLine?state.analysisLine.toFixed(2):''}</td><td>${sig.valid?'✅':'—'}</td>`; el('logBody').prepend(tr); }
 let bannerTimer=null, bannerBar=null, bannerBox=null;
-function showSignalBanner(sig){ if(bannerBox) bannerBox.remove(); const box=document.createElement('div'); box.className='sigBanner'; box.innerHTML=`<div style="font-size:13px">⚠️ 訊號：<b>${state.bars[sig.idx].t}</b><br><small>${sig.note}</small></div><div class="count"><div class="bar"></div></div><div class="actions"><button class="enter">E 進場</button> <button class="skip">S 放棄</button></div>`; el('chartWrap').appendChild(box); bannerBox=box; bannerBar=box.querySelector('.bar'); let t=5, step=20, total=t*1000/step, i=0; clearInterval(bannerTimer); bannerTimer=setInterval(()=>{ i++; bannerBar.style.width=`${100-Math.min(100, i/total*100)}%`; if(i>=total){ clearInterval(bannerTimer); box.remove(); recordDecision(sig,'timeout'); } }, step); box.querySelector('.enter').onclick=()=>{ clearInterval(bannerTimer); box.remove(); recordDecision(sig,'enter'); }; box.querySelector('.skip').onclick=()=>{ clearInterval(bannerTimer); box.remove(); recordDecision(sig,'skip'); }; }
+function showSignalBanner(sig){ if(bannerBox) bannerBox.remove(); const box=document.createElement('div'); box.className='sigBanner'; box.innerHTML=`<div style="font-size:13px">⚠️ 訊號：<b>${state.bars[sig.idx].t}</b><br><small>${sig.note}</small></div><div class="count"><div class="bar"></div></div><div class="actions"><button class="enter">E 進場</button> <button class="skip">S 放棄</button></div>`; document.getElementById('chartWrap').appendChild(box); bannerBox=box; bannerBar=box.querySelector('.bar'); let t=5, step=20, total=t*1000/step, i=0; clearInterval(bannerTimer); bannerTimer=setInterval(()=>{ i++; bannerBar.style.width=`${100-Math.min(100, i/total*100)}%`; if(i>=total){ clearInterval(bannerTimer); box.remove(); recordDecision(sig,'timeout'); } }, step); box.querySelector('.enter').onclick=()=>{ clearInterval(bannerTimer); box.remove(); recordDecision(sig,'enter'); }; box.querySelector('.skip').onclick=()=>{ clearInterval(bannerTimer); box.remove(); recordDecision(sig,'skip'); }; }
 function recordDecision(sig, action){ if(state.decisions.find(d=>d.idx===sig.idx)) return; const correct = action==='enter' ? !!sig.valid : !sig.valid; state.decisions.push({idx:sig.idx, action, correct, type:sig.type, note:sig.note}); if(action==='enter' && sig.valid && !state.order){ const b=state.bars[sig.idx]; const entry=b.c; let sl,tp; if(state.mode==='SHORT_ONLY'){ sl=b.h+1.0; const R=Math.abs(entry-sl); tp=entry-CONFIG.rrMin*R; } else { sl=b.l-0.5; const R=Math.abs(entry-sl); tp=entry+CONFIG.rrMin*R; } const rrActual=Math.abs(tp-entry)/Math.abs(entry-sl); state.order={entry,sl,tp,status:null}; if(rrActual<CONFIG.rrThreshold) toast('⚠️ 損益比偏低'); else toast('✅ 依計畫進場'); } else if(action==='enter' && !sig.valid) { toast('❌ 這筆不該進場'); } refreshHUD(); }
 
-function togglePlay(force){ const playing=!!state.timer; if(playing && !force){ clearInterval(state.timer); state.timer=null; toast('暫停'); return;} if(!playing){ state.timer=setInterval(stepOnce,state.playSpeed); toast('播放中…'); }}
-function stepOnce(){ if(state.visible<state.bars.length){ state.visible++; draw(); refreshHUD(); const sig=state.sigs.find(s=>s.idx===state.visible-1); if(sig){ pushAlertLog(sig); showSignalBanner(sig);} if(state.order && !state.order.status){ const last=state.bars[state.visible-1].c; const hitTP=state.mode==='SHORT_ONLY'? last<=state.order.tp : last>=state.order.tp; const hitSL=state.mode==='SHORT_ONLY'? last>=state.order.sl : last<=state.order.sl; if(hitTP) state.order.status='TP'; if(hitSL) state.order.status='SL'; if(state.order.status){ clearInterval(state.timer); state.timer=null; toast(state.order.status==='TP'?'+2R':'-1R'); } } } }
+// ===== Manual orders =====
+function openPosition(side){ const last=state.bars[state.visible-1]; if(!last) return; const entry=last.c; const riskPct=parseFloat(el('risk').value)||1; const acc=parseFloat(el('acc').value)||10000; const rR=parseFloat(el('rR').value)||1; const sl = side==='SHORT' ? entry + rR : entry - rR; const R = Math.abs(entry - sl); const tp = side==='SHORT' ? entry - CONFIG.rrMin*R : entry + CONFIG.rrMin*R; const dollarsPerR = acc * (riskPct/100); const size = dollarsPerR / R; state.position = {side, entry, sl, tp, R, size, pnl$:0, pnlR:0}; toast(`${side==='LONG'?'做多':'做空'} @ ${entry.toFixed(2)} (教學尺寸)`); refreshHUD(); }
+function closePosition(reason='手動平倉'){ if(state.position){ toast(`${reason}：$${state.position.pnl$.toFixed(0)} / ${state.position.pnlR.toFixed(2)}R`); state.position=null; refreshHUD(); } }
 
-function reset(){ clearInterval(state.timer); state.timer=null; state.visible=0; state.order=null; state.decisions=[]; el('logBody').innerHTML=''; generateDay(); draw(); refreshHUD(); }
+// ===== Playback =====
+function togglePlay(force){ const playing=!!state.timer; if(playing && !force){ clearInterval(state.timer); state.timer=null; toast('暫停'); return;} if(!playing){ state.timer=setInterval(stepOnce,state.playSpeed); toast('播放中…'); }}
+function stepOnce(){ if(state.visible<state.bars.length){ state.visible++; draw(); refreshHUD(); const sig=state.sigs.find(s=>s.idx===state.visible-1); if(sig){ pushAlertLog(sig); showSignalBanner(sig);} if(state.order && !state.order.status){ const last=state.bars[state.visible-1].c; const hitTP=state.mode==='SHORT_ONLY'? last<=state.order.tp : last>=state.order.tp; const hitSL=state.mode==='SHORT_ONLY'? last>=state.order.sl : last<=state.order.sl; if(hitTP) state.order.status='TP'; if(hitSL) state.order.status='SL'; if(state.order.status){ clearInterval(state.timer); state.timer=null; toast(state.order.status==='TP'?'+2R':'-1R'); } } if(state.position){ const p=state.position; const last=state.bars[state.visible-1].c; const sign=(p.side==='LONG'? +1 : -1); p.pnlR = sign*(last - p.entry)/p.R; p.pnl$ = p.pnlR * (p.size * p.R); const hitTP = (sign>0) ? last>=p.tp : last<=p.tp; const hitSL = (sign>0) ? last<=p.sl : last>=p.sl; if(hitTP){ closePosition('TP 觸發'); } else if(hitSL){ closePosition('SL 觸發'); } } } }
+
+// ===== Boot / Reset =====
+async function boot(){ state.dataset = await loadFirstCSV(); if(state.dataset.length===0){ console.error('無法載入CSV，請將 M15 檔案放到本頁同目錄，或調整 CONFIG.dataSources。'); }
+  reset(); }
+function reset(){ clearInterval(state.timer); state.timer=null; state.visible=0; state.order=null; state.decisions=[]; state.position=null; el('logBody').innerHTML='';
+  const minutesPerBar = state.timeframe==='M15'?15:5;
+  if(state.dataset.length){ const session = pickSession(state.dataset, minutesPerBar); if(session.length){ buildFromSession(session); draw(); refreshHUD(); return; } }
+  // fallback：若無資料
+  state.bars=[]; state.sigs=[]; draw(); refreshHUD(); toast('請提供 M15 CSV'); }
+
 ['tfSeg','modeSeg','spdSeg'].forEach(id=>el(id).addEventListener('click',e=>{ if(e.target.tagName!=='BUTTON')return; [...e.currentTarget.children].forEach(b=>b.classList.remove('active')); e.target.classList.add('active'); if(id==='tfSeg'){ state.timeframe=e.target.dataset.tf; } if(id==='modeSeg'){ state.mode=e.target.dataset.mode; } if(id==='spdSeg'){ state.playSpeed=parseInt(e.target.dataset.spd,10); } reset(); }));
+
 el('btnPlay').onclick=()=>togglePlay(); el('btnStep').onclick=()=>stepOnce();
 window.addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault();togglePlay();} if(e.code==='ArrowRight'){stepOnce();} if(e.key==='1'){document.querySelector('#tfSeg [data-tf="M5"]').click();} if(e.key==='2'){document.querySelector('#tfSeg [data-tf="M15"]').click();} if(e.key==='+'){state.playSpeed=Math.max(200,state.playSpeed-100);} if(e.key==='-'){state.playSpeed=Math.min(1200,state.playSpeed+100);} if(e.key.toLowerCase()==='e' && bannerBox){ bannerBox.querySelector('.enter').click(); } if(e.key.toLowerCase()==='s' && bannerBox){ bannerBox.querySelector('.skip').click(); } });
 
-// start
-reset();
+document.getElementById('btnBuy').onclick=()=>openPosition('LONG');
+document.getElementById('btnSell').onclick=()=>openPosition('SHORT');
+document.getElementById('btnClose').onclick=()=>closePosition();
+
+boot();
 </script>
 </body>
 </html>
