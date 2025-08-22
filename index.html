@@ -85,15 +85,21 @@
       </div>
         <div class="orderDock">
           <div style="font-weight:700;margin-right:6px">下單</div>
-          <small>SL價</small><input id="inSL" type="number"/>
-          <small>TP價</small><input id="inTP" type="number"/>
-          <small>掛單價</small><input id="inPend" type="number"/>
+          <small>手數</small><input id="lots" type="number"/>
+          <small>SL價</small><input id="slPrice" type="number"/>
+          <small>TP價</small><input id="tpPrice" type="number"/>
+          <small>掛單價</small><input id="pendPrice" type="number"/>
           <button class="btn buy" id="btnBuyNow">立即買入</button>
           <button class="btn sell" id="btnSellNow">立即賣出</button>
-          <button class="btn buy" id="btnBuyPend">掛單買入</button>
-          <button class="btn sell" id="btnSellPend">掛單賣出</button>
+          <button class="btn buy" id="btnPendBuy">掛單買入</button>
+          <button class="btn sell" id="btnPendSell">掛單賣出</button>
           <button class="btn" id="btnCloseAll">平倉全部</button>
           <small id="posInfo" style="margin-left:6px;color:#9fb0cf">無倉位</small>
+        </div>
+        <div id="riskBox" style="font-size:12px;color:#9fb0cf;margin-top:4px">
+          <span>買入風險: $<b id="riskBuy">0</b></span>
+          <span style="margin-left:6px">賣出風險: $<b id="riskSell">0</b></span>
+          <span style="margin-left:6px">掛單風險: $<b id="riskPend">0</b></span>
         </div>
   </main>
   </div>
@@ -243,8 +249,25 @@ function parseOHLC(text){
     out.push({ t: new Date(dt), o, h, l, c });
   }
 
-  out.sort((x,y)=>x.t - y.t);
-  return out;
+out.sort((x,y)=>x.t - y.t);
+return out;
+}
+
+function computeYesterdayFib(rows){
+  if(!rows.length) return [];
+  const last = rows[rows.length-1];
+  const todayStr = last.t.toDateString();
+  let targetStr = null;
+  for(let i=rows.length-1;i>=0;i--){
+    const dStr = rows[i].t.toDateString();
+    if(dStr !== todayStr){ targetStr = dStr; break; }
+  }
+  let subset;
+  if(targetStr){ subset = rows.filter(r=>r.t.toDateString()===targetStr); }
+  if(!subset || subset.length===0){ subset = rows.slice(-300); }
+  const hi = Math.max(...subset.map(r=>r.h));
+  const lo = Math.min(...subset.map(r=>r.l));
+  return [0,0.236,0.382,0.5,0.618,0.786,1].map(k=> lo + (hi-lo)*k );
 }
 
 function prepareFromDataset(rows){
@@ -253,6 +276,8 @@ function prepareFromDataset(rows){
     o: i ? rows[i-1].c : b.o, h:b.h, l:b.l, c:b.c
   }));
   state.bars = bars;
+
+  state.fibLines = computeYesterdayFib(rows);
 
   // 分析線：優先用你的清單，無才 fallback Fib
   let line = null;
@@ -301,20 +326,31 @@ function currentWindow(){
 
 // ===== Rendering =====
 const canvas=el('chart'); const pxAxis=el('priceAxis'); const tmAxis=el('timeAxis');
-let pan=false, lastX=0;
+let pan=false, lastX=0, panAccum=0;
 function draw(){
   const ctx = canvas.getContext('2d'); const W = canvas.width = canvas.clientWidth; const H = canvas.height = canvas.clientHeight;
   ctx.clearRect(0,0,W,H);
   const {start,end} = currentWindow();
   const data=state.bars.slice(start,end);
   if(!data.length) return;
-  const hi = Math.max(...data.map(b=>b.h), state.analysisLine||-Infinity);
-  const lo = Math.min(...data.map(b=>b.l), state.analysisLine||Infinity);
+  const hi = Math.max(...data.map(b=>b.h), ...(state.fibLines||[]));
+  const lo = Math.min(...data.map(b=>b.l), ...(state.fibLines||[]));
   const pad=(hi-lo)*0.12||5, yMax=hi+pad, yMin=lo-pad; const xStep=W/Math.max(48,data.length+2); const y=v=>H-(v-yMin)/(yMax-yMin)*H;
   // grid
   const step=state.timeframe==='M15'?4:12; ctx.strokeStyle='var(--grid)'; for(let i=0;i<6;i++){const yv=H*i/5; ctx.beginPath(); ctx.moveTo(0,yv); ctx.lineTo(W,yv); ctx.stroke();} ctx.setLineDash([3,6]); for(let i=0;i<data.length;i+=step){const x=24+i*xStep; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();} ctx.setLineDash([]);
-  // analysis line（不顯示任何費波文字，只顯示價格）
-  if(state.analysisLine){ ctx.setLineDash([4,4]); ctx.strokeStyle='rgba(190,210,120,.95)'; const yL=y(state.analysisLine); ctx.beginPath(); ctx.moveTo(0,yL); ctx.lineTo(W,yL); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle='rgba(190,210,120,.95)'; ctx.font='12px system-ui'; ctx.fillText(state.analysisLine.toFixed(2), W-70, yL-6); }
+  // fib lines from yesterday
+  if(Array.isArray(state.fibLines)){
+    ctx.setLineDash([4,4]);
+    ctx.strokeStyle='rgba(190,210,120,.6)';
+    ctx.fillStyle='rgba(190,210,120,.95)';
+    ctx.font='12px system-ui';
+    state.fibLines.forEach(l=>{
+      const yL=y(l);
+      ctx.beginPath(); ctx.moveTo(0,yL); ctx.lineTo(W,yL); ctx.stroke();
+      ctx.fillText(l.toFixed(2), W-70, yL-6);
+    });
+    ctx.setLineDash([]);
+  }
   // candles
   for(let i=0;i<data.length;i++){const b=data[i], x=24+i*xStep, up=b.c>=b.o; ctx.strokeStyle=up?'rgba(140,220,180,.9)':'rgba(255,130,130,.9)'; ctx.fillStyle=up?'rgba(140,220,180,.25)':'rgba(255,130,130,.25)'; ctx.beginPath(); ctx.moveTo(x,y(b.h)); ctx.lineTo(x,y(b.l)); ctx.stroke(); const w=Math.max(3,xStep*0.6), y1=y(b.o), y2=y(b.c); ctx.fillRect(x-w/2, Math.min(y1,y2), w, Math.max(2,Math.abs(y1-y2))); }
   // manual positions
@@ -338,15 +374,16 @@ window.addEventListener('mouseup', () => { pan = false; });
 
 canvas.addEventListener('mousemove', e => {
   if (!pan) return;
-  const dx = e.clientX - lastX; lastX = e.clientX;
-
-  const { right, total } = currentWindow();
-  const lower = -(right - 1);          // 最左能到第0根
-  const upper = (total - right) - 1;   // 最右能到資料尾端
-  const step  = dx>0 ? -1 : (dx<0 ? +1 : 0);
-
-  state.view.offsetBar = Math.max(lower, Math.min(upper, (state.view.offsetBar||0) + step));
-  draw();
+  const dx = e.clientX - lastX; lastX = e.clientX; panAccum += dx;
+  if(Math.abs(panAccum) >= 8){
+    const { right, total } = currentWindow();
+    const lower = -(right - 1);
+    const upper = (total - right) - 1;
+    const step  = panAccum>0 ? -1 : 1;
+    state.view.offsetBar = Math.max(lower, Math.min(upper, (state.view.offsetBar||0) + step));
+    panAccum += panAccum>0 ? -8 : 8;
+    draw();
+  }
 });
 
 // ===== HUD & Banners =====
@@ -377,69 +414,106 @@ function recordDecision(sig, action){
 }
 
 // ===== Manual trading =====
-function placeMarket(side){
+function computeRiskPreview(){
+  const lots = parseFloat(el('lots').value);
+  const sl = parseFloat(el('slPrice').value);
+  const pend = parseFloat(el('pendPrice').value);
   const last = state.bars[state.visible-1];
-  if(!last) return;
-  const bid = last.c, ask = bid+0.2, mid=(bid+ask)/2;
-  const entry = side==='LONG'?ask:bid;
-  const sl = parseFloat(el('inSL').value) || null;
-  const tp = parseFloat(el('inTP').value) || null;
-  state.positions.push({side, entry, sl, tp, size:1, pnl$:0, pnlR:0, midOpen:mid});
-  refreshHUD();
+  const bid = last? last.c : 0;
+  const ask = bid+0.2;
+  let rBuy=0, rSell=0, rPend=0;
+  if(lots>0 && isFinite(sl)){
+    rBuy = Math.abs(ask - sl) * lots;
+    rSell = Math.abs(bid - sl) * lots;
+    if(isFinite(pend)) rPend = Math.abs(pend - sl) * lots;
+  }
+  el('riskBuy').textContent = rBuy.toFixed(2);
+  el('riskSell').textContent = rSell.toFixed(2);
+  el('riskPend').textContent = rPend.toFixed(2);
 }
-function placePending(side){
-  const last = state.bars[state.visible-1];
-  if(!last) return;
+
+function openMarket(side){
+  const lots = parseFloat(el('lots').value);
+  const sl   = parseFloat(el('slPrice').value);
+  const tp   = parseFloat(el('tpPrice').value);
+  if(!(lots>0) || !isFinite(sl)){
+    toast('請輸入手數與SL價'); return;
+  }
+  const last = state.bars[state.visible-1]; if(!last) return;
   const bid=last.c, ask=bid+0.2;
-  const price=parseFloat(el('inPend').value); if(isNaN(price)) return;
-  const sl=parseFloat(el('inSL').value)||null;
-  const tp=parseFloat(el('inTP').value)||null;
+  const entry = side==='LONG'?ask:bid;
+  const R0 = Math.abs(entry - sl);
+  const risk$ = R0 * lots;
+  state.positions.push({side, entry, sl, tp:isFinite(tp)?tp:null, size:lots, R0, risk$, pnl$:0, pnlR:0});
+  refreshHUD(); computeRiskPreview();
+}
+
+function placePending(side){
+  const lots = parseFloat(el('lots').value);
+  const sl   = parseFloat(el('slPrice').value);
+  const tp   = parseFloat(el('tpPrice').value);
+  const price = parseFloat(el('pendPrice').value);
+  if(!(lots>0) || !isFinite(sl)) { toast('請輸入手數與SL價'); return; }
+  if(!isFinite(price)) { toast('請輸入掛單價'); return; }
+  const last = state.bars[state.visible-1]; if(!last) return;
+  const bid=last.c, ask=bid+0.2;
   let type;
   if(side==='LONG') type = price<bid ? 'LIMIT' : 'STOP';
   else type = price>ask ? 'LIMIT' : 'STOP';
-  state.orders.push({side, price, sl, tp, type});
-  refreshHUD();
+  state.orders.push({side, price, sl, tp:isFinite(tp)?tp:null, size:lots, type});
+  refreshHUD(); computeRiskPreview();
 }
+
+function closePosition(idx, exit){
+  const p = state.positions[idx];
+  const sign = p.side==='LONG'?1:-1;
+  const pnl = (exit - p.entry)*sign*p.size;
+  realizedPnL += pnl;
+  state.positions.splice(idx,1);
+}
+
 function closeAll(){
   const last=state.bars[state.visible-1]; if(!last) return;
   const bid=last.c, ask=bid+0.2;
-  state.positions.forEach(p=>{
+  for(let i=state.positions.length-1;i>=0;i--){
+    const p=state.positions[i];
     const exit = p.side==='LONG'?bid:ask;
-    const pnl = (p.side==='LONG'? exit - p.entry : p.entry - exit);
-    realizedPnL += pnl;
-  });
-  state.positions=[];
-  refreshHUD();
+    closePosition(i, exit);
+  }
+  refreshHUD(); computeRiskPreview();
 }
 
-function updatePositions(){
-  const last = state.bars[state.visible-1];
-  if(!last) return;
-  const bid=last.c, ask=bid+0.2, mid=(bid+ask)/2;
-  // trigger orders
+function updateOrders(){
+  const last = state.bars[state.visible-1]; if(!last) return;
+  const bid=last.c, ask=bid+0.2;
   for(let i=state.orders.length-1;i>=0;i--){
     const o=state.orders[i];
-    const hit = o.side==='LONG' ? (o.type==='LIMIT'? bid<=o.price : ask>=o.price)
-                                : (o.type==='LIMIT'? ask>=o.price : bid<=o.price);
+    const hit = o.side==='LONG'? (o.type==='LIMIT'? bid<=o.price : ask>=o.price)
+                               : (o.type==='LIMIT'? ask>=o.price : bid<=o.price);
     if(hit){
-      state.positions.push({side:o.side, entry:o.price, sl:o.sl, tp:o.tp, size:1, pnl$:0, pnlR:0, midOpen:mid});
+      const entry = o.side==='LONG'?ask:bid;
+      const R0 = Math.abs(entry - o.sl);
+      const risk$ = R0 * o.size;
+      state.positions.push({side:o.side, entry, sl:o.sl, tp:o.tp, size:o.size, R0, risk$, pnl$:0, pnlR:0});
       state.orders.splice(i,1);
     }
   }
-  // update positions
+}
+
+function updatePositions(){
+  const last = state.bars[state.visible-1]; if(!last) return;
+  const bid=last.c, ask=bid+0.2, mid=(bid+ask)/2;
   for(let i=state.positions.length-1;i>=0;i--){
     const p=state.positions[i];
-    const price = p.side==='LONG'?bid:ask;
-    p.pnl$ = (p.side==='LONG'? price - p.entry : p.entry - price);
-    const risk = p.sl!=null ? Math.abs(p.entry - p.sl) : Math.abs(p.entry - p.midOpen);
-    p.pnlR = risk>0 ? p.pnl$ / risk : 0;
-    const hitTP = p.tp!=null && ((p.side==='LONG' && price>=p.tp) || (p.side==='SHORT' && price<=p.tp));
-    const hitSL = p.sl!=null && ((p.side==='LONG' && price<=p.sl) || (p.side==='SHORT' && price>=p.sl));
-    if(hitTP || hitSL){
-      const exit = hitTP? p.tp : p.sl;
-      const pnl = (p.side==='LONG'? exit - p.entry : p.entry - exit);
-      realizedPnL += pnl;
-      state.positions.splice(i,1);
+    const sign = p.side==='LONG'?1:-1;
+    const exitPx = p.side==='LONG'?bid:ask;
+    p.pnl$ = (exitPx - p.entry)*sign*p.size;
+    p.pnlR = (mid - p.entry)*sign / (p.R0||1);
+    const hitSL = p.sl!=null && ((p.side==='LONG' && bid<=p.sl) || (p.side==='SHORT' && ask>=p.sl));
+    const hitTP = p.tp!=null && ((p.side==='LONG' && bid>=p.tp) || (p.side==='SHORT' && ask<=p.tp));
+    if(hitSL || hitTP){
+      const exit = hitSL? p.sl : p.tp;
+      closePosition(i, exit);
     }
   }
   refreshHUD();
@@ -459,7 +533,9 @@ function stepOnce(){
   draw();
   const sig=state.sigs.find(s=>s.idx===state.visible-1);
   if(sig){ pushAlertLog(sig); showSignalBanner(sig); }
+  updateOrders();
   updatePositions();
+  computeRiskPreview();
   refreshHUD();
 }
 
@@ -472,7 +548,7 @@ function reset(){ clearInterval(state.timer); state.timer=null; state.visible=0;
   state.view.followTail = true;
   if(state.dataset.length){
     prepareFromDataset(state.dataset);        // 取整份資料
-    draw(); refreshHUD();
+    draw(); refreshHUD(); computeRiskPreview();
     return;
   }
   // fallback：若無資料
@@ -508,38 +584,85 @@ document.getElementById('fileCSV').addEventListener('change', (e) => {
 });
 window.addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault();togglePlay();} if(e.code==='ArrowRight'){stepOnce();} if(e.key==='1'){document.querySelector('#tfSeg [data-tf="M5"]').click();} if(e.key==='2'){document.querySelector('#tfSeg [data-tf="M15"]').click();} if(e.key==='+'){state.playSpeed=Math.max(200,state.playSpeed-100);} if(e.key==='-'){state.playSpeed=Math.min(1200,state.playSpeed+100);} if(e.key.toLowerCase()==='e' && bannerBox){ bannerBox.querySelector('.enter').click(); } if(e.key.toLowerCase()==='s' && bannerBox){ bannerBox.querySelector('.skip').click(); } });
 
-el('btnBuyNow').onclick=()=>placeMarket('LONG');
-el('btnSellNow').onclick=()=>placeMarket('SHORT');
-el('btnBuyPend').onclick=()=>placePending('LONG');
-el('btnSellPend').onclick=()=>placePending('SHORT');
+el('btnBuyNow').onclick=()=>openMarket('LONG');
+el('btnSellNow').onclick=()=>openMarket('SHORT');
+el('btnPendBuy').onclick=()=>placePending('LONG');
+el('btnPendSell').onclick=()=>placePending('SHORT');
 el('btnCloseAll').onclick=()=>closeAll();
+['lots','slPrice','tpPrice','pendPrice'].forEach(id=> el(id).addEventListener('input', computeRiskPreview));
+window.addEventListener('beforeunload',()=>{ state.orders=[]; state.positions=[]; state.trades=[]; });
 
 function __selfcheck(){
   const errs = [];
-
-  // 1) 大括號不對稱（粗檢）
   const html = document.documentElement.outerHTML;
-  const openBraces = (html.match(/{/g)||[]).length;
-  const closeBraces = (html.match(/}/g)||[]).length;
-  if(openBraces!==closeBraces) errs.push(`Brace mismatch: {=${openBraces}} }=${closeBraces}}`);
+  const openBr = (html.match(/{/g)||[]).length;
+  const closeBr = (html.match(/}/g)||[]).length;
+  if(openBr!==closeBr) errs.push('brace mismatch');
 
-  // 2) 重複事件監聽（mousemove）
   const mmCount = (html.match(/addEventListener\(['"]mousemove['"]/g)||[]).length;
-  if(mmCount>1) errs.push(`Duplicated mousemove listeners: ${mmCount}`);
+  if(mmCount!==1) errs.push('mousemove listeners:'+mmCount);
 
-  // 3) NaN 檢查（bars/visible）
-  if(!Array.isArray(state.bars) || !state.bars.length) errs.push('No bars loaded');
-  if(!(state.visible>0)) errs.push(`Invalid state.visible: ${state.visible}`);
+  if(state.bars.length>state.visible){
+    const prevVis=state.visible; const prevEnd=currentWindow().end;
+    stepOnce();
+    if(state.visible<=prevVis || currentWindow().end<=prevEnd) errs.push('stepOnce failed');
+    state.visible=prevVis; state.view.followTail=true; draw();
+  }
 
-  // 4) 跟隨旗標
-  if(state.view && typeof state.view.followTail!=='boolean') errs.push('state.view.followTail missing');
+  const before = state.positions.length;
+  el('lots').value=''; el('slPrice').value='';
+  openMarket('LONG');
+  if(state.positions.length!==before) errs.push('order without required');
 
-  if(errs.length){ console.error('[SELF-CHECK]', errs); toast('自查異常：請看 Console'); }
-  else { console.log('[SELF-CHECK] OK'); }
+  const last=state.bars[state.visible-1];
+  if(last){
+    el('lots').value='2';
+    el('slPrice').value=(last.c+0.2-1).toFixed(2);
+    computeRiskPreview();
+    const r=parseFloat(el('riskBuy').textContent);
+    if(Math.abs(r-2)>0.05) errs.push('risk calc');
+  }
+
+  if(!state.fibLines || state.fibLines.length<5) errs.push('fib lines missing');
+
+  if(errs.length){
+    console.error('[SELF-CHECK]',errs);
+    if(mmCount>1){ canvas.replaceWith(canvas.cloneNode(true)); }
+    state.view.followTail=true; reset();
+    toast('自查異常：請看 Console');
+  }else{
+    console.log('[SELF-CHECK] OK');
+  }
 }
-window.addEventListener('load', ()=> setTimeout(__selfcheck, 200));
+window.addEventListener('load',()=>setTimeout(__selfcheck,200));
 
 boot();
+
+// === Iteration Note 1 ===
+// - Done:
+// - Fixes:
+// - QA:
+// - Next:
+// === Iteration Note 2 ===
+// - Done:
+// - Fixes:
+// - QA:
+// - Next:
+// === Iteration Note 3 ===
+// - Done:
+// - Fixes:
+// - QA:
+// - Next:
+// === Iteration Note 4 ===
+// - Done:
+// - Fixes:
+// - QA:
+// - Next:
+// === Iteration Note 5 ===
+// - Done:
+// - Fixes:
+// - QA:
+// - Next:
 </script>
 </body>
 </html>
