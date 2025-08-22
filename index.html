@@ -60,6 +60,7 @@
     </div>
     <button class="btn" id="btnPlay">播放/暫停 (Space)</button>
     <button class="btn" id="btnStep">逐K (→)</button>
+    <button class="btn" id="btnLocal">載入本機CSV</button><input type="file" id="filePicker" accept=".csv" style="display:none"/>
     <div class="seg" id="spdSeg">
       <button data-spd="900">慢</button>
       <button data-spd="650" class="active">中</button>
@@ -124,10 +125,6 @@ const CONFIG = {
   signalsMin: 3,
   signalsMax: 5,
   fibKeys:[0.236,0.382,0.5,0.618,0.786],     // 只用於計算分析線，不顯示任何文字
-  dataSources:[
-    'XAUUSD+_M15_202508010100_202508220600.csv',
-    'XAUUSD_M15.csv','data/XAUUSD_M15.csv','/data/XAUUSD_M15.csv'
-  ]
 };
 
 // ===== State =====
@@ -137,9 +134,35 @@ function toast(msg,ms=1200){const t=document.createElement('div');t.className='t
 
 // ===== CSV loader (robust to MT5/TV exports) =====
 async function loadFirstCSV(){
-  for(const p of CONFIG.dataSources){
-    try{ const r=await fetch(p,{cache:'no-store'}); if(r.ok){ const text=await r.text(); const rows=parseOHLC(text); if(rows.length>200){ console.log('CSV loaded:',p,rows.length); return rows; } } }
-    catch(e){ /* try next */ }
+  const params = new URLSearchParams(location.search);
+  const forced = params.get('csv');
+  const sources = [];
+  if(forced && /^https:\/\//.test(forced)){
+    sources.push(forced);
+  }else{
+    const same = new URL('XAUUSD_M15.csv', location.href).href;
+    if(/^https?:/.test(same)) sources.push(same);
+    const gh = location.href.match(/^https:\/\/([^\/]+)\.github\.io\/([^\/]+)/);
+    const raw = location.href.match(/^https:\/\/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\//);
+    if(gh){
+      const owner = gh[1], repo = gh[2];
+      sources.push(`https://${owner}.github.io/${repo}/XAUUSD_M15.csv`);
+      sources.push(`https://raw.githubusercontent.com/${owner}/${repo}/main/XAUUSD_M15.csv`);
+    }else if(raw){
+      const owner = raw[1], repo = raw[2];
+      sources.push(`https://${owner}.github.io/${repo}/XAUUSD_M15.csv`);
+      sources.push(`https://raw.githubusercontent.com/${owner}/${repo}/main/XAUUSD_M15.csv`);
+    }
+  }
+  for(const url of sources){
+    try{
+      const r = await fetch(url,{cache:'no-store'});
+      if(r.ok){
+        const text = await r.text();
+        const rows = parseOHLC(text);
+        if(rows.length>200){ console.log('CSV loaded:',url,rows.length); return rows; }
+      }
+    }catch(e){ /* try next */ }
   }
   console.warn('CSV not found, fallback to synthetic.');
   return [];
@@ -280,7 +303,7 @@ function togglePlay(force){ const playing=!!state.timer; if(playing && !force){ 
 function stepOnce(){ if(state.visible<state.bars.length){ state.visible++; draw(); refreshHUD(); const sig=state.sigs.find(s=>s.idx===state.visible-1); if(sig){ pushAlertLog(sig); showSignalBanner(sig);} if(state.order && !state.order.status){ const last=state.bars[state.visible-1].c; const hitTP=state.mode==='SHORT_ONLY'? last<=state.order.tp : last>=state.order.tp; const hitSL=state.mode==='SHORT_ONLY'? last>=state.order.sl : last<=state.order.sl; if(hitTP) state.order.status='TP'; if(hitSL) state.order.status='SL'; if(state.order.status){ clearInterval(state.timer); state.timer=null; toast(state.order.status==='TP'?'+2R':'-1R'); } } if(state.position){ const p=state.position; const last=state.bars[state.visible-1].c; const sign=(p.side==='LONG'? +1 : -1); p.pnlR = sign*(last - p.entry)/p.R; p.pnl$ = p.pnlR * (p.size * p.R); const hitTP = (sign>0) ? last>=p.tp : last<=p.tp; const hitSL = (sign>0) ? last<=p.sl : last>=p.sl; if(hitTP){ closePosition('TP 觸發'); } else if(hitSL){ closePosition('SL 觸發'); } } } }
 
 // ===== Boot / Reset =====
-async function boot(){ state.dataset = await loadFirstCSV(); if(state.dataset.length===0){ console.error('無法載入CSV，請將 M15 檔案放到本頁同目錄，或調整 CONFIG.dataSources。'); }
+async function boot(){ state.dataset = await loadFirstCSV(); if(state.dataset.length===0){ console.error('無法載入CSV，請放到同目錄、以 ?csv= 指定，或用「載入本機CSV」按鈕。'); }
   reset(); }
 function reset(){ clearInterval(state.timer); state.timer=null; state.visible=0; state.order=null; state.decisions=[]; state.position=null; el('logBody').innerHTML='';
   const minutesPerBar = state.timeframe==='M15'?15:5;
@@ -291,6 +314,21 @@ function reset(){ clearInterval(state.timer); state.timer=null; state.visible=0;
 ['tfSeg','modeSeg','spdSeg'].forEach(id=>el(id).addEventListener('click',e=>{ if(e.target.tagName!=='BUTTON')return; [...e.currentTarget.children].forEach(b=>b.classList.remove('active')); e.target.classList.add('active'); if(id==='tfSeg'){ state.timeframe=e.target.dataset.tf; } if(id==='modeSeg'){ state.mode=e.target.dataset.mode; } if(id==='spdSeg'){ state.playSpeed=parseInt(e.target.dataset.spd,10); } reset(); }));
 
 el('btnPlay').onclick=()=>togglePlay(); el('btnStep').onclick=()=>stepOnce();
+const filePicker = el('filePicker');
+el('btnLocal').onclick=()=>filePicker.click();
+filePicker.addEventListener('change',e=>{
+  const f=e.target.files[0];
+  if(!f) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const rows=parseOHLC(ev.target.result);
+    if(rows.length>0){
+      console.log('CSV loaded:', f.name, rows.length);
+      state.dataset=rows; reset();
+    }else toast('CSV 格式錯誤或無資料');
+  };
+  reader.readAsText(f);
+});
 window.addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault();togglePlay();} if(e.code==='ArrowRight'){stepOnce();} if(e.key==='1'){document.querySelector('#tfSeg [data-tf="M5"]').click();} if(e.key==='2'){document.querySelector('#tfSeg [data-tf="M15"]').click();} if(e.key==='+'){state.playSpeed=Math.max(200,state.playSpeed-100);} if(e.key==='-'){state.playSpeed=Math.min(1200,state.playSpeed+100);} if(e.key.toLowerCase()==='e' && bannerBox){ bannerBox.querySelector('.enter').click(); } if(e.key.toLowerCase()==='s' && bannerBox){ bannerBox.querySelector('.skip').click(); } });
 
 document.getElementById('btnBuy').onclick=()=>openPosition('LONG');
