@@ -6,16 +6,20 @@
 <title>反轉分析線訓練 Playable — 真實數據版</title>
 <style>
   :root{
-    --bg:#0b1220; --panel:#111b2f; --panel-soft:#132342;
-    --text:#f0f4ff; --muted:#a6b7d8;
-    --accent:#52d3a8; --accent-2:#67b7ff; --danger:#ff7b7b; --good:#57e39b;
-    --grid:#ffffff18; --line:#cddd8a;
+    --bg:#0b1220; --panel:#111b2f; --panel-soft:#122449;
+    --text:#f3f6ff; --muted:#a7b7d9;
+    --accent:#67b7ff; --accent2:#52d3a8;
+    --danger:#ff7b7b; --good:#57e39b; --warn:#ffd27d;
+    --grid:#ffffff18;
   }
   *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-  body{margin:0;background:linear-gradient(180deg,#0d1530,#0b1220 40%);color:var(--text)}
+  body{margin:0;background:linear-gradient(180deg,#101a3a,#0b1220 40%);color:var(--text)}
   .wrap{max-width:1180px;margin:0 auto;padding:12px}
   .toolbar{display:flex;align-items:center;gap:8px;background:#0c1222;border:1px solid #ffffff14;border-radius:10px;padding:8px 10px;box-shadow:0 6px 18px #00000040}
-  .btn{border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.25);padding:6px 10px;border:1px solid #ffffff1f;background:#0f1a2e;color:#dfe6ff;cursor:pointer}
+.btn{border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.25);padding:6px 10px;border:1px solid #ffffff1f;background:#0f1a2e;color:#dfe6ff;cursor:pointer;transition:transform .06s ease, box-shadow .2s ease}
+.btn:active{transform:translateY(1px) scale(.98)}
+.btn.buy{background:var(--good);color:#0c2a1a}
+.btn.sell{background:var(--danger);color:#2a0c0c}
   .toolbar .seg{display:flex;border:1px solid #ffffff1f;border-radius:8px;overflow:hidden}
   .toolbar .seg button{border:0;background:#0f1a2e;color:#dfe6ff;padding:6px 10px}
   .toolbar .seg button.active{background:#182647}
@@ -33,17 +37,42 @@
   .timeAxis .tick{position:absolute;bottom:0;transform:translateX(-50%)}
   .orderDock{background:#0e1a33;border:1px solid #ffffff22;border-radius:14px;display:flex;gap:10px;align-items:center;padding:10px 12px;box-shadow:0 12px 28px #00000033;margin-top:8px}
   .orderDock input{width:90px;background:#0f1a2e;border:1px solid #ffffff24;border-radius:8px;padding:6px 8px;color:#e9ecf4}
-  .orderDock .buy{background:var(--good);color:#06291b}
-  .orderDock .sell{background:var(--danger);color:#2a0c0c}
   .tag{font-size:12px;background:#0d1a30;border:1px solid #ffffff24;color:#dcebff;border-radius:999px;padding:4px 8px}
   .panel{background:var(--panel-soft);border:1px solid #ffffff14;border-radius:14px;padding:8px;margin-top:10px}
   .panel table{width:100%;border-collapse:collapse;font-size:12px}
   .panel th,.panel td{border-bottom:1px dashed #ffffff24;padding:6px;text-align:left;color:#cfe0ff}
   .panel th{color:#9fb3ff}
   .toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:#0e1426;color:#dfe6ff;border:1px solid rgba(255,255,255,.12);padding:10px 14px;border-radius:999px;box-shadow:0 8px 30px rgba(0,0,0,.35);font-size:13px}
+
+  /* 成功/失敗動畫 */
+  @keyframes pulse {
+    0%{ box-shadow:0 0 0 0 rgba(87,227,155,.6); }
+    100%{ box-shadow:0 0 0 18px rgba(87,227,155,0); }
+  }
+  @keyframes shake {
+    10%, 90% { transform: translateX(-2px); }
+    20%, 80% { transform: translateX(4px); }
+    30%, 50%, 70% { transform: translateX(-8px); }
+    40%, 60% { transform: translateX(8px); }
+  }
+  .profitPulse{ animation:pulse .8s ease-out; }
+  .lossShake{ animation:shake .5s ease-in-out; }
+
+  /* Confetti 粒子容器 */
+  #confetti { position:fixed; inset:0; pointer-events:none; z-index:9999; }
+
+  /* 教學引導 */
+  .tour-mask{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:9997; }
+  .tour-tip{
+    position:fixed; padding:12px 14px; background:#132342; color:#e7f1ff;
+    border:1px solid #ffffff3a; border-radius:12px; z-index:9998; max-width:280px;
+    box-shadow:0 8px 28px rgba(0,0,0,.35);
+  }
+  .tour-tip .next{ margin-top:8px; display:inline-block; background:var(--accent); color:#0e1930; border:0; padding:6px 10px; border-radius:10px; }
 </style>
 </head>
 <body>
+<div id="confetti"></div>
 <div class="wrap">
   <div class="toolbar">
     <button class="btn" id="btnPlay">播放/暫停 (Space)</button>
@@ -113,7 +142,7 @@ const CONFIG = {
   timeframe: "M15",
   playSpeed: 650,
   startBars: 60,
-  windowBars: 120,
+  windowBars: 200,
 };
 
 // ===== State =====
@@ -134,6 +163,26 @@ const el=id=>document.getElementById(id);
 let realizedPnL = 0;
 function toast(msg,ms=1200){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),ms);}
 
+function sfx(freq=880, dur=120, vol=.12){
+  try{
+    const a=new AudioContext(), o=a.createOscillator(), g=a.createGain();
+    o.frequency.value=freq; o.connect(g); g.gain.value=vol; g.connect(a.destination);
+    o.start(); g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime+dur/1000); o.stop(a.currentTime+dur/1000);
+  }catch(_){ }
+}
+
+function makeConfetti(n=40){
+  const box=document.getElementById('confetti'); box.innerHTML='';
+  for(let i=0;i<n;i++){
+    const d=document.createElement('div');
+    d.style.cssText=`position:absolute;left:${Math.random()*100}%;top:-10px;width:6px;height:10px;background:hsl(${Math.random()*360},90%,60%);opacity:.9;transform:rotate(${Math.random()*360}deg);`;
+    box.appendChild(d);
+    const t=Math.random()*1.2+0.8;
+    d.animate([{transform:'translateY(0)'},{transform:`translateY(${window.innerHeight+40}px)`}],{duration:t*1000,easing:'cubic-bezier(.2,.8,.2,1)'}).onfinish=()=>d.remove();
+  }
+  setTimeout(()=>box.innerHTML='',1500);
+}
+
 state.journal = state.journal || [];
 function logEvent(kind, payload){
   state.journal.push({t: state.bars[state.visible-1]?.t || '', kind, ...payload});
@@ -145,6 +194,28 @@ function renderJournal(){
     `<tr><td>${j.t}</td><td>${j.kind}</td><td>${j.side||''}</td><td>${j.price?.toFixed?j.price.toFixed(2):''}</td><td>${j.size||''}</td><td>${j.note||''}</td></tr>`
   ).join('');
 }
+
+function startTour(){
+  const steps = [
+    { el:'#lots',     tip:'輸入「手數」。', offset:[-40, 30] },
+    { el:'#slPrice',  tip:'輸入「停損價」。必填。', offset:[-40, 30] },
+    { el:'.orderDock', tip:'即時計算風險金額在這裡顯示。', offset:[-80, -10] },
+    { el:'#btnBuyNow',tip:'點這裡「立即買入」。也可右側「立即賣出」。', offset:[-20, 50] },
+    { el:'#btnLive',  tip:'拖曳圖表可看歷史；按這裡或按 F 回到最新。', offset:[-10, 50] },
+  ];
+  let idx=0; const mask=document.createElement('div'); mask.className='tour-mask'; document.body.appendChild(mask);
+  const tip=document.createElement('div'); tip.className='tour-tip'; document.body.appendChild(tip);
+  function show(){
+    const s = steps[idx]; if(!s){ mask.remove(); tip.remove(); localStorage.setItem('tourDone','1'); return; }
+    const t = document.querySelector(s.el); const r=t.getBoundingClientRect();
+    tip.style.left = `${r.left + (s.offset?.[0]||0)}px`;
+    tip.style.top  = `${r.top  + (s.offset?.[1]||0)}px`;
+    tip.innerHTML = `<div>${s.tip}</div><button class="next">下一步</button>`;
+    tip.querySelector('.next').onclick = ()=>{ idx++; show(); };
+  }
+  show();
+}
+window.addEventListener('load', ()=>{ if(!localStorage.getItem('tourDone')) setTimeout(startTour, 500); });
 
 // ===== CSV loader =====
 function qs(name){ return new URLSearchParams(location.search).get(name); }
@@ -241,17 +312,6 @@ out.sort((x,y)=>x.t - y.t);
 return out;
 }
 
-function computeYesterdayFib(rows, anchorIdx){
-  const anchor = rows[Math.min(Math.max(0,anchorIdx), rows.length-1)].t;
-  const d0 = new Date(anchor); d0.setDate(d0.getDate()-1);
-  const y = d0.getFullYear(), m = d0.getMonth(), d = d0.getDate();
-  const isSameDay = t=> t.getFullYear()===y && t.getMonth()===m && t.getDate()===d;
-  const day = rows.filter(r=>isSameDay(r.t));
-  const src = day.length>=2 ? day : rows.slice(Math.max(0, anchorIdx-96), anchorIdx);
-  const hi = Math.max(...src.map(b=>b.h)), lo = Math.min(...src.map(b=>b.l));
-  return [0,0.236,0.382,0.5,0.618,0.786,1].map(k=> lo + k*(hi-lo));
-}
-
 function prepareFromDataset(rows){
   const bars = rows.map((b,i)=>({ t:`${String(b.t.getHours()).padStart(2,'0')}:${String(b.t.getMinutes()).padStart(2,'0')}`,
     o:i?rows[i-1].c:b.o, h:b.h, l:b.l, c:b.c }));
@@ -261,22 +321,20 @@ function prepareFromDataset(rows){
   const maxIdx = Math.max(startMin, bars.length - minTail);
   const anchorIdx = Math.floor(Math.random() * maxIdx);
   state.visible = Math.max(startMin, anchorIdx);
-
-  state.fibLines = computeYesterdayFib(rows, anchorIdx);
   state.view = { scaleX:1, offsetBar:0, userPanned:false, followTail:true };
   state.positions=[]; state.orders=[]; state.trades=[];
 }
 function currentWindow(){
   const total = state.bars.length;
-  const right = Math.max(1, Math.min(state.visible, total));  // 已解鎖到第幾根（1-based）
-  const win   = Math.max(60, Math.floor((CONFIG.windowBars||120) / (state.view?.scaleX||1)));
+  const right = Math.max(1, Math.min(state.visible, total)); // 已解鎖到第幾根
+  const win   = CONFIG.windowBars || 200;
 
   let start, end;
-  if (state.view?.followTail) {
-    if (right <= win || total <= win) { start = 0;        end = right; }
-    else                               { start = right-win; end = right; }
+  if (state.view.followTail) {
+    start = Math.max(0, right - win);
+    end   = right;
   } else {
-    const off = state.view?.offsetBar||0;
+    const off = state.view.offsetBar || 0;
     start = Math.max(0, Math.min(total - win, right - win + off));
     end   = Math.min(total, start + win);
   }
@@ -292,22 +350,46 @@ function draw(){
   const {start,end} = currentWindow();
   const data=state.bars.slice(start,end);
   if(!data.length) return;
-  const hi = Math.max(...data.map(b=>b.h), ...(state.fibLines||[]));
-  const lo = Math.min(...data.map(b=>b.l), ...(state.fibLines||[]));
-  const pad=(hi-lo)*0.12||5, yMax=hi+pad, yMin=lo-pad; const xStep=W/Math.max(48,data.length+2); const y=v=>H-(v-yMin)/(yMax-yMin)*H;
+  const hi = Math.max(...data.map(b=>b.h));
+    const lo = Math.min(...data.map(b=>b.l));
+  const pad = (hi - lo) * 0.12 || 5;
+  const yMax = hi + pad, yMin = lo - pad;
+  const xStep = W / Math.max(48, data.length + 2);
+  const y = v => H - (v - yMin) / (yMax - yMin) * H;
   // grid
-  const step=state.timeframe==='M15'?4:12; ctx.strokeStyle='var(--grid)'; for(let i=0;i<6;i++){const yv=H*i/5; ctx.beginPath(); ctx.moveTo(0,yv); ctx.lineTo(W,yv); ctx.stroke();} ctx.setLineDash([3,6]); for(let i=0;i<data.length;i+=step){const x=24+i*xStep; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();} ctx.setLineDash([]);
-  // fib lines from yesterday
-  if(Array.isArray(state.fibLines)){
-    ctx.setLineDash([4,6]); ctx.strokeStyle='rgba(196,220,140,.38)'; ctx.fillStyle='rgba(196,220,140,.85)';
-    state.fibLines.forEach(p=>{
-      const yy=y(p); ctx.beginPath(); ctx.moveTo(0,yy); ctx.lineTo(W,yy); ctx.stroke();
-      ctx.setLineDash([]); ctx.font='12px system-ui'; ctx.fillText(p.toFixed(2), 8, yy-6);
-      ctx.setLineDash([4,6]);
-    });
-    ctx.setLineDash([]);
+  const step = state.timeframe === 'M15'? 4 : 12;
+  ctx.strokeStyle = 'var(--grid)';
+  for (let i = 0; i < 6; i++) {
+    const yv = H * i / 5;
+    ctx.beginPath(); ctx.moveTo(0, yv); ctx.lineTo(W, yv); ctx.stroke();
   }
-  // candles
+  ctx.setLineDash([3,6]);
+  for (let i = 0; i < data.length; i += step) {
+    const x = 24 + i * xStep;
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // 日期分隔線與標籤
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,.12)';
+  ctx.fillStyle = 'rgba(200,208,240,.75)';
+  ctx.font = '11px system-ui';
+  const xStep2 = W / Math.max(1, data.length);
+  for (let i = 1; i < data.length; i++) {
+    const p = data[i-1], c = data[i];
+    const d1 = p._date || (p._date = p.t.split(':')[0]);
+    const d2 = c._date || (c._date = c.t.split(':')[0]);
+    if (d2 === '00') {
+      const x = i * xStep2;
+      ctx.setLineDash([3,6]); ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillText('日切換', x+4, 14);
+    }
+  }
+  ctx.restore();
+
+// candles
   for(let i=0;i<data.length;i++){const b=data[i], x=24+i*xStep, up=b.c>=b.o; ctx.strokeStyle=up?'rgba(140,220,180,.9)':'rgba(255,130,130,.9)'; ctx.fillStyle=up?'rgba(140,220,180,.25)':'rgba(255,130,130,.25)'; ctx.beginPath(); ctx.moveTo(x,y(b.h)); ctx.lineTo(x,y(b.l)); ctx.stroke(); const w=Math.max(3,xStep*0.6), y1=y(b.o), y2=y(b.c); ctx.fillRect(x-w/2, Math.min(y1,y2), w, Math.max(2,Math.abs(y1-y2))); }
   // manual positions
   state.positions.forEach((p,idx)=>{
@@ -432,10 +514,26 @@ function closePosition(idx, exit, reason='手動'){
   const p = state.positions[idx]; if(!p) return;
   const sign = p.side==='LONG'?1:-1;
   const fill = exit ?? (p.side==='LONG'?lastQuote().bid:lastQuote().ask);
-  const pnl = (fill - p.entry)*sign*p.size;
-  realizedPnL += pnl;
+  const pnl$ = (fill - p.entry)*sign*p.size;
+  const pnlR = (fill - p.entry)*sign / (p.R0||1);
+  p.realized$ = pnl$;
+  p.realizedR = pnlR;
+  realizedPnL += pnl$;
   state.positions.splice(idx,1);
   logEvent('平倉',{side:p.side,price:fill,size:p.size,note:reason});
+
+  if(p.realized$ >= 0){
+    document.querySelector('.orderDock')?.classList.add('profitPulse');
+    setTimeout(()=>document.querySelector('.orderDock')?.classList.remove('profitPulse'), 900);
+    makeConfetti(50); sfx(1200,150);
+    toast(`獲利平倉 +$${p.realized$.toFixed(2)} / +${p.realizedR.toFixed(2)}R`);
+  }else{
+    document.getElementById('chartWrap')?.classList.add('lossShake');
+    setTimeout(()=>document.getElementById('chartWrap')?.classList.remove('lossShake'), 600);
+    sfx(200,200,.18);
+    toast(`虧損平倉 -$${Math.abs(p.realized$).toFixed(2)} / -${Math.abs(p.realizedR).toFixed(2)}R`);
+  }
+
   renderPositions(); refreshHUD();
 }
 
@@ -546,7 +644,6 @@ async function __selfcheck(){
   if(mm>1) errs.push('mousemove 綁定重複');
   if(!(state.bars?.length>0)) errs.push('bars 未載入');
   if(!(state.visible>0)) errs.push('visible 無效');
-  if(!Array.isArray(state.fibLines)||state.fibLines.length<5) errs.push('昨日Fib未生成');
   if(errs.length){ console.error('[自查]',errs); toast('自查異常，請看Console'); } else console.log('[自查] OK');
 }
 window.addEventListener('load',()=>setTimeout(__selfcheck,200));
@@ -578,6 +675,11 @@ boot();
 // - Fixes: 無
 // - QA: 啟動五次皆通過
 // - Next: --
+// === Iteration Note 6 ===
+// - Done: 移除分析線、固定 200 根視窗、加入日分隔線與平倉動畫
+// - Fixes: 無
+// - QA: 基本自查通過
+// - Next: 更多遊戲化與任務系統
 </script>
 </body>
 </html>
