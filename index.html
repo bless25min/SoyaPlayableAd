@@ -71,7 +71,8 @@ const state = {
   visible: 0,
   timer: null,
   order: null,        // 僅在「正確進場」時產生 {entry,sl,tp,status}
-  decisions: []       // [{idx,action:"enter"/"skip",correct:boolean, type, note}]
+  decisions: [],      // [{idx,action:"enter"/"skip",correct:boolean, type, note}]
+  playSpeed: 650      // 播放速度 (ms)
 };
 
 /* ======================
@@ -240,13 +241,31 @@ function render(){
         <span class="tag">唯一正確：收下分析線的反轉空</span>
         <span class="tag">其他都錯：收上/不在分析線/非先漲</span>
       </div>
+      <div class="row" style="margin:10px 0">
+        <div class="col">
+          <label class="small">訊號數：<input type="number" id="signals" min="3" max="5" value="${CONFIG.signalsMin}" style="width:60px"></label>
+        </div>
+        <div class="col">
+          <label class="small">速度：
+            <select id="speed">
+              <option value="900">慢</option>
+              <option value="650" selected>普通</option>
+              <option value="400">快</option>
+            </select>
+          </label>
+        </div>
+      </div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="btn btn-primary" id="start">開始模擬</button>
       </div>
       <p class="small">✅ 教學用途｜❌ 非投資建議</p>
     `;
     app.appendChild(c);
-    el('start').onclick=()=>{state.scene="sim"; generateDay(); render(); togglePlay(true);};
+    el('start').onclick=()=>{
+      CONFIG.signalsMin = CONFIG.signalsMax = parseInt(el('signals').value);
+      state.playSpeed = parseInt(el('speed').value);
+      state.scene="sim"; generateDay(); render(); togglePlay(true);
+    };
   }
 
   if(state.scene==="sim"){
@@ -323,7 +342,7 @@ function render(){
 function togglePlay(force){
   const playing=!!state.timer;
   if(playing && !force){ clearInterval(state.timer); state.timer=null; toast("暫停"); return; }
-  if(!playing){ state.timer=setInterval(stepOnce,650); toast("播放中…"); }
+  if(!playing){ state.timer=setInterval(stepOnce,state.playSpeed); toast("播放中…"); }
 }
 function stepOnce(){
   if(state.visible < state.bars.length){
