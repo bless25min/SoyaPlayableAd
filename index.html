@@ -60,6 +60,7 @@
     </div>
     <button class="btn" id="btnPlay">播放/暫停 (Space)</button>
     <button class="btn" id="btnStep">逐K (→)</button>
+    <button class="btn" id="btnLive">回到最新(F)</button>
     <button class="btn" id="btnLocal">載入本機CSV</button><input type="file" id="fileCSV" accept=".csv,text/csv" style="display:none"/>
     <div class="seg" id="spdSeg">
       <button data-spd="900">慢</button>
@@ -74,7 +75,6 @@
     <aside class="market">
       <h3>Market Watch</h3>
       <div class="quote"><b>XAUUSD</b><span><small>Bid</small> <b id="qBid">—</b> / <small>Ask</small> <b id="qAsk">—</b></span></div>
-      <div style="font-size:12px;color:#9aa8c7">Spread <b id="qSpr">—</b></div>
     </aside>
 
     <main id="chartCol">
@@ -142,7 +142,7 @@ const state = {
   timer:null,
   analysisLine:null,
   dataset:[],
-  view:{offsetBar:0, scaleX:1, userPanned:false},
+  view:{scaleX:1, offsetBar:0, userPanned:false, followTail:true},
   positions:[],
   orders:[],
   trades:[],
@@ -301,12 +301,13 @@ function buildFromSession(seg){
   state.sigs = [];
 
   // 初始顯示一定小於總長，避免一播放就到尾端
-  const target = Math.floor(bars.length*CONFIG.startHistoryRatio);
-  state.visible = Math.max(30, Math.min(bars.length-5, target));
+  const target = Math.floor(state.bars.length * (CONFIG.startHistoryRatio || 0.6));
+  state.visible = Math.max(30, Math.min(state.bars.length - 5, target));
 
   // 視圖狀態
   state.view.offsetBar = 0;
   state.view.userPanned = false;
+  state.view.followTail = true;
 
   // 清空交易狀態
   state.positions = [];
@@ -317,18 +318,19 @@ function buildFromSession(seg){
 
 function currentWindow(){
   const total = state.bars.length;
-  const right = Math.max(1, Math.min(state.visible, total));       // 目前推進到哪根
-  const win   = Math.max(40, Math.floor(CONFIG.windowBars / (state.view?.scaleX||1)));
+  const right = Math.max(1, Math.min(state.visible, total)); // 目前推進到哪根（1-based）
+  const win   = Math.max(60, Math.floor((CONFIG.windowBars||120) / (state.view.scaleX||1)));
 
   let start;
-  if (state.view?.userPanned) {
-    // 允許看完整段歷史：offsetBar<0 向左看更早；>0 向右靠近右緣
-    start = Math.max(0, Math.min(total - win, right - win + (state.view.offsetBar||0)));
-  } else {
+  if (state.view.followTail) {
+    // 跟隨最新：視窗永遠貼右側
     start = Math.max(0, right - win);
+  } else {
+    // 使用者平移：offsetBar < 0 往左看更早；>0 往右貼近右緣
+    start = Math.max(0, Math.min(total - win, right - win + (state.view.offsetBar||0)));
   }
   const end = Math.min(total, start + win);
-  return {start,end,win,right,total};
+  return { start, end, win, right, total };
 }
 
 // ===== Rendering =====
@@ -361,20 +363,23 @@ function draw(){
   pxAxis.innerHTML=''; const ticks=6; for(let i=0;i<=ticks;i++){const v=yMin+(yMax-yMin)*i/ticks; const d=document.createElement('div'); d.className='tick'; d.style.top=`${H-(H*i/ticks)}px`; d.textContent=v.toFixed(2); pxAxis.appendChild(d);} tmAxis.innerHTML=''; const tStep=state.timeframe==='M15'?4:12; for(let i=0;i<data.length;i+=tStep){const d=document.createElement('div'); d.className='tick'; d.style.left=`${(24+i*xStep)}px`; d.textContent=data[i].t; tmAxis.appendChild(d);} 
 }
 
-canvas.addEventListener('mousedown', e => { pan=true; lastX=e.clientX; });
-window.addEventListener('mouseup', () => { pan=false; });
+canvas.addEventListener('mousedown', e => {
+  pan = true; lastX = e.clientX;
+  state.view.userPanned = true;
+  state.view.followTail = false;  // 一旦拖曳就退出跟隨
+});
+window.addEventListener('mouseup', () => { pan = false; });
 
 canvas.addEventListener('mousemove', e => {
   if (!pan) return;
   const dx = e.clientX - lastX; lastX = e.clientX;
 
-  const {right,total} = currentWindow();
-  const lower = -(right-1);
-  const upper = (total - right) - 1;
+  const { right, total } = currentWindow();
+  const lower = -(right - 1);          // 最左能到第0根
+  const upper = (total - right) - 1;   // 最右能到資料尾端
   const step  = dx>0 ? -1 : (dx<0 ? +1 : 0);
 
   state.view.offsetBar = Math.max(lower, Math.min(upper, (state.view.offsetBar||0) + step));
-  state.view.userPanned = true;
   draw();
 });
 
@@ -388,7 +393,6 @@ function refreshHUD(){
   if(last){
     el('qBid').textContent = last.c.toFixed(2);
     el('qAsk').textContent = (last.c+0.2).toFixed(2);
-    el('qSpr').textContent = '0.20';
   }
   let unreal$ = 0, unrealR = 0;
   state.positions.forEach(p=>{ unreal$ += p.pnl$; unrealR += p.pnlR; });
@@ -482,6 +486,10 @@ function stepOnce(){
     clearInterval(state.timer); state.timer=null; return;
   }
   state.visible++;
+  if (state.view.followTail) {
+    state.view.userPanned = false;
+    state.view.offsetBar  = 0;   // 一律貼右緣
+  }
   draw();
   const sig=state.sigs.find(s=>s.idx===state.visible-1);
   if(sig){ pushAlertLog(sig); showSignalBanner(sig); }
@@ -493,6 +501,9 @@ function stepOnce(){
 async function boot(){ state.dataset = await loadFirstCSV(); if(state.dataset.length===0){ console.error('無法載入CSV，請放到同目錄、以 ?csv= 指定，或用「載入本機CSV」按鈕。'); }
   reset(); }
 function reset(){ clearInterval(state.timer); state.timer=null; state.visible=0; state.decisions=[]; state.positions=[]; state.orders=[]; state.trades=[]; el('logBody').innerHTML='';
+  state.view.offsetBar = 0;
+  state.view.userPanned = false;
+  state.view.followTail = true;
   const minutesPerBar = state.timeframe==='M15'?15:5;
   if(state.dataset.length){ const session = pickSession(state.dataset, minutesPerBar); if(session.length){ buildFromSession(session); draw(); refreshHUD(); return; } }
   // fallback：若無資料
@@ -502,6 +513,14 @@ function reset(){ clearInterval(state.timer); state.timer=null; state.visible=0;
 
 el('btnPlay').onclick=()=>togglePlay();
 el('btnStep').onclick=()=>stepOnce();
+function goLive(){
+  state.view.offsetBar = 0;
+  state.view.userPanned = false;
+  state.view.followTail = true;
+  draw();
+}
+document.getElementById('btnLive').onclick = goLive;
+window.addEventListener('keydown', e => { if(e.key.toLowerCase()==='f') goLive(); });
 
 document.getElementById('btnLocal').onclick = () => document.getElementById('fileCSV').click();
 document.getElementById('fileCSV').addEventListener('change', (e) => {
