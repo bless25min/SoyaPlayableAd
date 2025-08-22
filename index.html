@@ -3,487 +3,225 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
-<title>反轉分析線訓練 Playable</title>
+<title>反轉分析線訓練 Playable — MT5擬真版</title>
 <style>
-  :root{--bg:#0f1220;--panel:#171a2b;--text:#e9ecf4;--muted:#9aa3b2;--accent:#52d3a8;--bad:#ff6b6b}
+  :root{--bg:#0f1220;--panel:#14192b;--text:#e9ecf4;--muted:#9aa3b2;--accent:#52d3a8;--bad:#ff6b6b;--good:#79e0ab;--grid:#ffffff14}
   *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-  body{margin:0;background:linear-gradient(180deg,#0d101c,#0f1220 30%)}
-  #app{max-width:900px;margin:0 auto;padding:16px}
-  .card{background:var(--panel);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:14px;color:var(--text);box-shadow:0 10px 30px rgba(0,0,0,.25)}
-  h1{font-size:20px;margin:0 0 8px}
-  h2{font-size:16px;margin:14px 0 8px;color:#cfd7ff}
-  p,li{color:var(--muted);line-height:1.55}
-  .row{display:flex;gap:12px;flex-wrap:wrap}
-  .col{flex:1 1 260px}
-  button{cursor:pointer;border:0;border-radius:10px;padding:10px 14px;font-weight:700}
-  .btn{background:#29304b;color:var(--text)}
-  .btn-primary{background:var(--accent);color:#07261c}
-  .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--text)}
-  .btn-bad{background:var(--bad);color:#2a0c0c}
-  .hud{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  body{margin:0;background:linear-gradient(180deg,#0d101c,#0f1220 30%);color:var(--text)}
+  .wrap{max-width:1180px;margin:0 auto;padding:12px}
+  .toolbar{display:flex;align-items:center;gap:8px;background:#0c1222;border:1px solid #ffffff14;border-radius:10px;padding:8px 10px;box-shadow:0 6px 18px #00000040}
+  .toolbar .btn{padding:6px 10px;border-radius:8px;border:1px solid #ffffff1f;background:#0f1a2e;color:#dfe6ff;cursor:pointer}
+  .toolbar .seg{display:flex;border:1px solid #ffffff1f;border-radius:8px;overflow:hidden}
+  .toolbar .seg button{border:0;background:#0f1a2e;color:#dfe6ff;padding:6px 10px}
+  .toolbar .seg button.active{background:#182647}
+  .sp{flex:1}
+  .layout{display:grid;grid-template-columns:220px 1fr;gap:10px;margin-top:10px}
+  .market{background:var(--panel);border:1px solid #ffffff14;border-radius:10px;padding:10px}
+  .market h3{font-size:13px;margin:0 0 8px;color:#cbd6ff}
+  .quote{display:flex;justify-content:space-between;padding:6px 8px;border-radius:8px;background:#0e1428;margin-bottom:6px}
+  .quote small{color:#a8b2d1}
+  #chartWrap{position:relative;background:#0b0f1d;border:1px solid rgba(255,255,255,.08);border-radius:12px;min-height:520px}
+  #chart{width:100%;height:520px;display:block}
+  .priceAxis{position:absolute;right:6px;top:6px;bottom:36px;width:70px;pointer-events:none}
+  .priceAxis .tick{position:absolute;right:0;color:#cfe0ff;font-size:11px;transform:translateY(-50%)}
+  .timeAxis{position:absolute;left:8px;right:8px;bottom:6px;height:24px;color:#bfc9e6;font-size:11px}
+  .timeAxis .tick{position:absolute;bottom:0;transform:translateX(-50%)}
+  .volPane{position:absolute;left:0;right:70px;bottom:30px;height:90px}
+  .sigBanner{position:absolute;right:14px;bottom:14px;background:#0e1426;border:1px solid #ffffff22;border-radius:12px;padding:10px 12px;box-shadow:0 12px 28px #00000066;display:flex;gap:10px;align-items:center}
+  .sigBanner .count{width:56px;height:6px;background:#ffffff22;border-radius:999px;overflow:hidden}
+  .sigBanner .bar{height:100%;width:100%;background:#52d3a8}
+  .sigBanner .actions button{border:0;border-radius:10px;padding:8px 10px;font-weight:700;cursor:pointer}
+  .sigBanner .enter{background:var(--accent);color:#06291b}
+  .sigBanner .skip{background:transparent;border:1px solid #ffffff3a;color:#e9ecf4}
+  .alertLog{margin-top:10px;background:#0c1428;border:1px solid #ffffff14;border-radius:10px;padding:8px}
+  .alertLog table{width:100%;border-collapse:collapse;font-size:12px}
+  .alertLog th,.alertLog td{border-bottom:1px dashed #ffffff14;padding:6px 6px;text-align:left;color:#cfe0ff}
+  .alertLog th{color:#9fb3ff}
+  .trade{margin-top:10px;background:#0c1428;border:1px solid #ffffff14;border-radius:10px;padding:8px}
+  .trade .row{display:flex;gap:16px;flex-wrap:wrap}
   .tag{font-size:12px;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:4px 8px;color:#cfe0ff;background:#0c1428}
-  .small{font-size:12px}
-  #chartWrap{position:relative;background:#0b0f1d;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px}
-  #chart{width:100%;height:360px;display:block}
-  .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#0e1426;color:#dfe6ff;border:1px solid rgba(255,255,255,.12);padding:10px 14px;border-radius:999px;box-shadow:0 8px 30px rgba(0,0,0,.35);font-size:13px}
-  .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35);border-radius:10px}
-  .panel{background:#151a2d;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,.12);max-width:560px}
-  .ok{color:#79e0ab}.bad{color:#ff9b9b}.hl{color:#52d3a8;font-weight:800}
-  .list{border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:8px}
+  .toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:#0e1426;color:#dfe6ff;border:1px solid rgba(255,255,255,.12);padding:10px 14px;border-radius:999px;box-shadow:0 8px 30px rgba(0,0,0,.35);font-size:13px}
 </style>
 </head>
 <body>
-<div id="app"></div>
+<div class="wrap">
+  <div class="toolbar">
+    <div class="seg" id="tfSeg">
+      <button data-tf="M5">M5</button>
+      <button data-tf="M15" class="active">M15</button>
+    </div>
+    <div class="seg" id="modeSeg">
+      <button data-mode="SHORT_ONLY" class="active">空訓練</button>
+      <button data-mode="LONG_ONLY">多訓練</button>
+    </div>
+    <button class="btn" id="btnPlay">播放/暫停 (Space)</button>
+    <button class="btn" id="btnStep">逐K (→)</button>
+    <div class="seg" id="spdSeg">
+      <button data-spd="900">慢</button>
+      <button data-spd="650" class="active">中</button>
+      <button data-spd="400">快</button>
+    </div>
+    <div class="sp"></div>
+    <span class="tag" id="hudInfo">—</span>
+  </div>
+
+  <div class="layout">
+    <aside class="market">
+      <h3>Market Watch</h3>
+      <div class="quote"><b>XAUUSD</b><span><small>Bid</small> <b id="qBid">—</b> / <small>Ask</small> <b id="qAsk">—</b></span></div>
+      <div style="font-size:12px;color:#9aa8c7">Spread <b id="qSpr">—</b></div>
+    </aside>
+
+    <main id="chartWrap">
+      <canvas id="chart"></canvas>
+      <div class="priceAxis" id="priceAxis"></div>
+      <div class="volPane" id="volPane"></div>
+      <div class="timeAxis" id="timeAxis"></div>
+    </main>
+  </div>
+
+  <section class="trade">
+    <div class="row">
+      <span class="tag">今日訊號：<b id="hudSig">0</b></span>
+      <span class="tag">已判斷：<b id="hudDec">0</b></span>
+      <span class="tag">可見K：<b id="hudVis">0</b></span>
+      <span class="tag">規則：正確僅有一筆（收上/收下分析線）</span>
+    </div>
+  </section>
+
+  <section class="alertLog">
+    <table>
+      <thead><tr><th style="width:80px">時間</th><th style="width:60px">週期</th><th style="width:60px">方向</th><th>說明</th><th style="width:120px">分析線</th><th style="width:80px">正確?</th></tr></thead>
+      <tbody id="logBody"></tbody>
+    </table>
+  </section>
+</div>
 
 <script>
-/* ====================================================
-   設定：每日可調整的關鍵價位與訓練參數
-   ==================================================== */
 const CONFIG = {
   symbol: "XAUUSD",
-  timeframe: "M15",            // "M15" | "M5"
-  playSpeed: 650,              // 播放速度
+  timeframe: "M15",
+  playSpeed: 650,
   rrMin: 2,
-  rrThreshold: 1.5,            // 損益比過低的警示門檻
-  signalsMin: 3,
+  rrThreshold: 1.5,
+  signalsMin: 4,
   signalsMax: 5,
-  key: {
-    shortLines: [3419.40, 3428.89],
-    longLines:  [3373.96,3373.63,3353.48,3344.28,3333.33,3325.57,3297.38,3296.18,3286.47,3286.97,3269.64,3247.36]
+  key:{
+    shortLines:[3419.40,3428.89,3458.74,3477.70],
+    longLines: [3373.96,3373.63,3353.48,3344.28,3333.33,3325.57,3297.38,3296.18,3286.97,3269.64,3247.36]
   }
 };
 
-/* ====================================================
-   這套訓練的正確定義（請牢記）
-   SHORT_ONLY：先漲→反轉K→「收下」分析線→空單
-   LONG_ONLY：先跌→反轉K→「收上」分析線→多單
-   其他一律錯誤（在分析線但收錯邊、不在分析線、趨勢不符…）
-   ==================================================== */
+const state = { mode:"SHORT_ONLY", timeframe:CONFIG.timeframe, playSpeed:CONFIG.playSpeed, bars:[], sigs:[], visible:0, timer:null, order:null, analysisLine:null, decisions:[] };
+const el=id=>document.getElementById(id);
+function toast(msg,ms=1200){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),ms);}  
 
-/* ======================
-   工具與狀態
-   ====================== */
-const el = id => document.getElementById(id);
-const app = el('app');
-function toast(msg,ms=1500){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),ms);}
+// -------- 擬真生成：三段式 trend → reversal → follow，並混入干擾訊號 --------
+function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
+function generateDay(){
+  const total = state.timeframe==="M15"?40:120; // 稍長，讓分隔線更像
+  const minutesPerBar = state.timeframe==="M15"?15:5;
+  const startH=9; const bars=[]; const rnd=(a,b)=>a+Math.random()*(b-a);
+  let price = 3400 + rnd(-8,8);
 
-const state = {
-  scene: "intro",     // intro | sim | result
-  bars: [],
-  sigs: [],           // [{idx,type,valid,note,atLine,closeRel,trendBefore}]
-  visible: 0,
-  timer: null,
-  order: null,        // 僅在「正確進場」時產生 {entry,sl,tp,status}
-  decisions: [],      // [{idx,action:"enter"/"skip",correct:boolean, type, note}]
-  playSpeed: CONFIG.playSpeed, // 播放速度 (ms)
-  mode: "SHORT_ONLY",
-  timeframe: CONFIG.timeframe,
-  analysisLine: null
-};
-
-/* ======================
-   產生當日走勢與多訊號
-   - 依模式決定先漲或先跌
-   - 在隨機時間插入 3~5 個訊號，其中恰好 1 個正確
-   ====================== */
-function generateDay(mode = state.mode){
-  const total = state.timeframe === "M15" ? 32 : 96;
-  const minutesPerBar = state.timeframe === "M15" ? 15 : 5;
-  const startH=9; let last=3396;
-  const rnd=(a,b)=>a+Math.random()*(b-a);
-  const bars=[];
-  for(let i=0;i<total;i++){
-    const o=last;
-    const phase = mode==="SHORT_ONLY" ? (i<Math.floor(total*0.45) ? 0.7 : -0.9) : (i<Math.floor(total*0.45) ? -0.7 : 0.9);
-    const c=o + phase + rnd(-0.5,0.5);
-    const h=Math.max(o,c)+rnd(0.3,0.9), l=Math.min(o,c)-rnd(0.3,0.9);
-    const minutes = i*minutesPerBar;
-    const hh=startH+Math.floor(minutes/60), mm=minutes%60;
-    bars.push({t:`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`,o,h,l,c});
-    last=c;
+  // 1) 前段趨勢：空訓練先漲、多訓練先跌
+  const len1 = Math.floor(total*0.42);
+  for(let i=0;i<len1;i++){
+    const dir = state.mode==='SHORT_ONLY'? +1 : -1;
+    const step = dir*(1.0 + rnd(-0.2,0.8));
+    const o=price, c=o+step, h=Math.max(o,c)+rnd(0.2,0.6), l=Math.min(o,c)-rnd(0.2,0.6);
+    bars.push({o,h,l,c}); price=c;
   }
 
-  const lines = mode==="SHORT_ONLY"?CONFIG.key.shortLines:CONFIG.key.longLines;
-  const line = lines[Math.floor(Math.random()*lines.length)];
+  // 2) 反轉區：把價格「拉到分析線附近」後做出正確K
+  const line = (state.mode==='SHORT_ONLY'? pick(CONFIG.key.shortLines): pick(CONFIG.key.longLines));
   state.analysisLine = line;
-
-  const n = Math.floor(CONFIG.signalsMin + Math.random()*(CONFIG.signalsMax - CONFIG.signalsMin + 1));
-  const pool = Array.from({length: total-8}, (_,k)=>k+4);
-  const picks = [];
-  while(picks.length < n){
-    const i = pool.splice(Math.floor(Math.random()*pool.length),1)[0];
-    if(picks.every(p=>Math.abs(p-i)>=3)) picks.push(i);
+  // 先用 3~6 根過渡，逐步靠近分析線
+  const bridge = 3 + Math.floor(Math.random()*4);
+  for(let i=0;i<bridge;i++){
+    const toLine = (line - price); // 朝分析線前進
+    const step = Math.sign(toLine) * Math.min(Math.abs(toLine), 0.9) + rnd(-0.25,0.25);
+    const o=price, c=o+step, h=Math.max(o,c)+rnd(0.18,0.5), l=Math.min(o,c)-rnd(0.18,0.5);
+    bars.push({o,h,l,c}); price=c;
   }
-  picks.sort((a,b)=>a-b);
+  // 正確訊號K：空=開在上、收在下；多=開在下、收在上
+  let o= price + (state.mode==='SHORT_ONLY'? +0.6 : -0.6);
+  let c= line  + (state.mode==='SHORT_ONLY'? -0.25: +0.25);
+  let h=Math.max(o,c)+1.2, l=Math.min(o,c)-1.2;
+  const correctIdx = bars.length; bars.push({o,h,l,c, note:`✅ 正確：收${state.mode==='SHORT_ONLY'?'下':'上'}分析線`}); price=c;
 
-  const correctIdx = picks[Math.floor(Math.random()*picks.length)];
-  const sigs = [];
+  // 3) 後續延續：朝訊號方向推動
+  const len3 = total - bars.length; const dirFollow = state.mode==='SHORT_ONLY'? -1 : +1;
+  for(let i=0;i<len3;i++){
+    const step = dirFollow*(1.2 + rnd(-0.4,0.7));
+    const o=price, c=o+step, h=Math.max(o,c)+rnd(0.2,0.5), l=Math.min(o,c)-rnd(0.2,0.5);
+    bars.push({o,h,l,c}); price=c;
+  }
 
-  picks.forEach(idx=>{
-    const b = bars[idx];
-    let type, valid=false, note="", atLine=false, closeRel="";
-    if(idx===correctIdx){
-      atLine = true; valid = true;
-      if(mode==="SHORT_ONLY"){
-        type = "correct_on_line_close_below";
-        b.o = line + 0.6; b.h = b.o + 3.0; b.l = b.o - 2.0; b.c = line - 0.25;
-        closeRel = "below";
-        note = "先漲→反轉K，收下分析線（空訊號）";
-        for(let j=idx+1;j<bars.length;j++){
-          const o = bars[j-1].c, c = o - 1.4 + rnd(-0.3,0.4);
-          const h=Math.max(o,c)+rnd(0.2,0.6), l=Math.min(o,c)-rnd(0.2,0.6);
-          bars[j] = {...bars[j],o,c,h,l};
-        }
-      }else{
-        type = "correct_on_line_close_above";
-        b.o = line - 0.6; b.l = b.o - 3.0; b.h = b.o + 2.0; b.c = line + 0.25;
-        closeRel = "above";
-        note = "先跌→反轉K，收上分析線（多訊號）";
-        for(let j=idx+1;j<bars.length;j++){
-          const o = bars[j-1].c, c = o + 1.4 + rnd(-0.3,0.4);
-          const h=Math.max(o,c)+rnd(0.2,0.6), l=Math.min(o,c)-rnd(0.2,0.6);
-          bars[j] = {...bars[j],o,c,h,l};
-        }
-      }
-    }else{
-      if(Math.random()<0.5){
-        atLine = true;
-        if(mode==="SHORT_ONLY"){
-          type = "wrong_on_line_close_above";
-          b.o = line - 0.3; b.h = b.o + 2.4; b.l = b.o - 1.5; b.c = line + 0.35;
-          closeRel = "above";
-          note = "在分析線，但K棒收上（不符合『收下』）";
-          for(let j=idx+1;j<Math.min(idx+4,bars.length);j++){
-            const o=bars[j-1].c, c=o + 0.6 + rnd(-0.3,0.4);
-            const h=Math.max(o,c)+rnd(0.2,0.6), l=Math.min(o,c)-rnd(0.2,0.6);
-            bars[j] = {...bars[j],o,c,h,l};
-          }
-        }else{
-          type = "wrong_on_line_close_below";
-          b.o = line + 0.3; b.l = b.o - 2.4; b.h = b.o + 1.5; b.c = line - 0.35;
-          closeRel = "below";
-          note = "在分析線，但K棒收下（不符合『收上』）";
-          for(let j=idx+1;j<Math.min(idx+4,bars.length);j++){
-            const o=bars[j-1].c, c=o - 0.6 + rnd(-0.3,0.4);
-            const h=Math.max(o,c)+rnd(0.2,0.6), l=Math.min(o,c)-rnd(0.2,0.6);
-            bars[j] = {...bars[j],o,c,h,l};
-          }
-        }
-      }else{
-        atLine = false;
-        type = "wrong_off_line";
-        const shift = (Math.random()<0.5 ? -1 : 1) * (1.2 + Math.random()*2.0);
-        b.o = line + shift; b.c = b.o + (Math.random()<0.5?-0.4:0.4);
-        b.h = Math.max(b.o,b.c)+2.2; b.l=Math.min(b.o,b.c)-1.6;
-        closeRel = b.c>line ? "above" : "below";
-        note = "訊號遠離分析線（位置不符合）";
+  // 加入錯誤訊號：在分析線但收錯邊 / 偏離分析線
+  const totalSignals = Math.floor(CONFIG.signalsMin + Math.random()*(CONFIG.signalsMax-CONFIG.signalsMin+1));
+  const sigIdxPool = new Set(); sigIdxPool.add(correctIdx);
+  while(sigIdxPool.size<totalSignals){
+    const i = 4 + Math.floor(Math.random()*(bars.length-8));
+    if([...sigIdxPool].every(x=>Math.abs(x-i)>=3)) sigIdxPool.add(i);
+  }
+  const sigs=[]; [...sigIdxPool].forEach(idx=>{
+    const b=bars[idx]; let valid=false, note="", atLine=false, closeRel=""; let type="";
+    if(idx===correctIdx){ valid=true; atLine=true; closeRel=(state.mode==='SHORT_ONLY'? 'below':'above'); type='correct_on_line'; }
+    else{
+      if(Math.random()<0.55){ // 在分析線，但收錯邊
+        atLine=true; if(state.mode==='SHORT_ONLY'){ // 錯：收上
+          b.o=line-0.3; b.c=line+0.35; b.h=Math.max(b.o,b.c)+2.2; b.l=Math.min(b.o,b.c)-1.5; closeRel='above'; type='wrong_on_line_close_above'; note='在分析線但收上';
+        }else{ b.o=line+0.3; b.c=line-0.35; b.h=Math.max(b.o,b.c)+1.5; b.l=Math.min(b.o,b.c)-2.2; closeRel='below'; type='wrong_on_line_close_below'; note='在分析線但收下'; }
+      }else{ // 偏離分析線
+        atLine=false; const shift=(Math.random()<0.5?-1:1)*(1.4+Math.random()*2.0);
+        b.o=line+shift; b.c=b.o+(Math.random()<0.5?-0.4:0.4); b.h=Math.max(b.o,b.c)+2.0; b.l=Math.min(b.o,b.c)-1.6; closeRel=b.c>line?'above':'below'; type='wrong_off_line'; note='遠離分析線的錯誤訊號';
       }
     }
-
-    sigs.push({idx,type,valid,note,atLine,closeRel});
-    bars[idx] = {...bars[idx], note: (valid?"✅ ":"❌ ")+note};
+    sigs.push({idx,type,valid,note:(valid?'✅ ':'❌ ')+ (note||`反轉訊號`),atLine,closeRel});
   });
 
-  state.bars = bars;
-  state.sigs = sigs;
-  state.visible = 1;
-  state.order = null;
-  state.decisions = [];
+  // 時間戳與合成量
+  const minutesPerBar = state.timeframe==="M15"?15:5; const startHh=9;
+  let tMin=0; for(let i=0;i<bars.length;i++){ const hh=startHh+Math.floor(tMin/60), mm=tMin%60; bars[i].t=`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`; tMin+=minutesPerBar; }
+
+  state.bars=bars; state.sigs=sigs.sort((a,b)=>a.idx-b.idx); state.visible=1; state.order=null; state.decisions=[];
 }
 
-/* ======================
-   畫圖（Canvas 蠟燭）
-   ====================== */
-function drawChart(canvas, bars, visible, levels=[], order=null){
-  const ctx = canvas.getContext("2d");
-  const W = canvas.width = canvas.clientWidth;
-  const H = canvas.height = canvas.clientHeight;
-  ctx.clearRect(0,0,W,H);
-  const data = bars.slice(0,visible);
-  if(!data.length) return;
-
-  const hi = Math.max(...data.map(b=>b.h), ...levels.map(v=>v.price));
-  const lo = Math.min(...data.map(b=>b.l), ...levels.map(v=>v.price));
-  const pad = (hi-lo)*0.12 || 5, yMax=hi+pad, yMin=lo-pad;
-  const xStep = W/Math.max(32,data.length+2);
-  const y=v=>H-(v-yMin)/(yMax-yMin)*H;
-
-  // grid
-  ctx.strokeStyle="rgba(255,255,255,.06)"; ctx.lineWidth=1;
-  for(let i=0;i<6;i++){const yv=H*i/5; ctx.beginPath(); ctx.moveTo(0,yv); ctx.lineTo(W,yv); ctx.stroke();}
-
-  // levels
-  ctx.setLineDash([4,4]);
-  levels.forEach(l=>{
-    ctx.strokeStyle=l.color; ctx.beginPath(); ctx.moveTo(0,y(l.price)); ctx.lineTo(W,y(l.price)); ctx.stroke();
-    ctx.fillStyle=l.color; ctx.font="12px system-ui"; ctx.fillText(l.label, 10, y(l.price)-6);
-  });
-  ctx.setLineDash([]);
-
-  // candles
-  for(let i=0;i<data.length;i++){
-    const b=data[i], x=24+i*xStep, up=b.c>=b.o;
-    ctx.strokeStyle = up ? "rgba(140,220,180,.9)" : "rgba(255,130,130,.9)";
-    ctx.fillStyle   = up ? "rgba(140,220,180,.25)" : "rgba(255,130,130,.25)";
-    // wicks
-    ctx.beginPath(); ctx.moveTo(x,y(b.h)); ctx.lineTo(x,y(b.l)); ctx.stroke();
-    // body
-    const w=Math.max(3,xStep*0.6), y1=y(b.o), y2=y(b.c);
-    ctx.fillRect(x-w/2, Math.min(y1,y2), w, Math.max(2,Math.abs(y1-y2)));
-    if(b.note){ ctx.fillStyle="#ffd27d"; ctx.font="11px system-ui"; ctx.fillText("●", x+6, y(b.h)-6); }
-  }
-
-  // order lines（只在正確進場時顯示）
-  if(order){
-    const mark=(p,color,text)=>{ctx.strokeStyle=color; ctx.setLineDash([6,5]); ctx.beginPath(); ctx.moveTo(0,y(p)); ctx.lineTo(W,y(p)); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=color; ctx.font="12px system-ui"; ctx.fillText(text, W-140, y(p)-6);};
-    mark(order.entry, "#9bd1ff", `Entry ${order.entry.toFixed(2)}`);
-    mark(order.sl,    "#ff9b9b", `SL ${order.sl.toFixed(2)}`);
-    mark(order.tp,    "#79e0ab", `TP ${order.tp.toFixed(2)}`);
-    if(order.status){
-      ctx.fillStyle = order.status==="TP" ? "#79e0ab" : "#ff9b9b";
-      ctx.font="bold 18px system-ui"; ctx.fillText(order.status==="TP"?"✔ TAKE PROFIT":"+ STOP OUT", 20, 28);
-    }
-  }
+// ---------- 繪圖 ----------
+const canvas=el('chart'); const pxAxis=el('priceAxis'); const tmAxis=el('timeAxis');
+function draw(){
+  const ctx = canvas.getContext('2d'); const W = canvas.width = canvas.clientWidth; const H = canvas.height = canvas.clientHeight;
+  ctx.clearRect(0,0,W,H); const data=state.bars.slice(0,state.visible); if(!data.length) return;
+  const levels=[{price:state.analysisLine,label:`分析線 ${state.analysisLine}`,color:'rgba(130,170,255,.9)'}];
+  const hi = Math.max(...data.map(b=>b.h), ...levels.map(v=>v.price)); const lo = Math.min(...data.map(b=>b.l), ...levels.map(v=>v.price));
+  const pad=(hi-lo)*0.12||5, yMax=hi+pad, yMin=lo-pad; const xStep=W/Math.max(40,data.length+2); const y=v=>H-(v-yMin)/(yMax-yMin)*H;
+  ctx.strokeStyle='var(--grid)'; ctx.lineWidth=1; for(let i=0;i<6;i++){const yv=H*i/5; ctx.beginPath(); ctx.moveTo(0,yv); ctx.lineTo(W,yv); ctx.stroke();}
+  ctx.setLineDash([3,6]); const step=state.timeframe==='M15'?4:12; for(let i=0;i<data.length;i+=step){const x=24+i*xStep; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();} ctx.setLineDash([]);
+  ctx.setLineDash([4,4]); levels.forEach(l=>{ctx.strokeStyle=l.color; ctx.beginPath(); ctx.moveTo(0,y(l.price)); ctx.lineTo(W,y(l.price)); ctx.stroke(); ctx.fillStyle=l.color; ctx.font='12px system-ui'; ctx.fillText(l.label, 8, y(l.price)-6);}); ctx.setLineDash([]);
+  for(let i=0;i<data.length;i++){const b=data[i], x=24+i*xStep, up=b.c>=b.o; ctx.strokeStyle=up?'rgba(140,220,180,.9)':'rgba(255,130,130,.9)'; ctx.fillStyle=up?'rgba(140,220,180,.25)':'rgba(255,130,130,.25)'; ctx.beginPath(); ctx.moveTo(x,y(b.h)); ctx.lineTo(x,y(b.l)); ctx.stroke(); const w=Math.max(3,xStep*0.6), y1=y(b.o), y2=y(b.c); ctx.fillRect(x-w/2, Math.min(y1,y2), w, Math.max(2,Math.abs(y1-y2))); if(b.note){ ctx.fillStyle="#ffd27d"; ctx.font='11px system-ui'; ctx.fillText('●', x+6, y(b.h)-6);} }
+  if(state.order){ const mark=(p,color,text)=>{ctx.strokeStyle=color; ctx.setLineDash([6,5]); ctx.beginPath(); ctx.moveTo(0,y(p)); ctx.lineTo(W,y(p)); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=color; ctx.font='12px system-ui'; ctx.fillText(text, W-150, y(p)-6);}; mark(state.order.entry,'#9bd1ff',`Entry ${state.order.entry.toFixed(2)}`); mark(state.order.sl,'#ff9b9b',`SL ${state.order.sl.toFixed(2)}`); mark(state.order.tp,'#79e0ab',`TP ${state.order.tp.toFixed(2)}`); if(state.order.status){ ctx.fillStyle=state.order.status==='TP'?'#79e0ab':'#ff9b9b'; ctx.font='bold 18px system-ui'; ctx.fillText(state.order.status==='TP'?'✔ TAKE PROFIT':'+ STOP OUT', 20, 28);} }
+  pxAxis.innerHTML=''; const ticks=6; for(let i=0;i<=ticks;i++){const v=yMin+(yMax-yMin)*i/ticks; const d=document.createElement('div'); d.className='tick'; d.style.top=`${H-(H*i/ticks)}px`; d.textContent=v.toFixed(2); pxAxis.appendChild(d);} 
+  tmAxis.innerHTML=''; const tStep=state.timeframe==='M15'?4:12; for(let i=0;i<data.length;i+=tStep){const d=document.createElement('div'); d.className='tick'; d.style.left=`${(24+i*xStep)}px`; d.textContent=data[i].t; tmAxis.appendChild(d);} 
 }
 
-/* ======================
-   UI & 流程
-   ====================== */
-function render(){
-  app.innerHTML="";
-  if(state.scene==="intro"){
-    const c=document.createElement('div'); c.className="card";
-    c.innerHTML=`
-      <h1>反轉分析線訓練</h1>
-      <p>完成本日模擬，你將學會：<b class="hl">交易計畫 → 交易流程 → 進場判斷</b>，並確認 K 棒是否「收下/收上」分析線。</p>
-      <div class="row" style="margin:10px 0">
-        <div class="col">
-          <label class="small">訊號數：<input type="number" id="signals" min="3" max="5" value="${CONFIG.signalsMin}" style="width:60px"></label>
-        </div>
-        <div class="col">
-          <label class="small">速度：
-            <select id="speed">
-              <option value="900">慢</option>
-              <option value="650" selected>普通</option>
-              <option value="400">快</option>
-            </select>
-          </label>
-        </div>
-        <div class="col">
-          <label class="small">情境：
-            <select id="mode">
-              <option value="SHORT_ONLY">空單訓練</option>
-              <option value="LONG_ONLY">多單訓練</option>
-            </select>
-          </label>
-        </div>
-        <div class="col">
-          <label class="small">時框：
-            <select id="tf">
-              <option value="M15" selected>M15</option>
-              <option value="M5">M5</option>
-            </select>
-          </label>
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button class="btn btn-primary" id="start">開始模擬</button>
-      </div>
-      <p class="small">✅ 教學用途｜❌ 非投資建議</p>
-    `;
-    app.appendChild(c);
-    el('start').onclick=()=>{
-      CONFIG.signalsMin = CONFIG.signalsMax = parseInt(el('signals').value);
-      state.playSpeed = parseInt(el('speed').value);
-      state.mode = el('mode').value;
-      state.timeframe = el('tf').value;
-      state.scene="sim"; generateDay(); render(); togglePlay(true);
-    };
-  }
+function refreshHUD(){ el('hudSig').textContent=state.sigs.length; el('hudDec').textContent=state.decisions.length; el('hudVis').textContent=`${state.visible}/${state.bars.length}`; el('hudInfo').textContent = `${CONFIG.symbol} • ${state.timeframe} • 模式 ${state.mode==='SHORT_ONLY'?'空':'多'}`; const last=state.bars[state.visible-1]; if(last){ el('qBid').textContent=last.c.toFixed(2); el('qAsk').textContent=(last.c+0.2).toFixed(2); el('qSpr').textContent='0.20'; } }
+function pushAlertLog(sig){ const b=state.bars[sig.idx]; const tr=document.createElement('tr'); tr.innerHTML=`<td>${b.t}</td><td>${state.timeframe}</td><td>${state.mode==='SHORT_ONLY'?'空':'多'}</td><td>${sig.note}</td><td>${state.analysisLine}</td><td>${sig.valid?'✅':'—'}</td>`; el('logBody').prepend(tr); }
 
-  if(state.scene==="sim"){
-    const c=document.createElement('div'); c.className="card";
-    c.innerHTML=`
-      <h1>模擬盤（出現訊號時請判斷是否進場${state.mode==="SHORT_ONLY"?"空":"多"}單）</h1>
-      <div class="hud">
-        <span class="tag">可見K：${state.visible}/${state.bars.length}</span>
-        <span class="tag">今日訊號數：${state.sigs.length}</span>
-        <span class="tag">已判斷：${state.decisions.length}/${state.sigs.length}</span>
-        <span class="tag">時框 ${state.timeframe}</span>
-      </div>
-      <div id="chartWrap"><canvas id="chart"></canvas><div id="overlay"></div></div>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn" id="play">播放/暫停</button>
-        <button class="btn" id="step">+1 K</button>
-        <button class="btn btn-ghost" id="reset">重來</button>
-      </div>
-      <div class="list small" style="margin-top:10px">
-        <b>規則提示：</b>
-        <ul>
-          <li>✅ 正確：<b>${state.mode==="SHORT_ONLY"?"先漲":"先跌"}</b>後的<b>反轉K</b>，且<b>收${state.mode==="SHORT_ONLY"?"下":"上"}分析線</b> → ${state.mode==="SHORT_ONLY"?"空":"多"}單</li>
-          <li>❌ 錯誤：在分析線但<b>收${state.mode==="SHORT_ONLY"?"上":"下"}</b>；或訊號出在<b>遠離分析線</b>；或<b>非${state.mode==="SHORT_ONLY"?"先漲":"先跌"}後反轉</b></li>
-          <li>✅ 進場後：SL=訊號${state.mode==="SHORT_ONLY"?"高點+1":"低點-0.5"}、TP=2R（僅對正確單）</li>
-        </ul>
-      </div>
-    `;
-    app.appendChild(c);
-    const levels=[
-      {price:state.analysisLine,label:`分析線 ${state.analysisLine}`,color:"rgba(130,170,255,.9)"}
-    ];
-    drawChart(el('chart'), state.bars, state.visible, levels, state.order);
-    el('play').onclick=()=>togglePlay();
-    el('step').onclick=()=>stepOnce();
-    el('reset').onclick=()=>resetAll();
-  }
+let bannerTimer=null, bannerBar=null, bannerBox=null;
+function showSignalBanner(sig){ if(bannerBox) bannerBox.remove(); const box=document.createElement('div'); box.className='sigBanner'; box.innerHTML=`<div style="font-size:13px">⚠️ 訊號：<b>${state.bars[sig.idx].t}</b><br><small>${sig.note}</small></div><div class="count"><div class="bar"></div></div><div class="actions"><button class="enter">E 進場</button> <button class="skip">S 放棄</button></div>`; el('chartWrap').appendChild(box); bannerBox=box; bannerBar=box.querySelector('.bar'); let t=5, step=20, total=t*1000/step, i=0; clearInterval(bannerTimer); bannerTimer=setInterval(()=>{ i++; bannerBar.style.width=`${100-Math.min(100, i/total*100)}%`; if(i>=total){ clearInterval(bannerTimer); box.remove(); recordDecision(sig,'timeout'); } }, step); box.querySelector('.enter').onclick=()=>{ clearInterval(bannerTimer); box.remove(); recordDecision(sig,'enter'); }; box.querySelector('.skip').onclick=()=>{ clearInterval(bannerTimer); box.remove(); recordDecision(sig,'skip'); }; }
+function recordDecision(sig, action){ if(state.decisions.find(d=>d.idx===sig.idx)) return; const correct = action==='enter' ? !!sig.valid : !sig.valid; state.decisions.push({idx:sig.idx, action, correct, type:sig.type, note:sig.note}); if(action==='enter' && sig.valid && !state.order){ const b=state.bars[sig.idx]; const entry=b.c; let sl,tp; if(state.mode==='SHORT_ONLY'){ sl=b.h+1.0; const R=Math.abs(entry-sl); tp=entry-CONFIG.rrMin*R; } else { sl=b.l-0.5; const R=Math.abs(entry-sl); tp=entry+CONFIG.rrMin*R; } const rrActual=Math.abs(tp-entry)/Math.abs(entry-sl); state.order={entry,sl,tp,status:null}; if(rrActual<CONFIG.rrThreshold) toast('⚠️ 損益比偏低'); else toast('✅ 依計畫進場'); } else if(action==='enter' && !sig.valid) { toast('❌ 這筆不該進場'); } refreshHUD(); }
 
-  if(state.scene==="result"){
-    const c=document.createElement('div'); c.className="card";
-    const total=state.sigs.length, correctCount = state.decisions.filter(d=>d.correct).length;
-    const missedCorrect = state.sigs.find(s=>s.valid) && !state.decisions.find(d=>d.idx===state.sigs.find(s=>s.valid).idx && d.action==="enter");
-    c.innerHTML=`
-      <h1>成績單</h1>
-      <p>總訊號：${total}　判斷正確：<b class="ok">${correctCount}</b>　判斷錯誤：<b class="bad">${total - correctCount}</b></p>
-      ${missedCorrect?'<p class="bad">你錯過了唯一正確的進場。</p>':''}
-      ${state.order?`<p>交易結果：${state.order.status==="TP"?'<b class="ok">+2R</b>':'<b class="bad">-1R</b>'}（Entry ${state.order.entry.toFixed(2)} / SL ${state.order.sl.toFixed(2)} / TP ${state.order.tp.toFixed(2)}）</p>`:''}
-      <h2>逐筆回顧</h2>
-      <div class="list small" id="log"></div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
-        <button class="btn" id="again">再玩一次</button>
-      </div>
-      <p class="small">訓練重點：<b>與計畫一致且『收${state.mode==="SHORT_ONLY"?"下":"上"}分析線』才下${state.mode==="SHORT_ONLY"?"空":"多"}單</b>；否則<b>放棄</b>。</p>
-    `;
-    app.appendChild(c);
-    const log=document.getElementById('log');
-    log.innerHTML = "<ol style='margin:0;padding-left:18px'>" + state.sigs.map(s=>{
-      const d = state.decisions.find(x=>x.idx===s.idx);
-      const ans = s.valid ? `應進場${state.mode==="SHORT_ONLY"?"空":"多"}單` : "應放棄";
-      const you = d ? (d.action==="enter"?"你選擇：下單":"你選擇：放棄") : "（未回應）";
-      const isRight = d ? d.correct : false;
-      return `<li style="margin:6px 0">
-        <div>${state.bars[s.idx].t} — ${s.valid?"✅":"❌"} ${s.note}</div>
-        <div>標準答案：${ans}　｜　${you}　→　${isRight?'<span class="ok">判斷正確</span>':'<span class="bad">判斷錯誤</span>'}</div>
-      </li>`;
-    }).join("") + "</ol>";
-    el('again').onclick=()=>resetAll();
-  }
-}
+function togglePlay(force){ const playing=!!state.timer; if(playing && !force){ clearInterval(state.timer); state.timer=null; toast('暫停'); return;} if(!playing){ state.timer=setInterval(stepOnce,state.playSpeed); toast('播放中…'); }}
+function stepOnce(){ if(state.visible<state.bars.length){ state.visible++; draw(); refreshHUD(); const sig=state.sigs.find(s=>s.idx===state.visible-1); if(sig){ pushAlertLog(sig); showSignalBanner(sig);} if(state.order && !state.order.status){ const last=state.bars[state.visible-1].c; const hitTP=state.mode==='SHORT_ONLY'? last<=state.order.tp : last>=state.order.tp; const hitSL=state.mode==='SHORT_ONLY'? last>=state.order.sl : last<=state.order.sl; if(hitTP) state.order.status='TP'; if(hitSL) state.order.status='SL'; if(state.order.status){ clearInterval(state.timer); state.timer=null; toast(state.order.status==='TP'?'+2R':'-1R'); } } } }
 
-/* ======================
-   播放控制
-   ====================== */
-function togglePlay(force){
-  const playing=!!state.timer;
-  if(playing && !force){ clearInterval(state.timer); state.timer=null; toast("暫停"); return; }
-  if(!playing){ state.timer=setInterval(stepOnce,state.playSpeed); toast("播放中…"); }
-}
-function stepOnce(){
-  if(state.visible < state.bars.length){
-    state.visible++;
-    render();
+function reset(){ clearInterval(state.timer); state.timer=null; state.visible=0; state.order=null; state.decisions=[]; el('logBody').innerHTML=''; generateDay(); draw(); refreshHUD(); }
+['tfSeg','modeSeg','spdSeg'].forEach(id=>el(id).addEventListener('click',e=>{ if(e.target.tagName!=='BUTTON')return; [...e.currentTarget.children].forEach(b=>b.classList.remove('active')); e.target.classList.add('active'); if(id==='tfSeg'){ state.timeframe=e.target.dataset.tf; } if(id==='modeSeg'){ state.mode=e.target.dataset.mode; } if(id==='spdSeg'){ state.playSpeed=parseInt(e.target.dataset.spd,10); } reset(); }));
+el('btnPlay').onclick=()=>togglePlay(); el('btnStep').onclick=()=>stepOnce();
+window.addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault();togglePlay();} if(e.code==='ArrowRight'){stepOnce();} if(e.key==='1'){document.querySelector('#tfSeg [data-tf="M5"]').click();} if(e.key==='2'){document.querySelector('#tfSeg [data-tf="M15"]').click();} if(e.key==='+'){state.playSpeed=Math.max(200,state.playSpeed-100);} if(e.key==='-'){state.playSpeed=Math.min(1200,state.playSpeed+100);} if(e.key.toLowerCase()==='e' && bannerBox){ bannerBox.querySelector('.enter').click(); } if(e.key.toLowerCase()==='s' && bannerBox){ bannerBox.querySelector('.skip').click(); } });
 
-    // 到達任一訊號，彈窗判斷
-    const sig = state.sigs.find(s=>s.idx===state.visible-1);
-    if(sig) setTimeout(()=>askDecision(sig), 60);
-
-    // 若已有正確進場單，監控 TP/SL
-    if(state.order && !state.order.status){
-      const lastC = state.bars[state.visible-1].c;
-      const hitTP = state.mode==="SHORT_ONLY" ? lastC <= state.order.tp : lastC >= state.order.tp;
-      const hitSL = state.mode==="SHORT_ONLY" ? lastC >= state.order.sl : lastC <= state.order.sl;
-      if(hitTP){ state.order.status="TP"; }
-      if(hitSL){ state.order.status="SL"; }
-      if(state.order.status){ clearInterval(state.timer); state.timer=null; setTimeout(()=>{ state.scene="result"; render(); }, 600); }
-    }
-  }else{
-    clearInterval(state.timer); state.timer=null;
-    state.scene="result"; render();
-  }
-}
-
-/* ======================
-   訊號判斷彈窗
-   ====================== */
-function askDecision(sig){
-  // 若這個訊號已回覆過，直接略過
-  if(state.decisions.find(d=>d.idx===sig.idx)) return;
-
-  const overlay = document.getElementById('overlay');
-  const b = state.bars[sig.idx];
-  overlay.innerHTML = `
-    <div class="overlay">
-      <div class="panel">
-        <h2 style="margin:0 0 6px">反轉訊號出現（${b.t}）</h2>
-        <p class="small">${b.note || "—"}</p>
-        <ul class="small">
-          <li>是否在分析線？ ${sig.atLine?'<b>大約在</b>':'<b>不在</b>'}（K棒收${sig.closeRel==="below"?"<b>下</b>":"<b>上</b>"}分析線）</li>
-          <li>你的計畫：<b>${state.mode==="SHORT_ONLY"?"先漲→反轉且收下分析線才做空":"先跌→反轉且收上分析線才做多"}</b></li>
-        </ul>
-        <div style="display:flex;gap:8px;justify-content:flex-end">
-          <button class="btn btn-ghost" id="skip">不符合，放棄</button>
-          <button class="btn btn-primary" id="enter">符合，進場<b>${state.mode==="SHORT_ONLY"?"空":"多"}單</b></button>
-        </div>
-      </div>
-    </div>`;
-  el('skip').onclick=()=>{
-    overlay.innerHTML="";
-    const correct = !sig.valid; // 正確作法：錯誤訊號就該放棄
-    state.decisions.push({idx:sig.idx, action:"skip", correct, type:sig.type, note:sig.note});
-  };
-  el('enter').onclick=()=>{
-    overlay.innerHTML="";
-    const correct = !!sig.valid; // 只有唯一正確訊號才應進場
-    state.decisions.push({idx:sig.idx, action:"enter", correct, type:sig.type, note:sig.note});
-    if(correct && !state.order){
-      const entry = b.c;
-      let sl, tp;
-      if(state.mode==="SHORT_ONLY"){
-        sl = b.h + 1.0;
-        const R = Math.abs(entry - sl);
-        tp = entry - CONFIG.rrMin*R;
-      }else{
-        sl = b.l - 0.5;
-        const R = Math.abs(entry - sl);
-        tp = entry + CONFIG.rrMin*R;
-      }
-      const rrActual = Math.abs(tp - entry) / Math.abs(entry - sl);
-      state.order = {entry, sl, tp, status:null};
-      if(rrActual < CONFIG.rrThreshold){
-        toast("⚠️ 損益比低於門檻");
-      }else{
-        toast(`✅ 依計畫進場${state.mode==="SHORT_ONLY"?"空":"多"}單`);
-      }
-      render();
-    }else if(!correct){
-      toast("❌ 這筆不該進場（訓練：學會放棄）");
-    }else if(state.order){
-      toast("你已經做過正確單；其餘僅做判斷練習");
-    }
-  };
-}
-
-/* ======================
-   輔助 & 重置
-   ====================== */
-function resetAll(){
-  clearInterval(state.timer); state.timer=null;
-  state.scene="intro"; state.bars=[]; state.sigs=[]; state.visible=0; state.order=null; state.decisions=[]; state.analysisLine=null;
-  render();
-}
-
-/* 啟動 */
-render();
-
-// === Iteration Note 1 ===
-// - Done:
-//   * Added timeframe switch (M15/M5) and dual mode (空單/多單) support.
-//   * Implemented generateDay for both modes with動態分析線與SL/TP計算。
-// - Bugs fixed:
-//   * None.
-// - UX polish:
-//   * Dynamic texts and HUD reflecting mode and timeframe.
-// - TODO next:
-//   * 完成 RR 門檻提示與風險管理面板。
-
+// start
+reset();
 </script>
 </body>
 </html>
