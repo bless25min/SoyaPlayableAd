@@ -318,18 +318,25 @@ function buildFromSession(seg){
 
 function currentWindow(){
   const total = state.bars.length;
-  const right = Math.max(1, Math.min(state.visible, total)); // 目前推進到哪根（1-based）
+  const right = Math.max(1, Math.min(state.visible, total));  // 目前推到第幾根（1-based）
   const win   = Math.max(60, Math.floor((CONFIG.windowBars||120) / (state.view.scaleX||1)));
 
-  let start;
+  let start, end;
+
   if (state.view.followTail) {
-    // 跟隨最新：視窗永遠貼右側
-    start = Math.max(0, right - win);
+    // 跟隨最新：若可視根數還比視窗窄，就顯示 [0, right]；不固定視窗寬
+    if (right <= win || total <= win) {
+      start = 0;
+      end   = right;                 // <-- 隨 right 增加而推進
+    } else {
+      start = right - win;           // <-- 貼右緣滾動
+      end   = right;
+    }
   } else {
-    // 使用者平移：offsetBar < 0 往左看更早；>0 往右貼近右緣
+    // 使用者平移：允許看完整段歷史
     start = Math.max(0, Math.min(total - win, right - win + (state.view.offsetBar||0)));
+    end   = Math.min(total, start + win);
   }
-  const end = Math.min(total, start + win);
   return { start, end, win, right, total };
 }
 
