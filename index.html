@@ -130,6 +130,8 @@ const CONFIG = {
 // ===== State =====
 const state = { mode:"SHORT_ONLY", timeframe:CONFIG.timeframe, playSpeed:CONFIG.playSpeed, bars:[], sigs:[], visible:0, timer:null, order:null, decisions:[], analysisLine:null, position:null, dataset:[] };
 const el=id=>document.getElementById(id);
+let account = { balance: parseFloat(el('acc')?.value) || 10000 };
+let realizedPnL = 0;
 function toast(msg,ms=1200){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),ms);}  
 
 // ===== CSV loader =====
@@ -311,13 +313,27 @@ function draw(){
   // order lines（自動單）
   if(state.order){ const mark=(p,color,text)=>{ctx.strokeStyle=color; ctx.setLineDash([6,5]); ctx.beginPath(); ctx.moveTo(0,y(p)); ctx.lineTo(W,y(p)); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=color; ctx.font='12px system-ui'; ctx.fillText(text, W-150, y(p)-6);}; mark(state.order.entry,'#9bd1ff',`Entry ${state.order.entry.toFixed(2)}`); mark(state.order.sl,'#ff9b9b',`SL ${state.order.sl.toFixed(2)}`); mark(state.order.tp,'#79e0ab',`TP ${state.order.tp.toFixed(2)}`); if(state.order.status){ ctx.fillStyle=state.order.status==='TP'?'#79e0ab':'#ff9b9b'; ctx.font='bold 18px system-ui'; ctx.fillText(state.order.status==='TP'?'✔ TAKE PROFIT':'+ STOP OUT', 20, 28);} }
   // manual position HUD
-  if(state.position){ const p=state.position; const color=p.side==='LONG'?'#79e0ab':'#ff9b9b'; ctx.strokeStyle=color; ctx.setLineDash([5,4]); ctx.beginPath(); ctx.moveTo(0,y(p.entry)); ctx.lineTo(W,y(p.entry)); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=color; ctx.font='12px system-ui'; ctx.fillText(`${p.side} @ ${p.entry.toFixed(2)} | ${p.pnlR.toFixed(2)}R / $${p.pnl$.toFixed(0)}`, 20, 28); }
+  if(state.position){ const p=state.position; const color=p.side==='LONG'?'#79e0ab':'#ff9b9b'; ctx.strokeStyle=color; ctx.setLineDash([5,4]); ctx.beginPath(); ctx.moveTo(0,y(p.entry)); ctx.lineTo(W,y(p.entry)); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=color; ctx.font='12px system-ui'; ctx.fillText(`${p.side} @ ${p.entry.toFixed(2)} | ${p.pnlR.toFixed(2)}R / $${p.pnl$.toFixed(2)}`, 20, 28); }
   // axes
   pxAxis.innerHTML=''; const ticks=6; for(let i=0;i<=ticks;i++){const v=yMin+(yMax-yMin)*i/ticks; const d=document.createElement('div'); d.className='tick'; d.style.top=`${H-(H*i/ticks)}px`; d.textContent=v.toFixed(2); pxAxis.appendChild(d);} tmAxis.innerHTML=''; const tStep=state.timeframe==='M15'?4:12; for(let i=0;i<data.length;i+=tStep){const d=document.createElement('div'); d.className='tick'; d.style.left=`${(24+i*xStep)}px`; d.textContent=data[i].t; tmAxis.appendChild(d);} 
 }
 
 // ===== HUD & Banners =====
-function refreshHUD(){ el('hudSig').textContent=state.sigs.length; el('hudDec').textContent=state.decisions.length; el('hudVis').textContent=`${state.visible}/${state.bars.length}`; el('hudInfo').textContent = `${CONFIG.symbol} • ${state.timeframe} • 模式 ${state.mode==='SHORT_ONLY'?'空':'多'}`; const last=state.bars[state.visible-1]; if(last){ el('qBid').textContent=last.c.toFixed(2); el('qAsk').textContent=(last.c+0.2).toFixed(2); el('qSpr').textContent='0.20'; } el('hudPnL').textContent = state.position?`${state.position.pnlR.toFixed(2)}R / $${state.position.pnl$.toFixed(0)}`:'0R / $0'; }
+function refreshHUD(){
+  el('hudSig').textContent = state.sigs.length;
+  el('hudDec').textContent = state.decisions.length;
+  el('hudVis').textContent = `${state.visible}/${state.bars.length}`;
+  el('hudInfo').textContent = `${CONFIG.symbol} • ${state.timeframe} • 模式 ${state.mode==='SHORT_ONLY'?'空':'多'}`;
+  const last = state.bars[state.visible-1];
+  if(last){
+    el('qBid').textContent = last.c.toFixed(2);
+    el('qAsk').textContent = (last.c+0.2).toFixed(2);
+    el('qSpr').textContent = '0.20';
+  }
+  const unreal$ = state.position ? state.position.pnl$ : 0;
+  const unrealR = state.position ? state.position.pnlR : 0;
+  el('hudPnL').textContent = `浮動 ${unrealR.toFixed(2)}R / $${unreal$.toFixed(2)} ｜ 已實現 $${realizedPnL.toFixed(2)}`;
+}
 function pushAlertLog(sig){ const b=state.bars[sig.idx]; const tr=document.createElement('tr'); tr.innerHTML=`<td>${b.t}</td><td>${state.timeframe}</td><td>${state.mode==='SHORT_ONLY'?'空':'多'}</td><td>${sig.note}</td><td>${state.analysisLine?state.analysisLine.toFixed(2):''}</td><td>${sig.valid?'✅':'—'}</td>`; el('logBody').prepend(tr); }
 let bannerTimer=null, bannerBar=null, bannerBox=null;
 function showSignalBanner(sig){ if(bannerBox) bannerBox.remove(); const box=document.createElement('div'); box.className='sigBanner'; box.innerHTML=`<div style="font-size:13px">⚠️ 訊號：<b>${state.bars[sig.idx].t}</b><br><small>${sig.note}</small></div><div class="count"><div class="bar"></div></div><div class="actions"><button class="enter">E 進場</button> <button class="skip">S 放棄</button></div>`; document.getElementById('chartWrap').appendChild(box); bannerBox=box; bannerBar=box.querySelector('.bar'); let t=5, step=20, total=t*1000/step, i=0; clearInterval(bannerTimer); bannerTimer=setInterval(()=>{ i++; bannerBar.style.width=`${100-Math.min(100, i/total*100)}%`; if(i>=total){ clearInterval(bannerTimer); box.remove(); recordDecision(sig,'timeout'); } }, step); box.querySelector('.enter').onclick=()=>{ clearInterval(bannerTimer); box.remove(); recordDecision(sig,'enter'); }; box.querySelector('.skip').onclick=()=>{ clearInterval(bannerTimer); box.remove(); recordDecision(sig,'skip'); }; }
@@ -325,11 +341,54 @@ function recordDecision(sig, action){ if(state.decisions.find(d=>d.idx===sig.idx
 
 // ===== Manual orders =====
 function openPosition(side){ const last=state.bars[state.visible-1]; if(!last) return; const entry=last.c; const riskPct=parseFloat(el('risk').value)||1; const acc=parseFloat(el('acc').value)||10000; const rR=parseFloat(el('rR').value)||1; const sl = side==='SHORT' ? entry + rR : entry - rR; const R = Math.abs(entry - sl); const tp = side==='SHORT' ? entry - CONFIG.rrMin*R : entry + CONFIG.rrMin*R; const dollarsPerR = acc * (riskPct/100); const size = dollarsPerR / R; state.position = {side, entry, sl, tp, R, size, pnl$:0, pnlR:0}; toast(`${side==='LONG'?'做多':'做空'} @ ${entry.toFixed(2)} (教學尺寸)`); refreshHUD(); }
-function closePosition(reason='手動平倉'){ if(state.position){ toast(`${reason}：$${state.position.pnl$.toFixed(0)} / ${state.position.pnlR.toFixed(2)}R`); state.position=null; refreshHUD(); } }
+function closePosition(reason='手動平倉'){
+  if(!state.position) return;
+  const last = state.bars[state.visible-1];
+  const p = state.position;
+  const sign = p.side==='LONG' ? +1 : -1;
+  const fill = last.c;
+  const realized$ = sign * (fill - p.entry) * p.size;
+  realizedPnL += realized$;
+  account.balance += realized$;
+  toast(`${reason}：$${realized$.toFixed(2)} / ${p.pnlR.toFixed(2)}R`);
+  state.position = null;
+  refreshHUD();
+}
+
+function updatePositions(){
+  if(!state.position) return;
+  const last = state.bars[state.visible-1];
+  if(!last) return;
+  const p = state.position;
+  const sign = p.side==='LONG' ? +1 : -1;
+  p.pnlR = sign * (last.c - p.entry) / p.R;
+  p.pnl$ = p.pnlR * (p.size * p.R);
+  const hitTP = (sign>0) ? last.c >= p.tp : last.c <= p.tp;
+  const hitSL = (sign>0) ? last.c <= p.sl : last.c >= p.sl;
+  if(hitTP){ closePosition('TP 觸發'); }
+  else if(hitSL){ closePosition('SL 觸發'); }
+}
 
 // ===== Playback =====
 function togglePlay(force){ const playing=!!state.timer; if(playing && !force){ clearInterval(state.timer); state.timer=null; toast('暫停'); return;} if(!playing){ state.timer=setInterval(stepOnce,state.playSpeed); toast('播放中…'); }}
-function stepOnce(){ if(state.visible<state.bars.length){ state.visible++; draw(); refreshHUD(); const sig=state.sigs.find(s=>s.idx===state.visible-1); if(sig){ pushAlertLog(sig); showSignalBanner(sig);} if(state.order && !state.order.status){ const last=state.bars[state.visible-1].c; const hitTP=state.mode==='SHORT_ONLY'? last<=state.order.tp : last>=state.order.tp; const hitSL=state.mode==='SHORT_ONLY'? last>=state.order.sl : last<=state.order.sl; if(hitTP) state.order.status='TP'; if(hitSL) state.order.status='SL'; if(state.order.status){ clearInterval(state.timer); state.timer=null; toast(state.order.status==='TP'?'+2R':'-1R'); } } if(state.position){ const p=state.position; const last=state.bars[state.visible-1].c; const sign=(p.side==='LONG'? +1 : -1); p.pnlR = sign*(last - p.entry)/p.R; p.pnl$ = p.pnlR * (p.size * p.R); const hitTP = (sign>0) ? last>=p.tp : last<=p.tp; const hitSL = (sign>0) ? last<=p.sl : last>=p.sl; if(hitTP){ closePosition('TP 觸發'); } else if(hitSL){ closePosition('SL 觸發'); } } } }
+function stepOnce(){
+  if(state.visible<state.bars.length){
+    state.visible++;
+    draw();
+    const sig=state.sigs.find(s=>s.idx===state.visible-1);
+    if(sig){ pushAlertLog(sig); showSignalBanner(sig); }
+    if(state.order && !state.order.status){
+      const last=state.bars[state.visible-1].c;
+      const hitTP=state.mode==='SHORT_ONLY'? last<=state.order.tp : last>=state.order.tp;
+      const hitSL=state.mode==='SHORT_ONLY'? last>=state.order.sl : last<=state.order.sl;
+      if(hitTP) state.order.status='TP';
+      if(hitSL) state.order.status='SL';
+      if(state.order.status){ clearInterval(state.timer); state.timer=null; toast(state.order.status==='TP'?'+2R':'-1R'); }
+    }
+    updatePositions();
+    refreshHUD();
+  }
+}
 
 // ===== Boot / Reset =====
 async function boot(){ state.dataset = await loadFirstCSV(); if(state.dataset.length===0){ console.error('無法載入CSV，請放到同目錄、以 ?csv= 指定，或用「載入本機CSV」按鈕。'); }
