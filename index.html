@@ -122,8 +122,8 @@ const CONFIG = {
   symbol: "XAUUSD",
   timeframe: "M15",
   playSpeed: 650,
-  startHistoryRatio: 0.6,
-  windowBars: 120,
+  startBars: 60,           // 初始就顯示 60 根歷史
+  windowBars: 120,         // 視窗寬（會隨縮放變化）
   rrMin: 2,
   rrThreshold: 1.5,
   signalsMin: 3,
@@ -247,94 +247,53 @@ function parseOHLC(text){
   return out;
 }
 
-// ===== Pick a contiguous session (no weekend gaps) =====
-function pickSession(data, minutesPerBar){
-  const step = minutesPerBar*60*1000;
-  const aim  = (state.timeframe==='M15')?96:288; // 不足時取最長片段
-
-  let segments=[], longest=[], i=0;
-  while (i < data.length) {
-    let seg = [data[i++]];
-    while (i < data.length && (data[i].t - seg[seg.length-1].t) === step) {
-      seg.push(data[i++]);
-    }
-    if (seg.length > longest.length) longest = seg;
-    segments.push(seg);
-  }
-  if (!segments.length) return [];
-
-  const pool = segments.filter(s => s.length >= aim);
-  const base = pool.length ? pool : [longest];
-
-  // 方向過濾（空：先漲；多：先跌）—若無候選則回退
-  const dir  = state.mode==='SHORT_ONLY' ? +1 : -1;
-  const filt = base.filter(s => dir * (s[Math.floor(s.length*0.3)].c - s[0].c) > 0);
-  const take = filt.length ? filt : base;
-
-  return take[Math.floor(Math.random()*take.length)];
-}
-
-// ===== Build bars & signals from real session =====
-function buildFromSession(seg){
-  const bars = seg.map((b,i)=>({
+function prepareFromDataset(rows){
+  const bars = rows.map((b,i)=>({
     t: `${String(b.t.getHours()).padStart(2,'0')}:${String(b.t.getMinutes()).padStart(2,'0')}`,
-    o: i ? seg[i-1].c : b.o, h:b.h, l:b.l, c:b.c
+    o: i ? rows[i-1].c : b.o, h:b.h, l:b.l, c:b.c
   }));
+  state.bars = bars;
 
-  // 分析線：優先用你的清單，沒有才 fallback Fib
+  // 分析線：優先用你的清單，無才 fallback Fib
   let line = null;
-  if (state.mode==='SHORT_ONLY' && CONFIG.strategyLines?.short?.length) {
+  if(state.mode==='SHORT_ONLY' && CONFIG.strategyLines?.short?.length){
     line = CONFIG.strategyLines.short[Math.floor(Math.random()*CONFIG.strategyLines.short.length)];
-  } else if (state.mode==='LONG_ONLY' && CONFIG.strategyLines?.long?.length) {
+  }else if(state.mode==='LONG_ONLY' && CONFIG.strategyLines?.long?.length){
     line = CONFIG.strategyLines.long[Math.floor(Math.random()*CONFIG.strategyLines.long.length)];
-  }
-  if (!line) {
-    const head = bars.slice(0, Math.floor(bars.length*0.4));
+  }else{
+    const head = bars.slice(0, Math.max(10, Math.floor(bars.length*0.4)));
     const hi = Math.max(...head.map(b=>b.h)), lo = Math.min(...head.map(b=>b.l));
     const up = head[head.length-1].c > head[0].c;
     const fibs = [0.236,0.382,0.5,0.618,0.786].map(k => up ? (lo+k*(hi-lo)) : (hi-k*(hi-lo)));
     line = fibs[Math.floor(Math.random()*fibs.length)];
   }
-
   state.analysisLine = line;
-  state.bars = bars;
-  state.sigs = [];
 
-  // 初始顯示一定小於總長，避免一播放就到尾端
-  const target = Math.floor(state.bars.length * (CONFIG.startHistoryRatio || 0.6));
-  state.visible = Math.max(30, Math.min(state.bars.length - 5, target));
+  // 從最早開始顯示
+  state.visible = Math.min(CONFIG.startBars||60, bars.length);
 
-  // 視圖狀態
-  state.view.offsetBar = 0;
-  state.view.userPanned = false;
-  state.view.followTail = true;
+  // 視圖狀態（跟隨最新）
+  state.view = { scaleX:1, offsetBar:0, userPanned:false, followTail:true };
 
   // 清空交易狀態
   state.positions = [];
   state.orders    = [];
   state.trades    = [];
   state.decisions = [];
+  state.sigs      = [];
 }
-
 function currentWindow(){
   const total = state.bars.length;
-  const right = Math.max(1, Math.min(state.visible, total));  // 目前推到第幾根（1-based）
-  const win   = Math.max(60, Math.floor((CONFIG.windowBars||120) / (state.view.scaleX||1)));
+  const right = Math.max(1, Math.min(state.visible, total));  // 已解鎖到第幾根（1-based）
+  const win   = Math.max(60, Math.floor((CONFIG.windowBars||120) / (state.view?.scaleX||1)));
 
   let start, end;
-
-  if (state.view.followTail) {
-    // 跟隨最新：若可視根數還比視窗窄，就顯示 [0, right]；不固定視窗寬
-    if (right <= win || total <= win) {
-      start = 0;
-      end   = right;                 // <-- 隨 right 增加而推進
-    } else {
-      start = right - win;           // <-- 貼右緣滾動
-      end   = right;
-    }
+  if (state.view?.followTail) {
+    if (right <= win || total <= win) { start = 0;        end = right; }
+    else                               { start = right-win; end = right; }
   } else {
-    // 使用者平移：允許看完整段歷史
-    start = Math.max(0, Math.min(total - win, right - win + (state.view.offsetBar||0)));
+    const off = state.view?.offsetBar||0;
+    start = Math.max(0, Math.min(total - win, right - win + off));
     end   = Math.min(total, start + win);
   }
   return { start, end, win, right, total };
@@ -511,8 +470,11 @@ function reset(){ clearInterval(state.timer); state.timer=null; state.visible=0;
   state.view.offsetBar = 0;
   state.view.userPanned = false;
   state.view.followTail = true;
-  const minutesPerBar = state.timeframe==='M15'?15:5;
-  if(state.dataset.length){ const session = pickSession(state.dataset, minutesPerBar); if(session.length){ buildFromSession(session); draw(); refreshHUD(); return; } }
+  if(state.dataset.length){
+    prepareFromDataset(state.dataset);        // 取整份資料
+    draw(); refreshHUD();
+    return;
+  }
   // fallback：若無資料
   state.bars=[]; state.sigs=[]; draw(); refreshHUD(); toast('請提供 M15 CSV'); }
 
@@ -551,6 +513,31 @@ el('btnSellNow').onclick=()=>placeMarket('SHORT');
 el('btnBuyPend').onclick=()=>placePending('LONG');
 el('btnSellPend').onclick=()=>placePending('SHORT');
 el('btnCloseAll').onclick=()=>closeAll();
+
+function __selfcheck(){
+  const errs = [];
+
+  // 1) 大括號不對稱（粗檢）
+  const html = document.documentElement.outerHTML;
+  const openBraces = (html.match(/{/g)||[]).length;
+  const closeBraces = (html.match(/}/g)||[]).length;
+  if(openBraces!==closeBraces) errs.push(`Brace mismatch: {=${openBraces}} }=${closeBraces}}`);
+
+  // 2) 重複事件監聽（mousemove）
+  const mmCount = (html.match(/addEventListener\(['"]mousemove['"]/g)||[]).length;
+  if(mmCount>1) errs.push(`Duplicated mousemove listeners: ${mmCount}`);
+
+  // 3) NaN 檢查（bars/visible）
+  if(!Array.isArray(state.bars) || !state.bars.length) errs.push('No bars loaded');
+  if(!(state.visible>0)) errs.push(`Invalid state.visible: ${state.visible}`);
+
+  // 4) 跟隨旗標
+  if(state.view && typeof state.view.followTail!=='boolean') errs.push('state.view.followTail missing');
+
+  if(errs.length){ console.error('[SELF-CHECK]', errs); toast('自查異常：請看 Console'); }
+  else { console.log('[SELF-CHECK] OK'); }
+}
+window.addEventListener('load', ()=> setTimeout(__selfcheck, 200));
 
 boot();
 </script>
