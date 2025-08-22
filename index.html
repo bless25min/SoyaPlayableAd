@@ -83,16 +83,18 @@
         <div class="priceAxis" id="priceAxis"></div>
         <div class="timeAxis" id="timeAxis"></div>
       </div>
-      <div class="orderDock">
-        <div style="font-weight:700;margin-right:6px">下單</div>
-        <small>資金</small><input id="acc" type="number" value="10000"/>
-        <small>風險%</small><input id="risk" type="number" value="1"/>
-        <small>SL距離(R)</small><input id="rR" type="number" value="1"/>
-        <button class="btn sell" id="btnSell">做空</button>
-        <button class="btn buy" id="btnBuy">做多</button>
-        <button class="btn" id="btnClose">平倉</button>
-        <small id="posInfo" style="margin-left:6px;color:#9fb0cf">無倉位</small>
-      </div>
+        <div class="orderDock">
+          <div style="font-weight:700;margin-right:6px">下單</div>
+          <small>SL價</small><input id="inSL" type="number"/>
+          <small>TP價</small><input id="inTP" type="number"/>
+          <small>掛單價</small><input id="inPend" type="number"/>
+          <button class="btn buy" id="btnBuyNow">立即買入</button>
+          <button class="btn sell" id="btnSellNow">立即賣出</button>
+          <button class="btn buy" id="btnBuyPend">掛單買入</button>
+          <button class="btn sell" id="btnSellPend">掛單賣出</button>
+          <button class="btn" id="btnCloseAll">平倉全部</button>
+          <small id="posInfo" style="margin-left:6px;color:#9fb0cf">無倉位</small>
+        </div>
   </main>
   </div>
 
@@ -120,6 +122,8 @@ const CONFIG = {
   symbol: "XAUUSD",
   timeframe: "M15",
   playSpeed: 650,
+  startHistoryRatio: 0.6,
+  windowBars: 120,
   rrMin: 2,
   rrThreshold: 1.5,
   signalsMin: 3,
@@ -128,11 +132,25 @@ const CONFIG = {
 };
 
 // ===== State =====
-const state = { mode:"SHORT_ONLY", timeframe:CONFIG.timeframe, playSpeed:CONFIG.playSpeed, bars:[], sigs:[], visible:0, timer:null, order:null, decisions:[], analysisLine:null, position:null, dataset:[] };
+const state = {
+  mode:"SHORT_ONLY",
+  timeframe:CONFIG.timeframe,
+  playSpeed:CONFIG.playSpeed,
+  bars:[],
+  sigs:[],
+  visible:0,
+  timer:null,
+  analysisLine:null,
+  dataset:[],
+  view:{offsetBar:0, scaleX:1, userPanned:false},
+  positions:[],
+  orders:[],
+  trades:[],
+  decisions:[]
+};
 const el=id=>document.getElementById(id);
-let account = { balance: parseFloat(el('acc')?.value) || 10000 };
 let realizedPnL = 0;
-function toast(msg,ms=1200){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),ms);}  
+function toast(msg,ms=1200){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),ms);}
 
 // ===== CSV loader =====
 function qs(name){ return new URLSearchParams(location.search).get(name); }
@@ -232,77 +250,98 @@ function parseOHLC(text){
 // ===== Pick a contiguous session (no weekend gaps) =====
 function pickSession(data, minutesPerBar){
   const step = minutesPerBar*60*1000;
-  const want = (state.timeframe==='M15')?48:144; // 12小時/整天
-  // 掃描連續片段
-  let start=0, best=[]; while(start<data.length- want){
-    const seg = [data[start]]; let i=start+1; while(i<data.length && (data[i].t - data[i-1].t)===step){ seg.push(data[i]); if(seg.length>=want) break; i++; }
-    if(seg.length>=want){ best.push(seg); start=i; } else start++;
+  const aim  = (state.timeframe==='M15')?96:288; // 不足時取最長片段
+
+  let segments=[], longest=[], i=0;
+  while (i < data.length) {
+    let seg = [data[i++]];
+    while (i < data.length && (data[i].t - seg[seg.length-1].t) === step) {
+      seg.push(data[i++]);
+    }
+    if (seg.length > longest.length) longest = seg;
+    segments.push(seg);
   }
-  if(best.length===0) return [];
-  // 依需求挑選趨勢方向（SHORT:先漲; LONG:先跌）
-  const dir = state.mode==='SHORT_ONLY'?+1:-1;
-  const scored = best.map(seg=>({seg,score: dir*Math.sign(seg[Math.floor(seg.length*0.4)].c - seg[0].c)}));
-  const candidates = scored.filter(s=>s.score>0).map(s=>s.seg);
-  const chosen = (candidates.length? candidates : best)[Math.floor(Math.random()*(candidates.length?candidates.length:best.length))];
-  return chosen;
+  if (!segments.length) return [];
+
+  const pool = segments.filter(s => s.length >= aim);
+  const base = pool.length ? pool : [longest];
+
+  // 方向過濾（空：先漲；多：先跌）—若無候選則回退
+  const dir  = state.mode==='SHORT_ONLY' ? +1 : -1;
+  const filt = base.filter(s => dir * (s[Math.floor(s.length*0.3)].c - s[0].c) > 0);
+  const take = filt.length ? filt : base;
+
+  return take[Math.floor(Math.random()*take.length)];
 }
 
 // ===== Build bars & signals from real session =====
 function buildFromSession(seg){
-  const minutesPerBar = state.timeframe==='M15'?15:5;
-  // 複製數據，確保每根開盤=前一根收盤（CSV 本就如此）
-  const bars = seg.map((b,i)=>({ t: `${String(b.t.getHours()).padStart(2,'0')}:${String(b.t.getMinutes()).padStart(2,'0')}`, o: i?seg[i-1].c:b.o, h:b.h, l:b.l, c:b.c }));
+  const bars = seg.map((b,i)=>({
+    t: `${String(b.t.getHours()).padStart(2,'0')}:${String(b.t.getMinutes()).padStart(2,'0')}`,
+    o: i ? seg[i-1].c : b.o, h:b.h, l:b.l, c:b.c
+  }));
 
-  // 用前40%選 swing hi/lo 算費波，只取其中一條為分析線（不顯示文字）
-  const head = bars.slice(0, Math.floor(bars.length*0.4));
-  const hi = Math.max(...head.map(b=>b.h)), lo = Math.min(...head.map(b=>b.l));
-  const upTrend = head[head.length-1].c > head[0].c; // 初段方向
-  const fibs = CONFIG.fibKeys.map(k=> upTrend? (lo + k*(hi-lo)) : (hi - k*(hi-lo)));
-  state.analysisLine = fibs[Math.floor(Math.random()*fibs.length)];
-
-  // 尋找唯一正確訊號：跨越分析線且符合理論方向
-  const correct = findCorrectSignal(bars, state.analysisLine, state.mode);
-  const sigs = [];
-  if(correct) sigs.push(correct);
-  // 加入錯誤干擾（在分析線收錯邊／遠離分析線）
-  const want = Math.max(CONFIG.signalsMin-1,2);
-  const nearIdx = bars.map((b,i)=>({i,b,dist:Math.abs(b.c-state.analysisLine)})).sort((a,b)=>a.dist-b.dist).slice(0,40).map(x=>x.i);
-  let used = new Set([correct?correct.idx:-999]);
-  // 在分析線但收錯邊
-  for(const i of nearIdx){ if(used.size>=(want)) break; if(used.has(i)) continue; const b=bars[i]; const wrong = buildWrongOnLine(b,i); if(wrong){ used.add(i); sigs.push(wrong);} }
-  // 遠離分析線
-  for(let i=10;i<bars.length-10 && sigs.length<CONFIG.signalsMax; i+=5){ if(used.has(i)) continue; const b=bars[i]; if(Math.abs(b.c-state.analysisLine)> (hi-lo)*0.25){ sigs.push({idx:i,type:'wrong_off_line',valid:false,note:'遠離分析線的錯誤訊號',atLine:false,closeRel: b.c>state.analysisLine?'above':'below'}); used.add(i);} }
-
-  state.bars = bars; state.sigs = sigs.sort((a,b)=>a.idx-b.idx); state.visible=1; state.order=null; state.decisions=[]; state.position=null;
-}
-function findCorrectSignal(bars, line, mode){
-  const start = Math.floor(bars.length*0.45);
-  for(let i=start;i<bars.length-10;i++){
-    const b=bars[i];
-    if(mode==='SHORT_ONLY' && b.o>line && b.c<line) return {idx:i,type:'correct_on_line_close_below',valid:true,note:'先漲→反轉，收下分析線',atLine:true,closeRel:'below'};
-    if(mode==='LONG_ONLY'  && b.o<line && b.c>line) return {idx:i,type:'correct_on_line_close_above',valid:true,note:'先跌→反轉，收上分析線',atLine:true,closeRel:'above'};
+  // 分析線：優先用你的清單，沒有才 fallback Fib
+  let line = null;
+  if (state.mode==='SHORT_ONLY' && CONFIG.strategyLines?.short?.length) {
+    line = CONFIG.strategyLines.short[Math.floor(Math.random()*CONFIG.strategyLines.short.length)];
+  } else if (state.mode==='LONG_ONLY' && CONFIG.strategyLines?.long?.length) {
+    line = CONFIG.strategyLines.long[Math.floor(Math.random()*CONFIG.strategyLines.long.length)];
   }
-  // 若沒找到，放寬到整段尋找
-  for(let i=10;i<bars.length-10;i++){
-    const b=bars[i];
-    if(mode==='SHORT_ONLY' && b.o>line && b.c<line) return {idx:i,type:'correct_on_line_close_below',valid:true,note:'收下分析線',atLine:true,closeRel:'below'};
-    if(mode==='LONG_ONLY'  && b.o<line && b.c>line) return {idx:i,type:'correct_on_line_close_above',valid:true,note:'收上分析線',atLine:true,closeRel:'above'};
+  if (!line) {
+    const head = bars.slice(0, Math.floor(bars.length*0.4));
+    const hi = Math.max(...head.map(b=>b.h)), lo = Math.min(...head.map(b=>b.l));
+    const up = head[head.length-1].c > head[0].c;
+    const fibs = [0.236,0.382,0.5,0.618,0.786].map(k => up ? (lo+k*(hi-lo)) : (hi-k*(hi-lo)));
+    line = fibs[Math.floor(Math.random()*fibs.length)];
   }
-  return null;
+
+  state.analysisLine = line;
+  state.bars = bars;
+  state.sigs = [];
+
+  // 初始顯示一定小於總長，避免一播放就到尾端
+  const target = Math.floor(bars.length*CONFIG.startHistoryRatio);
+  state.visible = Math.max(30, Math.min(bars.length-5, target));
+
+  // 視圖狀態
+  state.view.offsetBar = 0;
+  state.view.userPanned = false;
+
+  // 清空交易狀態
+  state.positions = [];
+  state.orders    = [];
+  state.trades    = [];
+  state.decisions = [];
 }
-function buildWrongOnLine(b,i){
-  const above = b.c>state.analysisLine;
-  if(state.mode==='SHORT_ONLY' && above){ return {idx:i,type:'wrong_on_line_close_above',valid:false,note:'在分析線但收上',atLine:true,closeRel:'above'}; }
-  if(state.mode==='LONG_ONLY' && !above){ return {idx:i,type:'wrong_on_line_close_below',valid:false,note:'在分析線但收下',atLine:true,closeRel:'below'}; }
-  return null;
+
+function currentWindow(){
+  const total = state.bars.length;
+  const right = Math.max(1, Math.min(state.visible, total));       // 目前推進到哪根
+  const win   = Math.max(40, Math.floor(CONFIG.windowBars / (state.view?.scaleX||1)));
+
+  let start;
+  if (state.view?.userPanned) {
+    // 允許看完整段歷史：offsetBar<0 向左看更早；>0 向右靠近右緣
+    start = Math.max(0, Math.min(total - win, right - win + (state.view.offsetBar||0)));
+  } else {
+    start = Math.max(0, right - win);
+  }
+  const end = Math.min(total, start + win);
+  return {start,end,win,right,total};
 }
 
 // ===== Rendering =====
 const canvas=el('chart'); const pxAxis=el('priceAxis'); const tmAxis=el('timeAxis');
+let pan=false, lastX=0;
 function draw(){
   const ctx = canvas.getContext('2d'); const W = canvas.width = canvas.clientWidth; const H = canvas.height = canvas.clientHeight;
-  ctx.clearRect(0,0,W,H); const data=state.bars.slice(0,state.visible); if(!data.length) return;
-  const hi = Math.max(...data.map(b=>b.h), state.analysisLine||-Infinity); const lo = Math.min(...data.map(b=>b.l), state.analysisLine||Infinity);
+  ctx.clearRect(0,0,W,H);
+  const {start,end} = currentWindow();
+  const data=state.bars.slice(start,end);
+  if(!data.length) return;
+  const hi = Math.max(...data.map(b=>b.h), state.analysisLine||-Infinity);
+  const lo = Math.min(...data.map(b=>b.l), state.analysisLine||Infinity);
   const pad=(hi-lo)*0.12||5, yMax=hi+pad, yMin=lo-pad; const xStep=W/Math.max(48,data.length+2); const y=v=>H-(v-yMin)/(yMax-yMin)*H;
   // grid
   const step=state.timeframe==='M15'?4:12; ctx.strokeStyle='var(--grid)'; for(let i=0;i<6;i++){const yv=H*i/5; ctx.beginPath(); ctx.moveTo(0,yv); ctx.lineTo(W,yv); ctx.stroke();} ctx.setLineDash([3,6]); for(let i=0;i<data.length;i+=step){const x=24+i*xStep; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();} ctx.setLineDash([]);
@@ -310,13 +349,34 @@ function draw(){
   if(state.analysisLine){ ctx.setLineDash([4,4]); ctx.strokeStyle='rgba(190,210,120,.95)'; const yL=y(state.analysisLine); ctx.beginPath(); ctx.moveTo(0,yL); ctx.lineTo(W,yL); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle='rgba(190,210,120,.95)'; ctx.font='12px system-ui'; ctx.fillText(state.analysisLine.toFixed(2), W-70, yL-6); }
   // candles
   for(let i=0;i<data.length;i++){const b=data[i], x=24+i*xStep, up=b.c>=b.o; ctx.strokeStyle=up?'rgba(140,220,180,.9)':'rgba(255,130,130,.9)'; ctx.fillStyle=up?'rgba(140,220,180,.25)':'rgba(255,130,130,.25)'; ctx.beginPath(); ctx.moveTo(x,y(b.h)); ctx.lineTo(x,y(b.l)); ctx.stroke(); const w=Math.max(3,xStep*0.6), y1=y(b.o), y2=y(b.c); ctx.fillRect(x-w/2, Math.min(y1,y2), w, Math.max(2,Math.abs(y1-y2))); }
-  // order lines（自動單）
-  if(state.order){ const mark=(p,color,text)=>{ctx.strokeStyle=color; ctx.setLineDash([6,5]); ctx.beginPath(); ctx.moveTo(0,y(p)); ctx.lineTo(W,y(p)); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=color; ctx.font='12px system-ui'; ctx.fillText(text, W-150, y(p)-6);}; mark(state.order.entry,'#9bd1ff',`Entry ${state.order.entry.toFixed(2)}`); mark(state.order.sl,'#ff9b9b',`SL ${state.order.sl.toFixed(2)}`); mark(state.order.tp,'#79e0ab',`TP ${state.order.tp.toFixed(2)}`); if(state.order.status){ ctx.fillStyle=state.order.status==='TP'?'#79e0ab':'#ff9b9b'; ctx.font='bold 18px system-ui'; ctx.fillText(state.order.status==='TP'?'✔ TAKE PROFIT':'+ STOP OUT', 20, 28);} }
-  // manual position HUD
-  if(state.position){ const p=state.position; const color=p.side==='LONG'?'#79e0ab':'#ff9b9b'; ctx.strokeStyle=color; ctx.setLineDash([5,4]); ctx.beginPath(); ctx.moveTo(0,y(p.entry)); ctx.lineTo(W,y(p.entry)); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=color; ctx.font='12px system-ui'; ctx.fillText(`${p.side} @ ${p.entry.toFixed(2)} | ${p.pnlR.toFixed(2)}R / $${p.pnl$.toFixed(2)}`, 20, 28); }
+  // manual positions
+  state.positions.forEach((p,idx)=>{
+    const color=p.side==='LONG'?'#79e0ab':'#ff9b9b';
+    ctx.strokeStyle=color; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.moveTo(0,y(p.entry)); ctx.lineTo(W,y(p.entry)); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle=color; ctx.font='12px system-ui';
+    ctx.fillText(`${p.side} @ ${p.entry.toFixed(2)} | ${p.pnlR.toFixed(2)}R / $${p.pnl$.toFixed(2)}`, 20, 28+14*idx);
+  });
   // axes
   pxAxis.innerHTML=''; const ticks=6; for(let i=0;i<=ticks;i++){const v=yMin+(yMax-yMin)*i/ticks; const d=document.createElement('div'); d.className='tick'; d.style.top=`${H-(H*i/ticks)}px`; d.textContent=v.toFixed(2); pxAxis.appendChild(d);} tmAxis.innerHTML=''; const tStep=state.timeframe==='M15'?4:12; for(let i=0;i<data.length;i+=tStep){const d=document.createElement('div'); d.className='tick'; d.style.left=`${(24+i*xStep)}px`; d.textContent=data[i].t; tmAxis.appendChild(d);} 
 }
+
+canvas.addEventListener('mousedown', e => { pan=true; lastX=e.clientX; });
+window.addEventListener('mouseup', () => { pan=false; });
+
+canvas.addEventListener('mousemove', e => {
+  if (!pan) return;
+  const dx = e.clientX - lastX; lastX = e.clientX;
+
+  const {right,total} = currentWindow();
+  const lower = -(right-1);
+  const upper = (total - right) - 1;
+  const step  = dx>0 ? -1 : (dx<0 ? +1 : 0);
+
+  state.view.offsetBar = Math.max(lower, Math.min(upper, (state.view.offsetBar||0) + step));
+  state.view.userPanned = true;
+  draw();
+});
 
 // ===== HUD & Banners =====
 function refreshHUD(){
@@ -330,70 +390,109 @@ function refreshHUD(){
     el('qAsk').textContent = (last.c+0.2).toFixed(2);
     el('qSpr').textContent = '0.20';
   }
-  const unreal$ = state.position ? state.position.pnl$ : 0;
-  const unrealR = state.position ? state.position.pnlR : 0;
+  let unreal$ = 0, unrealR = 0;
+  state.positions.forEach(p=>{ unreal$ += p.pnl$; unrealR += p.pnlR; });
   el('hudPnL').textContent = `浮動 ${unrealR.toFixed(2)}R / $${unreal$.toFixed(2)} ｜ 已實現 $${realizedPnL.toFixed(2)}`;
+  el('posInfo').textContent = state.positions.length?`持倉 ${state.positions.length}`:'無倉位';
 }
 function pushAlertLog(sig){ const b=state.bars[sig.idx]; const tr=document.createElement('tr'); tr.innerHTML=`<td>${b.t}</td><td>${state.timeframe}</td><td>${state.mode==='SHORT_ONLY'?'空':'多'}</td><td>${sig.note}</td><td>${state.analysisLine?state.analysisLine.toFixed(2):''}</td><td>${sig.valid?'✅':'—'}</td>`; el('logBody').prepend(tr); }
 let bannerTimer=null, bannerBar=null, bannerBox=null;
 function showSignalBanner(sig){ if(bannerBox) bannerBox.remove(); const box=document.createElement('div'); box.className='sigBanner'; box.innerHTML=`<div style="font-size:13px">⚠️ 訊號：<b>${state.bars[sig.idx].t}</b><br><small>${sig.note}</small></div><div class="count"><div class="bar"></div></div><div class="actions"><button class="enter">E 進場</button> <button class="skip">S 放棄</button></div>`; document.getElementById('chartWrap').appendChild(box); bannerBox=box; bannerBar=box.querySelector('.bar'); let t=5, step=20, total=t*1000/step, i=0; clearInterval(bannerTimer); bannerTimer=setInterval(()=>{ i++; bannerBar.style.width=`${100-Math.min(100, i/total*100)}%`; if(i>=total){ clearInterval(bannerTimer); box.remove(); recordDecision(sig,'timeout'); } }, step); box.querySelector('.enter').onclick=()=>{ clearInterval(bannerTimer); box.remove(); recordDecision(sig,'enter'); }; box.querySelector('.skip').onclick=()=>{ clearInterval(bannerTimer); box.remove(); recordDecision(sig,'skip'); }; }
-function recordDecision(sig, action){ if(state.decisions.find(d=>d.idx===sig.idx)) return; const correct = action==='enter' ? !!sig.valid : !sig.valid; state.decisions.push({idx:sig.idx, action, correct, type:sig.type, note:sig.note}); if(action==='enter' && sig.valid && !state.order){ const b=state.bars[sig.idx]; const entry=b.c; let sl,tp; if(state.mode==='SHORT_ONLY'){ sl=b.h+1.0; const R=Math.abs(entry-sl); tp=entry-CONFIG.rrMin*R; } else { sl=b.l-0.5; const R=Math.abs(entry-sl); tp=entry+CONFIG.rrMin*R; } const rrActual=Math.abs(tp-entry)/Math.abs(entry-sl); state.order={entry,sl,tp,status:null}; if(rrActual<CONFIG.rrThreshold) toast('⚠️ 損益比偏低'); else toast('✅ 依計畫進場'); } else if(action==='enter' && !sig.valid) { toast('❌ 這筆不該進場'); } refreshHUD(); }
+function recordDecision(sig, action){
+  if(state.decisions.find(d=>d.idx===sig.idx)) return;
+  const correct = action==='enter' ? !!sig.valid : !sig.valid;
+  state.decisions.push({idx:sig.idx, action, correct, type:sig.type, note:sig.note});
+  if(action==='enter' && !sig.valid) { toast('❌ 這筆不該進場'); }
+  refreshHUD();
+}
 
-// ===== Manual orders =====
-function openPosition(side){ const last=state.bars[state.visible-1]; if(!last) return; const entry=last.c; const riskPct=parseFloat(el('risk').value)||1; const acc=parseFloat(el('acc').value)||10000; const rR=parseFloat(el('rR').value)||1; const sl = side==='SHORT' ? entry + rR : entry - rR; const R = Math.abs(entry - sl); const tp = side==='SHORT' ? entry - CONFIG.rrMin*R : entry + CONFIG.rrMin*R; const dollarsPerR = acc * (riskPct/100); const size = dollarsPerR / R; state.position = {side, entry, sl, tp, R, size, pnl$:0, pnlR:0}; toast(`${side==='LONG'?'做多':'做空'} @ ${entry.toFixed(2)} (教學尺寸)`); refreshHUD(); }
-function closePosition(reason='手動平倉'){
-  if(!state.position) return;
+// ===== Manual trading =====
+function placeMarket(side){
   const last = state.bars[state.visible-1];
-  const p = state.position;
-  const sign = p.side==='LONG' ? +1 : -1;
-  const fill = last.c;
-  const realized$ = sign * (fill - p.entry) * p.size;
-  realizedPnL += realized$;
-  account.balance += realized$;
-  toast(`${reason}：$${realized$.toFixed(2)} / ${p.pnlR.toFixed(2)}R`);
-  state.position = null;
+  if(!last) return;
+  const bid = last.c, ask = bid+0.2, mid=(bid+ask)/2;
+  const entry = side==='LONG'?ask:bid;
+  const sl = parseFloat(el('inSL').value) || null;
+  const tp = parseFloat(el('inTP').value) || null;
+  state.positions.push({side, entry, sl, tp, size:1, pnl$:0, pnlR:0, midOpen:mid});
+  refreshHUD();
+}
+function placePending(side){
+  const last = state.bars[state.visible-1];
+  if(!last) return;
+  const bid=last.c, ask=bid+0.2;
+  const price=parseFloat(el('inPend').value); if(isNaN(price)) return;
+  const sl=parseFloat(el('inSL').value)||null;
+  const tp=parseFloat(el('inTP').value)||null;
+  let type;
+  if(side==='LONG') type = price<bid ? 'LIMIT' : 'STOP';
+  else type = price>ask ? 'LIMIT' : 'STOP';
+  state.orders.push({side, price, sl, tp, type});
+  refreshHUD();
+}
+function closeAll(){
+  const last=state.bars[state.visible-1]; if(!last) return;
+  const bid=last.c, ask=bid+0.2;
+  state.positions.forEach(p=>{
+    const exit = p.side==='LONG'?bid:ask;
+    const pnl = (p.side==='LONG'? exit - p.entry : p.entry - exit);
+    realizedPnL += pnl;
+  });
+  state.positions=[];
   refreshHUD();
 }
 
 function updatePositions(){
-  if(!state.position) return;
   const last = state.bars[state.visible-1];
   if(!last) return;
-  const p = state.position;
-  const sign = p.side==='LONG' ? +1 : -1;
-  p.pnlR = sign * (last.c - p.entry) / p.R;
-  p.pnl$ = p.pnlR * (p.size * p.R);
-  const hitTP = (sign>0) ? last.c >= p.tp : last.c <= p.tp;
-  const hitSL = (sign>0) ? last.c <= p.sl : last.c >= p.sl;
-  if(hitTP){ closePosition('TP 觸發'); }
-  else if(hitSL){ closePosition('SL 觸發'); }
+  const bid=last.c, ask=bid+0.2, mid=(bid+ask)/2;
+  // trigger orders
+  for(let i=state.orders.length-1;i>=0;i--){
+    const o=state.orders[i];
+    const hit = o.side==='LONG' ? (o.type==='LIMIT'? bid<=o.price : ask>=o.price)
+                                : (o.type==='LIMIT'? ask>=o.price : bid<=o.price);
+    if(hit){
+      state.positions.push({side:o.side, entry:o.price, sl:o.sl, tp:o.tp, size:1, pnl$:0, pnlR:0, midOpen:mid});
+      state.orders.splice(i,1);
+    }
+  }
+  // update positions
+  for(let i=state.positions.length-1;i>=0;i--){
+    const p=state.positions[i];
+    const price = p.side==='LONG'?bid:ask;
+    p.pnl$ = (p.side==='LONG'? price - p.entry : p.entry - price);
+    const risk = p.sl!=null ? Math.abs(p.entry - p.sl) : Math.abs(p.entry - p.midOpen);
+    p.pnlR = risk>0 ? p.pnl$ / risk : 0;
+    const hitTP = p.tp!=null && ((p.side==='LONG' && price>=p.tp) || (p.side==='SHORT' && price<=p.tp));
+    const hitSL = p.sl!=null && ((p.side==='LONG' && price<=p.sl) || (p.side==='SHORT' && price>=p.sl));
+    if(hitTP || hitSL){
+      const exit = hitTP? p.tp : p.sl;
+      const pnl = (p.side==='LONG'? exit - p.entry : p.entry - exit);
+      realizedPnL += pnl;
+      state.positions.splice(i,1);
+    }
+  }
+  refreshHUD();
 }
 
 // ===== Playback =====
 function togglePlay(force){ const playing=!!state.timer; if(playing && !force){ clearInterval(state.timer); state.timer=null; toast('暫停'); return;} if(!playing){ state.timer=setInterval(stepOnce,state.playSpeed); toast('播放中…'); }}
 function stepOnce(){
-  if(state.visible<state.bars.length){
-    state.visible++;
-    draw();
-    const sig=state.sigs.find(s=>s.idx===state.visible-1);
-    if(sig){ pushAlertLog(sig); showSignalBanner(sig); }
-    if(state.order && !state.order.status){
-      const last=state.bars[state.visible-1].c;
-      const hitTP=state.mode==='SHORT_ONLY'? last<=state.order.tp : last>=state.order.tp;
-      const hitSL=state.mode==='SHORT_ONLY'? last>=state.order.sl : last<=state.order.sl;
-      if(hitTP) state.order.status='TP';
-      if(hitSL) state.order.status='SL';
-      if(state.order.status){ clearInterval(state.timer); state.timer=null; toast(state.order.status==='TP'?'+2R':'-1R'); }
-    }
-    updatePositions();
-    refreshHUD();
+  if(state.visible >= state.bars.length){
+    clearInterval(state.timer); state.timer=null; return;
   }
+  state.visible++;
+  draw();
+  const sig=state.sigs.find(s=>s.idx===state.visible-1);
+  if(sig){ pushAlertLog(sig); showSignalBanner(sig); }
+  updatePositions();
+  refreshHUD();
 }
 
 // ===== Boot / Reset =====
 async function boot(){ state.dataset = await loadFirstCSV(); if(state.dataset.length===0){ console.error('無法載入CSV，請放到同目錄、以 ?csv= 指定，或用「載入本機CSV」按鈕。'); }
   reset(); }
-function reset(){ clearInterval(state.timer); state.timer=null; state.visible=0; state.order=null; state.decisions=[]; state.position=null; el('logBody').innerHTML='';
+function reset(){ clearInterval(state.timer); state.timer=null; state.visible=0; state.decisions=[]; state.positions=[]; state.orders=[]; state.trades=[]; el('logBody').innerHTML='';
   const minutesPerBar = state.timeframe==='M15'?15:5;
   if(state.dataset.length){ const session = pickSession(state.dataset, minutesPerBar); if(session.length){ buildFromSession(session); draw(); refreshHUD(); return; } }
   // fallback：若無資料
@@ -421,9 +520,11 @@ document.getElementById('fileCSV').addEventListener('change', (e) => {
 });
 window.addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault();togglePlay();} if(e.code==='ArrowRight'){stepOnce();} if(e.key==='1'){document.querySelector('#tfSeg [data-tf="M5"]').click();} if(e.key==='2'){document.querySelector('#tfSeg [data-tf="M15"]').click();} if(e.key==='+'){state.playSpeed=Math.max(200,state.playSpeed-100);} if(e.key==='-'){state.playSpeed=Math.min(1200,state.playSpeed+100);} if(e.key.toLowerCase()==='e' && bannerBox){ bannerBox.querySelector('.enter').click(); } if(e.key.toLowerCase()==='s' && bannerBox){ bannerBox.querySelector('.skip').click(); } });
 
-document.getElementById('btnBuy').onclick=()=>openPosition('LONG');
-document.getElementById('btnSell').onclick=()=>openPosition('SHORT');
-document.getElementById('btnClose').onclick=()=>closePosition();
+el('btnBuyNow').onclick=()=>placeMarket('LONG');
+el('btnSellNow').onclick=()=>placeMarket('SHORT');
+el('btnBuyPend').onclick=()=>placePending('LONG');
+el('btnSellPend').onclick=()=>placePending('SHORT');
+el('btnCloseAll').onclick=()=>closeAll();
 
 boot();
 </script>
