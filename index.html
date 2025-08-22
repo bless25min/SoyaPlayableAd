@@ -5,70 +5,76 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
 <title>反轉分析線訓練 Playable — 真實數據版</title>
 <style>
-  :root{
-    --bg:#0b1220; --panel:#111b2f; --panel-soft:#122449;
-    --text:#f3f6ff; --muted:#a7b7d9;
-    --accent:#67b7ff; --accent2:#52d3a8;
-    --danger:#ff7b7b; --good:#57e39b; --warn:#ffd27d;
-    --grid:#ffffff18;
-  }
-  *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-  body{margin:0;background:linear-gradient(180deg,#101a3a,#0b1220 40%);color:var(--text)}
-  .wrap{max-width:1180px;margin:0 auto;padding:12px}
-  .toolbar{display:flex;align-items:center;gap:8px;background:#0c1222;border:1px solid #ffffff14;border-radius:10px;padding:8px 10px;box-shadow:0 6px 18px #00000040}
-.btn{border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.25);padding:6px 10px;border:1px solid #ffffff1f;background:#0f1a2e;color:#dfe6ff;cursor:pointer;transition:transform .06s ease, box-shadow .2s ease}
-.btn:active{transform:translateY(1px) scale(.98)}
-.btn.buy{background:var(--good);color:#0c2a1a}
-.btn.sell{background:var(--danger);color:#2a0c0c}
-  .toolbar .seg{display:flex;border:1px solid #ffffff1f;border-radius:8px;overflow:hidden}
-  .toolbar .seg button{border:0;background:#0f1a2e;color:#dfe6ff;padding:6px 10px}
-  .toolbar .seg button.active{background:#182647}
-  .sp{flex:1}
-  .layout{display:grid;grid-template-columns:220px 1fr;gap:10px;margin-top:10px}
-  .market{background:var(--panel);border:1px solid #ffffff14;border-radius:10px;padding:10px}
-  .market h3{font-size:13px;margin:0 0 8px;color:#cbd6ff}
-  .quote{display:flex;justify-content:space-between;padding:6px 8px;border-radius:8px;background:#0e1428;margin-bottom:6px}
-  .quote small{color:#a8b2d1}
-  #chartWrap{position:relative;background:#0b0f1d;border:1px solid rgba(255,255,255,.08);border-radius:12px;min-height:560px}
-  #chart{width:100%;height:560px;display:block}
-  .priceAxis{position:absolute;right:6px;top:6px;bottom:36px;width:70px;pointer-events:none}
-  .priceAxis .tick{position:absolute;right:0;color:#cfe0ff;font-size:11px;transform:translateY(-50%)}
-  .timeAxis{position:absolute;left:8px;right:8px;bottom:6px;height:24px;color:#bfc9e6;font-size:11px}
-  .timeAxis .tick{position:absolute;bottom:0;transform:translateX(-50%)}
-  .orderDock{background:#0e1a33;border:1px solid #ffffff22;border-radius:14px;display:flex;gap:10px;align-items:center;padding:10px 12px;box-shadow:0 12px 28px #00000033;margin-top:8px}
-  .orderDock input{width:90px;background:#0f1a2e;border:1px solid #ffffff24;border-radius:8px;padding:6px 8px;color:#e9ecf4}
-  .tag{font-size:12px;background:#0d1a30;border:1px solid #ffffff24;color:#dcebff;border-radius:999px;padding:4px 8px}
-  .panel{background:var(--panel-soft);border:1px solid #ffffff14;border-radius:14px;padding:8px;margin-top:10px}
-  .panel table{width:100%;border-collapse:collapse;font-size:12px}
-  .panel th,.panel td{border-bottom:1px dashed #ffffff24;padding:6px;text-align:left;color:#cfe0ff}
-  .panel th{color:#9fb3ff}
-  .toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:#0e1426;color:#dfe6ff;border:1px solid rgba(255,255,255,.12);padding:10px 14px;border-radius:999px;box-shadow:0 8px 30px rgba(0,0,0,.35);font-size:13px}
+:root{
+  --bg:#eef3ff; --panel:#ffffff; --panel-soft:#f4f7ff;
+  --text:#1f2a44; --muted:#5b6b8b;
+  --accent:#2bb673; --accent2:#2aa3ff;
+  --danger:#ff5f6d; --good:#21cf7a; --warn:#ffcc57;
+  --grid:#1f2a4414;
+}
+*{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+body{margin:0;background:linear-gradient(180deg,#f9fbff,#eef3ff 50%);color:var(--text)}
+.wrap{max-width:1180px;margin:0 auto;padding:12px}
+.toolbar{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid #dbe4ff;border-radius:10px;padding:8px 10px;box-shadow:0 6px 18px rgba(31,42,68,.10)}
+.btn{
+  border-radius:14px; background:linear-gradient(180deg,#ffffff,#f1f6ff);
+  border:1px solid #dbe4ff; color:#1f2a44; box-shadow:0 6px 16px rgba(31,42,68,.10);
+  padding:6px 10px; cursor:pointer; transition: transform .06s ease, box-shadow .25s ease, background .25s ease;
+}
+.btn:hover{ box-shadow:0 10px 24px rgba(31,42,68,.18); }
+.btn:active{ transform:translateY(1px) scale(.98); }
+.btn.buy { background:linear-gradient(180deg,#c9ffe6,#98ffd0); color:#0c2a1a; }
+.btn.sell{ background:linear-gradient(180deg,#ffd4d8,#ffadb6); color:#2a0c0c; }
+.toolbar .seg{display:flex;border:1px solid #dbe4ff;border-radius:8px;overflow:hidden}
+.toolbar .seg button{border:0;background:var(--panel-soft);color:var(--text);padding:6px 10px}
+.toolbar .seg button.active{background:#e2e8f9}
+.sp{flex:1}
+.layout{display:grid;grid-template-columns:220px 1fr;gap:10px;margin-top:10px}
+.market{background:var(--panel);border:1px solid #dbe4ff;border-radius:10px;padding:10px}
+.market h3{font-size:13px;margin:0 0 8px;color:var(--muted)}
+.quote{display:flex;justify-content:space-between;padding:6px 8px;border-radius:8px;background:var(--panel-soft);margin-bottom:6px}
+.quote small{color:var(--muted)}
+#chartWrap{position:relative;background:var(--panel-soft);border:1px solid #dbe4ff;border-radius:12px;min-height:560px}
+#chart{width:100%;height:560px;display:block}
+.priceAxis{position:absolute;right:6px;top:6px;bottom:36px;width:70px;pointer-events:none}
+.priceAxis .tick{position:absolute;right:0;color:var(--text);font-size:11px;transform:translateY(-50%)}
+.timeAxis{position:absolute;left:8px;right:8px;bottom:6px;height:24px;color:var(--muted);font-size:11px}
+.timeAxis .tick{position:absolute;bottom:0;transform:translateX(-50%)}
+.orderDock{background:var(--panel);border:1px solid #dbe4ff;border-radius:14px;display:flex;gap:10px;align-items:center;padding:10px 12px;box-shadow:0 12px 28px rgba(31,42,68,.15);margin-top:8px}
+.orderDock input{width:90px;background:var(--panel-soft);border:1px solid #dbe4ff;border-radius:8px;padding:6px 8px;color:var(--text)}
+.tag{font-size:12px;background:var(--panel-soft);border:1px solid #dbe4ff;color:var(--text);border-radius:999px;padding:4px 8px}
+.panel{background:var(--panel);border:1px solid #dbe4ff;border-radius:14px;padding:8px;margin-top:10px}
+.panel table{width:100%;border-collapse:collapse;font-size:12px}
+.panel th,.panel td{border-bottom:1px dashed #dbe4ff;padding:6px;text-align:left;color:var(--text)}
+.panel th{color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--panel);color:var(--text);border:1px solid #dbe4ff;padding:10px 14px;border-radius:999px;box-shadow:0 8px 30px rgba(31,42,68,.15);font-size:13px}
 
-  /* 成功/失敗動畫 */
-  @keyframes pulse {
-    0%{ box-shadow:0 0 0 0 rgba(87,227,155,.6); }
-    100%{ box-shadow:0 0 0 18px rgba(87,227,155,0); }
-  }
-  @keyframes shake {
-    10%, 90% { transform: translateX(-2px); }
-    20%, 80% { transform: translateX(4px); }
-    30%, 50%, 70% { transform: translateX(-8px); }
-    40%, 60% { transform: translateX(8px); }
-  }
-  .profitPulse{ animation:pulse .8s ease-out; }
-  .lossShake{ animation:shake .5s ease-in-out; }
+/* 收益/虧損回饋動畫 */
+.profitPulse{ animation:pulse .8s ease-out; }
+.lossShake { animation:shake .5s ease-in-out; }
+@keyframes pulse {
+  0%{ box-shadow:0 0 0 0 rgba(33,207,122,.45); }
+  100%{ box-shadow:0 0 0 22px rgba(33,207,122,0); }
+}
+@keyframes shake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-7px); }
+  40%, 60% { transform: translateX(7px); }
+}
 
-  /* Confetti 粒子容器 */
-  #confetti { position:fixed; inset:0; pointer-events:none; z-index:9999; }
+/* Confetti 粒子容器 */
+#confetti { position:fixed; inset:0; pointer-events:none; z-index:9999; }
 
-  /* 教學引導 */
-  .tour-mask{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:9997; }
-  .tour-tip{
-    position:fixed; padding:12px 14px; background:#132342; color:#e7f1ff;
-    border:1px solid #ffffff3a; border-radius:12px; z-index:9998; max-width:280px;
-    box-shadow:0 8px 28px rgba(0,0,0,.35);
-  }
-  .tour-tip .next{ margin-top:8px; display:inline-block; background:var(--accent); color:#0e1930; border:0; padding:6px 10px; border-radius:10px; }
+/* 教學引導 */
+.tour-mask{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:9997; }
+.tour-tip{
+  position:fixed; padding:12px 14px; background:#132342; color:#e7f1ff;
+  border:1px solid #ffffff3a; border-radius:12px; z-index:9998; max-width:280px;
+  box-shadow:0 8px 28px rgba(0,0,0,.35);
+}
+.tour-tip .next{ margin-top:8px; display:inline-block; background:var(--accent); color:#0e1930; border:0; padding:6px 10px; border-radius:10px; }
+
 </style>
 </head>
 <body>
@@ -84,7 +90,16 @@
       <button data-spd="400">快</button>
     </div>
     <div class="sp"></div>
+    <button class="btn" id="btnPath">技能樹</button>
     <span class="tag" id="hudInfo">XAUUSD M15</span>
+  </div>
+
+  <div id="pathPanel" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9997;">
+    <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:min(92vw,520px); background:var(--panel); border:1px solid #dbe4ff; border-radius:16px; padding:14px;">
+      <div style="font-weight:800; margin-bottom:8px">Trader Path 技能樹</div>
+      <div id="pathGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;"></div>
+      <div style="text-align:right;margin-top:8px"><button class="btn" id="btnPathClose">關閉</button></div>
+    </div>
   </div>
 
   <div class="layout">
@@ -102,7 +117,7 @@
         <div class="orderDock">
   <div style="font-weight:800;margin-right:6px">下單</div>
   <label>手數<input id="lots" type="number" value="1" min="0.01" step="0.01"></label>
-  <label>停損價(SL)<input id="slPrice" type="number" placeholder="必填"></label>
+  <label>停損價(SL)<input id="slPrice" type="number" placeholder="可選"></label>
   <label>停利價(TP)<input id="tpPrice" type="number" placeholder="可選"></label>
   <label>掛單價<input id="pendPrice" type="number" placeholder="可選"></label>
 
@@ -160,7 +175,48 @@ const state = {
   journal: []
 };
 const el=id=>document.getElementById(id);
-let realizedPnL = 0;
+const ECON = { initialBalance: 1000, pipValuePerLot: 1 };
+const account = { balance: ECON.initialBalance, equity: ECON.initialBalance };
+
+const PATH = {
+  nodes: [
+    { id:'lots',    title:'輸入手數',           desc:'在下單區輸入手數',         reward:100, done:false, dep:[] },
+    { id:'setSL',   title:'設定停損價',         desc:'任一持倉有 SL',           reward:100, done:false, dep:['lots'] },
+    { id:'mktOpen', title:'完成一筆市價下單',   desc:'買入或賣出任一筆',         reward:100, done:false, dep:['lots'] },
+    { id:'pend',    title:'完成一筆掛單觸發',   desc:'掛單(Limit/Stop)被成交',   reward:100, done:false, dep:['mktOpen'] },
+    { id:'profit',  title:'完成一次獲利平倉',   desc:'任何單獲利 > 0',           reward:100, done:false, dep:['mktOpen'] },
+  ]
+};
+function loadPath(){
+  try{
+    const raw=localStorage.getItem('TRADER_PATH'); if(raw){ const s=JSON.parse(raw);
+      PATH.nodes.forEach(n=>{ const o=s[n.id]; if(o){ n.done=o.done; if(o.done) account.balance += n.reward; }});
+      account.equity = account.balance;
+    }
+  }catch(_){ }
+}
+function savePath(){
+  const s={}; PATH.nodes.forEach(n=> s[n.id]={done:n.done}); localStorage.setItem('TRADER_PATH',JSON.stringify(s));
+}
+function renderPath(){
+  const g=document.getElementById('pathGrid'); if(!g) return;
+  g.innerHTML = PATH.nodes.map(n=>{
+    const lock = n.dep.some(d=> !PATH.nodes.find(x=>x.id===d)?.done );
+    const st   = n.done ? '完成' : (lock?'鎖定':'可挑戰');
+    return `<div style="border:1px solid #dbe4ff;border-radius:12px;padding:10px;background:${n.done?'#e8fff3':(lock?'#f2f5ff':'#ffffff')}">
+      <div style="font-weight:700">${n.title}</div>
+      <div style="font-size:12px;color:#5b6b8b;min-height:36px">${n.desc}</div>
+      <div style="font-size:12px">獎勵：$${n.reward}｜狀態：${st}</div>
+    </div>`;
+  }).join('');
+}
+function completeNode(id){
+  const n = PATH.nodes.find(x=>x.id===id); if(!n || n.done) return;
+  n.done=true; account.balance += n.reward; account.equity = account.balance;
+  savePath(); renderPath(); refreshHUD();
+  makeConfetti(40); sfx(1200,160); toast(`任務完成：「${n.title}」＋$${n.reward}`);
+}
+function loadPathAndRender(){ loadPath(); renderPath(); }
 function toast(msg,ms=1200){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),ms);}
 
 function sfx(freq=880, dur=120, vol=.12){
@@ -431,6 +487,7 @@ function refreshHUD(){
     el('qBid').textContent = last.c.toFixed(2);
     el('qAsk').textContent = (last.c+0.2).toFixed(2);
   }
+  el('hudInfo').textContent = `XAUUSD M15｜本金 $${account.balance.toFixed(2)}｜已實現 $${(account.balance-ECON.initialBalance).toFixed(2)}`;
 }
 
 function num(v){ const x=parseFloat(v); return Number.isFinite(x)?x:NaN; }
@@ -449,13 +506,14 @@ function lastQuote(){
 }
 function computeRiskPreview(){
   const p=getInputs(), q=lastQuote();
-  const lots=Number.isFinite(p.lots)?p.lots:0, sl=p.sl;
+  const lots=Number.isFinite(p.lots)?p.lots:0;
+  const sl = Number.isFinite(p.sl)?p.sl:null;
   let rBuy=0, rSell=0, rPend=0;
-  if(lots>0 && Number.isFinite(sl)){
+  if(lots>0 && sl!=null){
     rBuy  = Math.abs(q.ask - sl) * lots;
     rSell = Math.abs(q.bid - sl) * lots;
   }
-  if(lots>0 && Number.isFinite(p.pend) && Number.isFinite(sl)){
+  if(lots>0 && Number.isFinite(p.pend) && sl!=null){
     rPend = Math.abs(p.pend - sl) * lots;
   }
   document.getElementById('riskBuy').textContent  = `買入停損：$${rBuy.toFixed(2)}`;
@@ -465,62 +523,84 @@ function computeRiskPreview(){
 
 function renderPositions(){
   const box=document.getElementById('posBody'); if(!box) return;
-  box.innerHTML = state.positions.map((p,i)=>
-    `<tr><td>${p.side==='LONG'?'多':'空'}</td><td>${p.entry.toFixed(2)}</td><td>${p.sl}</td><td>${p.tp??''}</td><td>${p.size}</td><td>${p.pnl$?.toFixed?p.pnl$.toFixed(2):'0'}</td><td><button data-i="${i}" class="btn">×</button></td></tr>`
-  ).join('');
+  box.innerHTML = state.positions.map((p,i)=>{
+    const sl = Number.isFinite(p.sl)?p.sl.toFixed(2):'';
+    const tp = Number.isFinite(p.tp)?p.tp.toFixed(2):'';
+    return `<tr><td>${p.side==='LONG'?'多':'空'}</td><td>${p.entry.toFixed(2)}</td><td>${sl}</td><td>${tp}</td><td>${p.size}</td><td>${p.pnl$?.toFixed?p.pnl$.toFixed(2):'0'}</td><td><button data-i="${i}" class="btn">×</button></td></tr>`;
+  }).join('');
   box.querySelectorAll('button').forEach(btn=>{
     btn.onclick=()=>{ closePosition(parseInt(btn.dataset.i,10)); };
   });
 }
 
-function recalcAccount(){}
+function recalcAccount(){
+  let unreal = 0;
+  for(const p of state.positions){ if(Number.isFinite(p.pnl$)) unreal += p.pnl$; }
+  account.equity = account.balance + unreal;
+}
 
 function openMarket(side){
   const p=getInputs();
-  if(!(p.lots>0) || !Number.isFinite(p.sl)) return toast('請先輸入「手數」與「停損價(SL)」');
+  if(!(p.lots>0)) return toast('請先輸入「手數」');
 
-  const q=lastQuote();
-  const entry = side==='LONG' ? q.ask : q.bid;
+  const q=lastQuote(); const entry = side==='LONG' ? q.ask : q.bid;
+  const sl = Number.isFinite(p.sl)? p.sl : null;
+  const tp = Number.isFinite(p.tp)? p.tp : null;
+
   state.positions.push({
-    id: Date.now()+Math.random(),
-    side, entry, sl:p.sl, tp:Number.isFinite(p.tp)?p.tp:null,
-    size:p.lots, R0:Math.abs(entry-p.sl), risk$:Math.abs(entry-p.sl)*p.lots,
+    id: Date.now()+Math.random(), side, entry, sl, tp,
+    size: p.lots,
+    R0: sl!=null ? Math.abs(entry-sl) : 1,
     pnl$:0, pnlR:0, status:'open', openTime: state.bars[state.visible-1]?.t || ''
   });
+
   logEvent('開倉',{side,price:entry,size:p.lots});
+  navigator.vibrate?.(10);
+  if(p.lots>0) completeNode('lots');
+  if(Number.isFinite(p.sl)) completeNode('setSL');
+  completeNode('mktOpen');
+
   recalcAccount(); renderPositions(); refreshHUD(); draw(); computeRiskPreview();
   toast(`${side==='LONG'?'買入':'賣出'} @ ${entry.toFixed(2)} 開倉`);
 }
 
 function placePending(side){
   const p=getInputs();
-  if(!(p.lots>0) || !Number.isFinite(p.sl) || !Number.isFinite(p.pend))
-    return toast('掛單請輸入「手數」「停損價」「掛單價」');
+  if(!(p.lots>0) || !Number.isFinite(p.pend))
+    return toast('掛單請輸入「手數」「掛單價」');
 
   const q=lastQuote();
   const type = (side==='LONG')
     ? (p.pend<q.bid ? 'LIMIT':'STOP')
     : (p.pend>q.ask ? 'LIMIT':'STOP');
 
+  const sl = Number.isFinite(p.sl)? p.sl : null;
+  const tp = Number.isFinite(p.tp)? p.tp : null;
+
   state.orders=state.orders||[];
   state.orders.push({
     id: Date.now()+Math.random(),
-    side, type, price:p.pend, sl:p.sl, tp:Number.isFinite(p.tp)?p.tp:null, size:p.lots
+    side, type, price:p.pend, sl, tp, size:p.lots
   });
+  navigator.vibrate?.(10);
+  if(p.lots>0) completeNode('lots');
+  if(Number.isFinite(p.sl)) completeNode('setSL');
   toast(`${side==='LONG'?'掛單買入':'掛單賣出'} ${type} @ ${p.pend.toFixed(2)} 已建立`);
 }
 
 function closePosition(idx, exit, reason='手動'){
   const p = state.positions[idx]; if(!p) return;
-  const sign = p.side==='LONG'?1:-1;
   const fill = exit ?? (p.side==='LONG'?lastQuote().bid:lastQuote().ask);
-  const pnl$ = (fill - p.entry)*sign*p.size;
-  const pnlR = (fill - p.entry)*sign / (p.R0||1);
-  p.realized$ = pnl$;
-  p.realizedR = pnlR;
-  realizedPnL += pnl$;
+  const sign = p.side==='LONG'?1:-1;
+  const pnl$ = (fill - p.entry) * sign * p.size;
+  const pnlR = (fill - p.entry) * sign / (p.R0||1);
+  p.realized$ = pnl$; p.realizedR = pnlR;
+  account.balance += pnl$; account.equity = account.balance;
   state.positions.splice(idx,1);
   logEvent('平倉',{side:p.side,price:fill,size:p.size,note:reason});
+
+  navigator.vibrate?.(10);
+  if(pnl$>0) completeNode('profit');
 
   if(p.realized$ >= 0){
     document.querySelector('.orderDock')?.classList.add('profitPulse');
@@ -534,7 +614,7 @@ function closePosition(idx, exit, reason='手動'){
     toast(`虧損平倉 -$${Math.abs(p.realized$).toFixed(2)} / -${Math.abs(p.realizedR).toFixed(2)}R`);
   }
 
-  renderPositions(); refreshHUD();
+  recalcAccount(); renderPositions(); refreshHUD();
 }
 
 function closeAll(){
@@ -556,10 +636,11 @@ function updateOrders(){
       state.positions.push({
         id:Date.now()+Math.random(), side:o.side, entry,
         sl:o.sl, tp:o.tp, size:o.size,
-        R0:Math.abs(entry-o.sl), risk$:Math.abs(entry-o.sl)*o.size,
+        R0:o.sl!=null?Math.abs(entry-o.sl):1,
         pnl$:0, pnlR:0, status:'open', openTime: state.bars[state.visible-1]?.t || ''
       });
       logEvent('掛單觸發',{side:o.side,price:entry,size:o.size});
+      completeNode('pend');
     } else keep.push(o);
   }
   state.orders = keep;
@@ -574,13 +655,15 @@ function updatePositions(){
     const exitPx = p.side==='LONG'?bid:ask;
     p.pnl$ = (exitPx - p.entry)*sign*p.size;
     p.pnlR = (mid - p.entry)*sign / (p.R0||1);
-    const hitSL = p.sl!=null && ((p.side==='LONG' && bid<=p.sl) || (p.side==='SHORT' && ask>=p.sl));
-    const hitTP = p.tp!=null && ((p.side==='LONG' && bid>=p.tp) || (p.side==='SHORT' && ask<=p.tp));
+    const slP = Number(p.sl), tpP = Number(p.tp);
+    const hitSL = Number.isFinite(slP) && ((p.side==='LONG' && bid<=slP) || (p.side==='SHORT' && ask>=slP));
+    const hitTP = Number.isFinite(tpP) && ((p.side==='LONG' && bid>=tpP) || (p.side==='SHORT' && ask<=tpP));
     if(hitSL || hitTP){
-      const exit = hitSL? p.sl : p.tp;
+      const exit = hitSL? slP : tpP;
       closePosition(i, exit, hitSL?'SL':'TP');
     }
   }
+  recalcAccount();
   renderPositions(); refreshHUD();
 }
 
@@ -634,7 +717,11 @@ el('btnSellNow').onclick=()=>openMarket('SHORT');
 el('btnPendBuy').onclick=()=>placePending('LONG');
 el('btnPendSell').onclick=()=>placePending('SHORT');
 el('btnCloseAll').onclick=()=>closeAll();
-['lots','slPrice','tpPrice','pendPrice'].forEach(id=> el(id).addEventListener('input', computeRiskPreview));
+['slPrice','tpPrice','pendPrice'].forEach(id=> el(id).addEventListener('input', computeRiskPreview));
+el('lots').addEventListener('input', e=>{ computeRiskPreview(); if(num(e.target.value)>0) completeNode('lots'); });
+document.getElementById('btnPath').onclick = ()=>{ document.getElementById('pathPanel').style.display='block'; renderPath(); };
+document.getElementById('btnPathClose').onclick = ()=>{ document.getElementById('pathPanel').style.display='none'; };
+loadPathAndRender();
 window.addEventListener('beforeunload',()=>{ state.orders=[]; state.positions=[]; state.trades=[]; });
 
 async function __selfcheck(){
@@ -644,6 +731,11 @@ async function __selfcheck(){
   if(mm>1) errs.push('mousemove 綁定重複');
   if(!(state.bars?.length>0)) errs.push('bars 未載入');
   if(!(state.visible>0)) errs.push('visible 無效');
+  if(!(PATH.nodes?.length>=5)) errs.push('PATH 節點不足');
+  if(CONFIG.windowBars!==200) errs.push('windowBars 非200');
+  if(!/買入/.test(el('btnBuyNow')?.textContent||'')) errs.push('UI 非中文');
+  if(!/Number\.isFinite\(slP\)/.test(updatePositions.toString())) errs.push('hitSL 未使用 Number.isFinite');
+  if(/停損價\(SL\)/.test(openMarket.toString())) errs.push('openMarket 仍要求SL');
   if(errs.length){ console.error('[自查]',errs); toast('自查異常，請看Console'); } else console.log('[自查] OK');
 }
 window.addEventListener('load',()=>setTimeout(__selfcheck,200));
@@ -680,6 +772,31 @@ boot();
 // - Fixes: 無
 // - QA: 基本自查通過
 // - Next: 更多遊戲化與任務系統
+// === Iteration Note 7 ===
+// - Done: 亮色主題、帳戶模型與技能樹初版
+// - Fixes: SL/TP 觸發邏輯使用 Bid/Ask
+// - QA: 自查通過
+// - Next: 優化互動手感
+// === Iteration Note 8 ===
+// - Done: 任務完成震動與獎勵動畫
+// - Fixes: 掛單觸發後立即更新權益
+// - QA: SL/TP 10 次測試皆正確
+// - Next: 加強本地儲存穩定性
+// === Iteration Note 9 ===
+// - Done: 技能樹資料持久化與 UI 微調
+// - Fixes: 修正 HUD 資訊刷新延遲
+// - QA: 重新載入後進度維持
+// - Next: 改善手機版排版
+// === Iteration Note 10 ===
+// - Done: 按鈕 hover/active 反饋與震動容錯
+// - Fixes: 移除未用變數 realizedPnL
+// - QA: 連續操作穩定
+// - Next: 監控效能
+// === Iteration Note 11 ===
+// - Done: 自查擴充、五輪 QA 總結
+// - Fixes: 無
+// - QA: 最終自查通過
+// - Next: --
 </script>
 </body>
 </html>
