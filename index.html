@@ -74,6 +74,7 @@ body{margin:0;background:linear-gradient(180deg,#f9fbff,#eef3ff 50%);color:var(-
   box-shadow:0 8px 28px rgba(0,0,0,.35);
 }
 .tour-tip .next{ margin-top:8px; display:inline-block; background:var(--accent); color:#0e1930; border:0; padding:6px 10px; border-radius:10px; }
+.tour-hi{ position:relative; z-index:9999; box-shadow:0 0 0 4px var(--accent2); }
 
 </style>
 </head>
@@ -90,7 +91,15 @@ body{margin:0;background:linear-gradient(180deg,#f9fbff,#eef3ff 50%);color:var(-
       <button data-spd="400">快</button>
     </div>
     <div class="sp"></div>
+    <label class="tag">可視K數
+      <input id="barsRange" type="range" min="120" max="320" value="200" style="vertical-align:middle;">
+    </label>
+    <label class="tag">圖高
+      <input id="hRange" type="range" min="360" max="820" value="560" style="vertical-align:middle;">
+    </label>
+    <button class="btn" id="btnReroll">重新隨機開始</button>
     <button class="btn" id="btnPath">技能樹</button>
+    <button class="btn" id="btnGuide">新手教學</button>
     <span class="tag" id="hudInfo">XAUUSD M15</span>
   </div>
 
@@ -104,8 +113,8 @@ body{margin:0;background:linear-gradient(180deg,#f9fbff,#eef3ff 50%);color:var(-
 
   <div class="layout">
     <aside class="market">
-      <h3>Market Watch</h3>
-      <div class="quote"><b>XAUUSD</b><span><small>Bid</small> <b id="qBid">—</b> / <small>Ask</small> <b id="qAsk">—</b></span></div>
+      <h3>市場報價</h3>
+      <div class="quote"><b>XAUUSD</b><span><small>買價</small> <b id="qBid">—</b> / <small>賣價</small> <b id="qAsk">—</b></span></div>
     </aside>
 
     <main id="chartCol">
@@ -150,6 +159,19 @@ body{margin:0;background:linear-gradient(180deg,#f9fbff,#eef3ff 50%);color:var(-
   </section>
 </div>
 
+<div id="tourMask" class="tour-mask" style="display:none"></div>
+<div id="tourTip" class="tour-tip" style="display:none"></div>
+<div id="ctaPanel" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9996;">
+  <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:300px; background:var(--panel); border:1px solid #dbe4ff; border-radius:16px; padding:16px; text-align:center;">
+    <div id="ctaInfo" style="margin-bottom:12px;font-weight:700;">挑戰完成！</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <a href="#" target="_blank" id="ctaLine" class="btn">領取檢核清單</a>
+      <a href="#" target="_blank" id="ctaSite" class="btn">看 3 分鐘教學</a>
+    </div>
+    <div style="margin-top:10px"><button class="btn" id="ctaClose">再試一次</button></div>
+  </div>
+</div>
+
 <script>
 // ===== Config =====
 const CONFIG = {
@@ -172,7 +194,8 @@ const state = {
   positions: [],
   orders: [],
   trades: [],
-  journal: []
+  journal: [],
+  tour: {step:0, enabled:false}
 };
 const el=id=>document.getElementById(id);
 const ECON = { initialBalance: 1000, pipValuePerLot: 1 };
@@ -246,32 +269,41 @@ function logEvent(kind, payload){
 }
 function renderJournal(){
   const box=document.getElementById('journalBody'); if(!box) return;
-  box.innerHTML = state.journal.slice(-50).reverse().map(j=>
-    `<tr><td>${j.t}</td><td>${j.kind}</td><td>${j.side||''}</td><td>${j.price?.toFixed?j.price.toFixed(2):''}</td><td>${j.size||''}</td><td>${j.note||''}</td></tr>`
-  ).join('');
+  box.innerHTML = state.journal.slice(-50).reverse().map(j=>{
+    const side = j.side ? (j.side==='LONG'?'多':'空') : '';
+    return `<tr><td>${j.t}</td><td>${j.kind}</td><td>${side}</td><td>${j.price?.toFixed?j.price.toFixed(2):''}</td><td>${j.size||''}</td><td>${j.note||''}</td></tr>`;
+  }).join('');
 }
 
-function startTour(){
+function guideStart(){ state.tour={step:0, enabled:true}; guideNext(); }
+function guideNext(){
   const steps = [
-    { el:'#lots',     tip:'輸入「手數」。', offset:[-40, 30] },
-    { el:'#slPrice',  tip:'輸入「停損價」。必填。', offset:[-40, 30] },
-    { el:'.orderDock', tip:'即時計算風險金額在這裡顯示。', offset:[-80, -10] },
-    { el:'#btnBuyNow',tip:'點這裡「立即買入」。也可右側「立即賣出」。', offset:[-20, 50] },
-    { el:'#btnLive',  tip:'拖曳圖表可看歷史；按這裡或按 F 回到最新。', offset:[-10, 50] },
+    {el:'#lots', tip:'① 先輸入手數（每跳1點 = 每手 $1）', enable:['#lots']},
+    {el:'#btnBuyNow', tip:'② 點「立即買入」或「立即賣出」建倉', enable:['#btnBuyNow','#btnSellNow']},
+    {el:'.orderDock', tip:'③ 看這裡：即時顯示停損金額、持倉損益'},
+    {el:'#posBody', tip:'④ 點持倉列右側「×」手動平倉完成一局', enable:['#posBody button']}
   ];
-  let idx=0; const mask=document.createElement('div'); mask.className='tour-mask'; document.body.appendChild(mask);
-  const tip=document.createElement('div'); tip.className='tour-tip'; document.body.appendChild(tip);
-  function show(){
-    const s = steps[idx]; if(!s){ mask.remove(); tip.remove(); localStorage.setItem('tourDone','1'); return; }
-    const t = document.querySelector(s.el); const r=t.getBoundingClientRect();
-    tip.style.left = `${r.left + (s.offset?.[0]||0)}px`;
-    tip.style.top  = `${r.top  + (s.offset?.[1]||0)}px`;
-    tip.innerHTML = `<div>${s.tip}</div><button class="next">下一步</button>`;
-    tip.querySelector('.next').onclick = ()=>{ idx++; show(); };
-  }
-  show();
+  const m=el('tourMask'), t=el('tourTip');
+  if(!state.tour.enabled){ m.style.display=t.style.display='none'; document.querySelectorAll('.tour-disabled').forEach(e=>e.disabled=false); document.querySelectorAll('.tour-hi').forEach(e=>e.classList.remove('tour-hi')); return; }
+  const s = steps[state.tour.step];
+  if(!s){ m.style.display=t.style.display='none'; state.tour.enabled=false; document.querySelectorAll('.tour-disabled').forEach(e=>e.disabled=false); document.querySelectorAll('.tour-hi').forEach(e=>e.classList.remove('tour-hi')); return; }
+  document.querySelectorAll('button,input').forEach(e=>{ e.disabled=true; e.classList.add('tour-disabled'); });
+  if(s.enable){ s.enable.forEach(sel=>{ document.querySelectorAll(sel).forEach(e=>e.disabled=false); }); }
+  document.querySelectorAll('.tour-hi').forEach(e=>e.classList.remove('tour-hi'));
+  const target=document.querySelector(s.el); target?.classList.add('tour-hi');
+  const r = target.getBoundingClientRect();
+  m.style.display=t.style.display='block';
+  t.style.left=`${r.left}px`; t.style.top=`${r.bottom+8}px`;
+  t.innerHTML = `<div>${s.tip}</div><button class="next btn">下一步</button>`;
+  t.querySelector('.next').onclick=()=>{ state.tour.step++; guideNext(); };
 }
-window.addEventListener('load', ()=>{ if(!localStorage.getItem('tourDone')) setTimeout(startTour, 500); });
+el('btnGuide').onclick=guideStart;
+
+function showCTA(p){
+  el('ctaInfo').textContent = `本局結果：${p.realized$>=0?'+':'-'}$${Math.abs(p.realized$).toFixed(2)} / ${p.realizedR>=0?'+':'-'}${Math.abs(p.realizedR).toFixed(2)}R`;
+  el('ctaPanel').style.display='block';
+}
+el('ctaClose').onclick=()=>{ el('ctaPanel').style.display='none'; reset(); };
 
 // ===== CSV loader =====
 function qs(name){ return new URLSearchParams(location.search).get(name); }
@@ -539,6 +571,12 @@ function recalcAccount(){
   account.equity = account.balance + unreal;
 }
 
+function validBrackets(side, entry, sl, tp){
+  const okSL = (sl==null) || (side==='LONG' ? sl < entry : sl > entry);
+  const okTP = (tp==null) || (side==='LONG' ? tp > entry : tp < entry);
+  return {ok: okSL && okTP, okSL, okTP};
+}
+
 function openMarket(side){
   const p=getInputs();
   if(!(p.lots>0)) return toast('請先輸入「手數」');
@@ -546,6 +584,13 @@ function openMarket(side){
   const q=lastQuote(); const entry = side==='LONG' ? q.ask : q.bid;
   const sl = Number.isFinite(p.sl)? p.sl : null;
   const tp = Number.isFinite(p.tp)? p.tp : null;
+
+  const chk = validBrackets(side, entry, sl, tp);
+  if(!chk.ok){
+    if(!chk.okSL) toast('停損價不合理：多單需小於進場、空單需大於進場');
+    if(!chk.okTP) toast('停利價不合理：多單需大於進場、空單需小於進場');
+    return;
+  }
 
   state.positions.push({
     id: Date.now()+Math.random(), side, entry, sl, tp,
@@ -562,6 +607,7 @@ function openMarket(side){
 
   recalcAccount(); renderPositions(); refreshHUD(); draw(); computeRiskPreview();
   toast(`${side==='LONG'?'買入':'賣出'} @ ${entry.toFixed(2)} 開倉`);
+  if(state.tour.enabled && state.tour.step===1){ state.tour.step++; guideNext(); }
 }
 
 function placePending(side){
@@ -576,6 +622,13 @@ function placePending(side){
 
   const sl = Number.isFinite(p.sl)? p.sl : null;
   const tp = Number.isFinite(p.tp)? p.tp : null;
+
+  const chk = validBrackets(side, p.pend, sl, tp);
+  if(!chk.ok){
+    if(!chk.okSL) toast('停損價不合理：多單需小於進場、空單需大於進場');
+    if(!chk.okTP) toast('停利價不合理：多單需大於進場、空單需小於進場');
+    return;
+  }
 
   state.orders=state.orders||[];
   state.orders.push({
@@ -615,6 +668,8 @@ function closePosition(idx, exit, reason='手動'){
   }
 
   recalcAccount(); renderPositions(); refreshHUD();
+  if(state.tour.enabled && state.tour.step===3){ state.tour.step++; guideNext(); }
+  if(state.positions.length===0) showCTA(p);
 }
 
 function closeAll(){
@@ -717,6 +772,9 @@ el('btnSellNow').onclick=()=>openMarket('SHORT');
 el('btnPendBuy').onclick=()=>placePending('LONG');
 el('btnPendSell').onclick=()=>placePending('SHORT');
 el('btnCloseAll').onclick=()=>closeAll();
+el('btnReroll').onclick=()=>{ reset(); toast('已隨機選擇新的起始位置'); };
+el('barsRange').oninput=e=>{ CONFIG.windowBars=parseInt(e.target.value,10)||200; draw(); };
+el('hRange').oninput=e=>{ const h=parseInt(e.target.value,10)||560; el('chart').style.height=h+'px'; el('chartWrap').style.minHeight=h+'px'; draw(); };
 ['slPrice','tpPrice','pendPrice'].forEach(id=> el(id).addEventListener('input', computeRiskPreview));
 el('lots').addEventListener('input', e=>{ computeRiskPreview(); if(num(e.target.value)>0) completeNode('lots'); });
 document.getElementById('btnPath').onclick = ()=>{ document.getElementById('pathPanel').style.display='block'; renderPath(); };
@@ -732,10 +790,12 @@ async function __selfcheck(){
   if(!(state.bars?.length>0)) errs.push('bars 未載入');
   if(!(state.visible>0)) errs.push('visible 無效');
   if(!(PATH.nodes?.length>=5)) errs.push('PATH 節點不足');
-  if(CONFIG.windowBars!==200) errs.push('windowBars 非200');
+  if(!(CONFIG.windowBars>=120 && CONFIG.windowBars<=320)) errs.push('windowBars 非120-320');
   if(!/買入/.test(el('btnBuyNow')?.textContent||'')) errs.push('UI 非中文');
   if(!/Number\.isFinite\(slP\)/.test(updatePositions.toString())) errs.push('hitSL 未使用 Number.isFinite');
   if(/停損價\(SL\)/.test(openMarket.toString())) errs.push('openMarket 仍要求SL');
+  if(!el('btnReroll')) errs.push('btnReroll 不存在');
+  if(!/validBrackets/.test(openMarket.toString()) || !/validBrackets/.test(placePending.toString())) errs.push('缺少 validBrackets 檢核');
   if(errs.length){ console.error('[自查]',errs); toast('自查異常，請看Console'); } else console.log('[自查] OK');
 }
 window.addEventListener('load',()=>setTimeout(__selfcheck,200));
