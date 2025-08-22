@@ -118,74 +118,94 @@ function toast(msg,ms=1200){const t=document.createElement('div');t.className='t
 
 // -------- 擬真生成：三段式 trend → reversal → follow，並混入干擾訊號 --------
 function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
-function generateDay(){
-  const total = state.timeframe==="M15"?40:120; // 稍長，讓分隔線更像
-  const minutesPerBar = state.timeframe==="M15"?15:5;
-  const startH=9; const bars=[]; const rnd=(a,b)=>a+Math.random()*(b-a);
+
+function generateDay(mode = state.mode){
+  const total = state.timeframe==="M15" ? 40 : 120;     // 稍長，方便觀察
+  const minutesPerBar = state.timeframe==="M15" ? 15 : 5;
+  const startH = 9;
+  const rnd = (a,b)=>a+Math.random()*(b-a);
+
+  const bars = [];
   let price = 3400 + rnd(-8,8);
 
   // 1) 前段趨勢：空訓練先漲、多訓練先跌
-  const len1 = Math.floor(total*0.42);
-  for(let i=0;i<len1;i++){
-    const dir = state.mode==='SHORT_ONLY'? +1 : -1;
+  const leg1 = Math.floor(total*0.42);
+  for(let i=0;i<leg1;i++){
+    const dir = (mode==='SHORT_ONLY') ? +1 : -1;
     const step = dir*(1.0 + rnd(-0.2,0.8));
     const o=price, c=o+step, h=Math.max(o,c)+rnd(0.2,0.6), l=Math.min(o,c)-rnd(0.2,0.6);
     bars.push({o,h,l,c}); price=c;
   }
 
-  // 2) 反轉區：把價格「拉到分析線附近」後做出正確K
-  const line = (state.mode==='SHORT_ONLY'? pick(CONFIG.key.shortLines): pick(CONFIG.key.longLines));
+  // 2) 反轉橋段：把價格慢慢拉到分析線附近
+  const line = (mode==='SHORT_ONLY') ? pick(CONFIG.key.shortLines) : pick(CONFIG.key.longLines);
   state.analysisLine = line;
-  // 先用 3~6 根過渡，逐步靠近分析線
+
   const bridge = 3 + Math.floor(Math.random()*4);
   for(let i=0;i<bridge;i++){
-    const toLine = (line - price); // 朝分析線前進
+    const toLine = (line - price);
     const step = Math.sign(toLine) * Math.min(Math.abs(toLine), 0.9) + rnd(-0.25,0.25);
     const o=price, c=o+step, h=Math.max(o,c)+rnd(0.18,0.5), l=Math.min(o,c)-rnd(0.18,0.5);
     bars.push({o,h,l,c}); price=c;
   }
-  // 正確訊號K：空=開在上、收在下；多=開在下、收在上
-  let o= price + (state.mode==='SHORT_ONLY'? +0.6 : -0.6);
-  let c= line  + (state.mode==='SHORT_ONLY'? -0.25: +0.25);
-  let h=Math.max(o,c)+1.2, l=Math.min(o,c)-1.2;
-  const correctIdx = bars.length; bars.push({o,h,l,c, note:`✅ 正確：收${state.mode==='SHORT_ONLY'?'下':'上'}分析線`}); price=c;
 
-  // 3) 後續延續：朝訊號方向推動
-  const len3 = total - bars.length; const dirFollow = state.mode==='SHORT_ONLY'? -1 : +1;
-  for(let i=0;i<len3;i++){
+  // 正確訊號K：空=開在上收在下，多=開在下收在上（必定跨越分析線）
+  let o = price + (mode==='SHORT_ONLY' ? +0.6 : -0.6);
+  let c = line  + (mode==='SHORT_ONLY' ? -0.25: +0.25);
+  let h = Math.max(o,c)+1.2, l=Math.min(o,c)-1.2;
+  const correctIdx = bars.length;
+  bars.push({o,h,l,c, note:`✅ 正確：收${mode==='SHORT_ONLY'?'下':'上'}分析線`});
+  price = c;
+
+  // 3) 後續延續：沿正確方向推動，形成合理TP/SL
+  const dirFollow = (mode==='SHORT_ONLY') ? -1 : +1;
+  while(bars.length < total){
     const step = dirFollow*(1.2 + rnd(-0.4,0.7));
     const o=price, c=o+step, h=Math.max(o,c)+rnd(0.2,0.5), l=Math.min(o,c)-rnd(0.2,0.5);
     bars.push({o,h,l,c}); price=c;
   }
 
-  // 加入錯誤訊號：在分析線但收錯邊 / 偏離分析線
-  const totalSignals = Math.floor(CONFIG.signalsMin + Math.random()*(CONFIG.signalsMax-CONFIG.signalsMin+1));
-  const sigIdxPool = new Set(); sigIdxPool.add(correctIdx);
-  while(sigIdxPool.size<totalSignals){
+  // 混入錯誤訊號：在分析線但收錯邊 / 偏離分析線
+  const wantSignals = Math.floor(CONFIG.signalsMin + Math.random()*(CONFIG.signalsMax - CONFIG.signalsMin + 1));
+  const indices = new Set([correctIdx]);
+  while(indices.size < wantSignals){
     const i = 4 + Math.floor(Math.random()*(bars.length-8));
-    if([...sigIdxPool].every(x=>Math.abs(x-i)>=3)) sigIdxPool.add(i);
+    if([...indices].every(x => Math.abs(x - i) >= 3)) indices.add(i);
   }
-  const sigs=[]; [...sigIdxPool].forEach(idx=>{
-    const b=bars[idx]; let valid=false, note="", atLine=false, closeRel=""; let type="";
-    if(idx===correctIdx){ valid=true; atLine=true; closeRel=(state.mode==='SHORT_ONLY'? 'below':'above'); type='correct_on_line'; }
-    else{
-      if(Math.random()<0.55){ // 在分析線，但收錯邊
-        atLine=true; if(state.mode==='SHORT_ONLY'){ // 錯：收上
-          b.o=line-0.3; b.c=line+0.35; b.h=Math.max(b.o,b.c)+2.2; b.l=Math.min(b.o,b.c)-1.5; closeRel='above'; type='wrong_on_line_close_above'; note='在分析線但收上';
-        }else{ b.o=line+0.3; b.c=line-0.35; b.h=Math.max(b.o,b.c)+1.5; b.l=Math.min(b.o,b.c)-2.2; closeRel='below'; type='wrong_on_line_close_below'; note='在分析線但收下'; }
-      }else{ // 偏離分析線
-        atLine=false; const shift=(Math.random()<0.5?-1:1)*(1.4+Math.random()*2.0);
-        b.o=line+shift; b.c=b.o+(Math.random()<0.5?-0.4:0.4); b.h=Math.max(b.o,b.c)+2.0; b.l=Math.min(b.o,b.c)-1.6; closeRel=b.c>line?'above':'below'; type='wrong_off_line'; note='遠離分析線的錯誤訊號';
-      }
+  const sigs = [];
+  [...indices].forEach(idx=>{
+    const b = bars[idx]; let valid=false, note="", atLine=false, closeRel="", type="";
+    if(idx===correctIdx){
+      valid=true; atLine=true; closeRel = (mode==='SHORT_ONLY'?'below':'above'); type='correct_on_line';
+    }else if(Math.random()<0.55){
+      // 在分析線，但收錯邊
+      atLine=true;
+      if(mode==='SHORT_ONLY'){ b.o=line-0.3; b.c=line+0.35; b.h=Math.max(b.o,b.c)+2.2; b.l=Math.min(b.o,b.c)-1.5; closeRel='above'; type='wrong_on_line_close_above'; note='在分析線但收上'; }
+      else { b.o=line+0.3; b.c=line-0.35; b.h=Math.max(b.o,b.c)+1.5; b.l=Math.min(b.o,b.c)-2.2; closeRel='below'; type='wrong_on_line_close_below'; note='在分析線但收下'; }
+    }else{
+      // 遠離分析線
+      atLine=false;
+      const shift=(Math.random()<0.5?-1:1)*(1.4+Math.random()*2.0);
+      b.o=line+shift; b.c=b.o+(Math.random()<0.5?-0.4:0.4);
+      b.h=Math.max(b.o,b.c)+2.0; b.l=Math.min(b.o,b.c)-1.6;
+      closeRel=b.c>line?'above':'below'; type='wrong_off_line'; note='遠離分析線的錯誤訊號';
     }
     sigs.push({idx,type,valid,note:(valid?'✅ ':'❌ ')+ (note||`反轉訊號`),atLine,closeRel});
   });
 
-  // 時間戳與合成量
-  const minutesPerBar = state.timeframe==="M15"?15:5; const startHh=9;
-  let tMin=0; for(let i=0;i<bars.length;i++){ const hh=startHh+Math.floor(tMin/60), mm=tMin%60; bars[i].t=`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`; tMin+=minutesPerBar; }
+  // 產生時間軸
+  let tMin=0;
+  for(let i=0;i<bars.length;i++){
+    const hh = startH + Math.floor(tMin/60), mm = tMin%60;
+    bars[i].t = `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+    tMin += minutesPerBar;
+  }
 
-  state.bars=bars; state.sigs=sigs.sort((a,b)=>a.idx-b.idx); state.visible=1; state.order=null; state.decisions=[];
+  state.bars = bars;
+  state.sigs = sigs.sort((a,b)=>a.idx-b.idx);
+  state.visible = 1;
+  state.order = null;
+  state.decisions = [];
 }
 
 // ---------- 繪圖 ----------
