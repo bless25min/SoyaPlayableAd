@@ -60,7 +60,7 @@
     </div>
     <button class="btn" id="btnPlay">播放/暫停 (Space)</button>
     <button class="btn" id="btnStep">逐K (→)</button>
-    <button class="btn" id="btnLocal">載入本機CSV</button><input type="file" id="filePicker" accept=".csv" style="display:none"/>
+    <button class="btn" id="btnLocal">載入本機CSV</button><input type="file" id="fileCSV" accept=".csv,text/csv" style="display:none"/>
     <div class="seg" id="spdSeg">
       <button data-spd="900">慢</button>
       <button data-spd="650" class="active">中</button>
@@ -132,69 +132,98 @@ const state = { mode:"SHORT_ONLY", timeframe:CONFIG.timeframe, playSpeed:CONFIG.
 const el=id=>document.getElementById(id);
 function toast(msg,ms=1200){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),ms);}  
 
-// ===== CSV loader (robust to MT5/TV exports) =====
-async function loadFirstCSV(){
-  const params = new URLSearchParams(location.search);
-  const forced = params.get('csv');
-  const sources = [];
-  if(forced && /^https:\/\//.test(forced)){
-    sources.push(forced);
-  }else{
-    const same = new URL('XAUUSD_M15.csv', location.href).href;
-    if(/^https?:/.test(same)) sources.push(same);
-    const gh = location.href.match(/^https:\/\/([^\/]+)\.github\.io\/([^\/]+)/);
-    const raw = location.href.match(/^https:\/\/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\//);
-    if(gh){
-      const owner = gh[1], repo = gh[2];
-      sources.push(`https://${owner}.github.io/${repo}/XAUUSD_M15.csv`);
-      sources.push(`https://raw.githubusercontent.com/${owner}/${repo}/main/XAUUSD_M15.csv`);
-    }else if(raw){
-      const owner = raw[1], repo = raw[2];
-      sources.push(`https://${owner}.github.io/${repo}/XAUUSD_M15.csv`);
-      sources.push(`https://raw.githubusercontent.com/${owner}/${repo}/main/XAUUSD_M15.csv`);
+// ===== CSV loader =====
+function qs(name){ return new URLSearchParams(location.search).get(name); }
+function guessGitHubRaw(){
+  if(location.hostname.endsWith('github.io')){
+    const owner = location.hostname.split('.')[0];
+    const repo = location.pathname.split('/').filter(Boolean)[0] || '';
+    if(repo){
+      return [
+        `${location.protocol}//${location.host}/${repo}/XAUUSD_M15.csv`,
+        `https://raw.githubusercontent.com/${owner}/${repo}/main/XAUUSD_M15.csv`,
+        `https://raw.githubusercontent.com/${owner}/${repo}/master/XAUUSD_M15.csv`
+      ];
     }
   }
-  for(const url of sources){
+  return [];
+}
+function candidateCSVUrls(){
+  const q = qs('csv');
+  const list = [];
+  if(q) list.push(q);
+  list.push('XAUUSD_M15.csv','./XAUUSD_M15.csv','/XAUUSD_M15.csv');
+  list.push(...guessGitHubRaw());
+  return list;
+}
+async function loadFirstCSV(){
+  const urls = candidateCSVUrls();
+  for(const u of urls){
     try{
-      const r = await fetch(url,{cache:'no-store'});
+      const r = await fetch(u, {cache:'no-store', mode:'cors'});
       if(r.ok){
         const text = await r.text();
         const rows = parseOHLC(text);
-        if(rows.length>200){ console.log('CSV loaded:',url,rows.length); return rows; }
+        if(rows.length >= 100){
+          console.log('CSV loaded:', u, rows.length);
+          return rows;
+        }
       }
-    }catch(e){ /* try next */ }
+    }catch(e){ console.warn('fetch failed', u, e); }
   }
-  console.warn('CSV not found, fallback to synthetic.');
   return [];
 }
 function parseOHLC(text){
-  const lines=text.split(/\r?\n/).filter(l=>l && !/^#/.test(l));
-  if(lines.length<2) return [];
-  const delim = (lines[0].match(/;/) && lines[0].split(';').length>=5)?';':',';
-  const out=[];
-  for(const ln of lines){
-    const a=ln.split(delim).map(s=>s.trim()); if(a.length<5) continue;
-    let dt, o,h,l,c;
-    // 形式1: 日期, 時:分, O,H,L,C
-    if(/\d{4}[.\/-]\d{2}[.\/-]\d{2}/.test(a[0]) && /\d{1,2}:\d{2}/.test(a[1])){
-      dt = a[0].replace(/[.]/g,'-')+' '+a[1]; o=parseFloat(a[2]); h=parseFloat(a[3]); l=parseFloat(a[4]); c=parseFloat(a[5]);
-    }else if(/\d{4}[.\/-]\d{2}[.\/-]\d{2}\s+\d{1,2}:\d{2}/.test(a[0])){
-      // 形式2: 日期 時間 一欄, 後接 O,H,L,C
-      dt = a[0].replace(/[.]/g,'-'); o=parseFloat(a[1]); h=parseFloat(a[2]); l=parseFloat(a[3]); c=parseFloat(a[4]);
-    }else{
-      // 嘗試以表頭對應
-      const lowHdr = lines[0].toLowerCase();
-      const idx=(k)=>lowHdr.split(delim).findIndex(x=>x.includes(k));
-      const ti=idx('time')>-1?idx('time'):idx('date');
-      const oi=idx('open'),hi=idx('high'),li=idx('low'),ci=idx('close');
-      if(oi>-1&&hi>-1&&li>-1&&ci>-1){ dt=a[ti]||''; o=parseFloat(a[oi]); h=parseFloat(a[hi]); l=parseFloat(a[li]); c=parseFloat(a[ci]); }
-      else continue;
+  if(!text) return [];
+  // 去 BOM
+  if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const lines = text.split(/\r?\n/).filter(l => l && !/^#/.test(l));
+  if(lines.length < 2) return [];
+
+  // 自動偵測分隔符：; / , / \t
+  const first = lines.find(l => /[0-9]/.test(l)) || lines[0];
+  let delim = ',';
+  if(first.includes(';')) delim = ';';
+  else if(first.includes('\t')) delim = '\t';
+
+  // 若第一行是表頭，抓欄位索引
+  const hdrLower = lines[0].toLowerCase();
+  const hasHeader = /(time|date)/.test(hdrLower) && /(open|high|low|close)/.test(hdrLower);
+  const cols = hasHeader ? hdrLower.split(delim) : null;
+  const idx = (k)=> hasHeader ? cols.findIndex(x=>x.includes(k)) : -1;
+
+  const out = [];
+  for(let n = hasHeader?1:0; n < lines.length; n++){
+    const a = lines[n].split(delim).map(s => s.trim());
+    if(a.length < 5) continue;
+
+    let dt, o, h, l, c;
+
+    // ①「日期+時間在同一欄」：YYYY.MM.DD HH:MM[:SS]
+    if(/^\d{4}[-./]\d{2}[-./]\d{2}\s+\d{1,2}:\d{2}(:\d{2})?$/.test(a[0])){
+      dt = a[0].replace(/[.]/g,'-');
+      o = parseFloat(a[1]); h = parseFloat(a[2]); l = parseFloat(a[3]); c = parseFloat(a[4]);
     }
+    // ②「日期、時間分兩欄」：YYYY.MM.DD, HH:MM, O,H,L,C
+    else if(/^\d{4}[-./]\d{2}[-./]\d{2}$/.test(a[0]) && /^\d{1,2}:\d{2}(:\d{2})?$/.test(a[1])){
+      dt = a[0].replace(/[.]/g,'-') + ' ' + a[1];
+      o = parseFloat(a[2]); h = parseFloat(a[3]); l = parseFloat(a[4]); c = parseFloat(a[5]);
+    }
+    // ③ 表頭索引：Time/Open/High/Low/Close
+    else if(hasHeader){
+      const ti = idx('time')>-1 ? idx('time') : idx('date');
+      dt = (a[ti] || '').replace(/[.]/g,'-');
+      o = parseFloat(a[idx('open')]); h = parseFloat(a[idx('high')]);
+      l = parseFloat(a[idx('low')]);  c = parseFloat(a[idx('close')]);
+    }else{
+      continue; // 不認得的格式
+    }
+
     if(!isFinite(o)||!isFinite(h)||!isFinite(l)||!isFinite(c)) continue;
-    out.push({t:new Date(dt),o,h,l,c});
+    out.push({ t: new Date(dt), o, h, l, c });
   }
-  // 依時間排序
-  out.sort((a,b)=>a.t-b.t);
+
+  out.sort((x,y)=>x.t - y.t);
   return out;
 }
 
@@ -313,21 +342,23 @@ function reset(){ clearInterval(state.timer); state.timer=null; state.visible=0;
 
 ['tfSeg','modeSeg','spdSeg'].forEach(id=>el(id).addEventListener('click',e=>{ if(e.target.tagName!=='BUTTON')return; [...e.currentTarget.children].forEach(b=>b.classList.remove('active')); e.target.classList.add('active'); if(id==='tfSeg'){ state.timeframe=e.target.dataset.tf; } if(id==='modeSeg'){ state.mode=e.target.dataset.mode; } if(id==='spdSeg'){ state.playSpeed=parseInt(e.target.dataset.spd,10); } reset(); }));
 
-el('btnPlay').onclick=()=>togglePlay(); el('btnStep').onclick=()=>stepOnce();
-const filePicker = el('filePicker');
-el('btnLocal').onclick=()=>filePicker.click();
-filePicker.addEventListener('change',e=>{
-  const f=e.target.files[0];
-  if(!f) return;
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    const rows=parseOHLC(ev.target.result);
-    if(rows.length>0){
-      console.log('CSV loaded:', f.name, rows.length);
-      state.dataset=rows; reset();
-    }else toast('CSV 格式錯誤或無資料');
+el('btnPlay').onclick=()=>togglePlay();
+el('btnStep').onclick=()=>stepOnce();
+
+document.getElementById('btnLocal').onclick = () => document.getElementById('fileCSV').click();
+document.getElementById('fileCSV').addEventListener('change', (e) => {
+  const f = e.target.files && e.target.files[0];
+  if(!f){ toast('未選擇檔案'); return; }
+  const fr = new FileReader();
+  fr.onload = (ev) => {
+    const text = ev.target.result;
+    const rows = parseOHLC(text);
+    if(rows.length < 100){ toast('CSV 格式不符或資料太少'); return; }
+    state.dataset = rows;
+    reset(); // 直接用本機資料建模
+    toast(`已載入本機 CSV：${rows.length} 筆`);
   };
-  reader.readAsText(f);
+  fr.readAsText(f, 'utf-8');
 });
 window.addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault();togglePlay();} if(e.code==='ArrowRight'){stepOnce();} if(e.key==='1'){document.querySelector('#tfSeg [data-tf="M5"]').click();} if(e.key==='2'){document.querySelector('#tfSeg [data-tf="M15"]').click();} if(e.key==='+'){state.playSpeed=Math.max(200,state.playSpeed-100);} if(e.key==='-'){state.playSpeed=Math.min(1200,state.playSpeed+100);} if(e.key.toLowerCase()==='e' && bannerBox){ bannerBox.querySelector('.enter').click(); } if(e.key.toLowerCase()==='s' && bannerBox){ bannerBox.querySelector('.skip').click(); } });
 
