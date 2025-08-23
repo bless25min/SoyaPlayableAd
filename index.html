@@ -739,8 +739,8 @@
                 const csvText = await response.text();
                 console.log(`CSV file fetched. Length: ${csvText.length} characters.`);
                 
-                const parsedData = parseCSV(csvText);
-                console.log(`CSV parsed. Total valid records: ${parsedData.length}`);
+                const parsedData = parseData(csvText); // <--- RENAMED for clarity
+                console.log(`Data parsed. Total valid records: ${parsedData.length}`);
 
                 ohlcData = selectRandomMonth(parsedData);
                 console.log(`Random month selected. Records for this challenge: ${ohlcData.length}`);
@@ -748,47 +748,50 @@
                 resetChallenge();
 
             } catch (error) {
-                console.error("Fatal Error: Failed to load or process CSV data.", error);
+                console.error("Fatal Error: Failed to load or process data.", error);
                 alert("錯誤：無法載入或處理市場數據，請檢查控制台以獲取詳細資訊。");
             }
         }
         
         /**
-         * A highly robust CSV parser with detailed debugging logs.
-         * Normalizes line endings and provides specific warnings for invalid data.
+         * The definitive, format-aware data parser.
+         * Handles both comma-separated (timestamp,o,h,l,c) and
+         * space/tab-separated (YYYY.MM.DD HH:MM:SS o h l c v) formats.
          */
-        function parseCSV(text) {
-            console.log("Entering ultra-robust parseCSV function...");
-            // Step 1: Normalize line endings to prevent cross-platform issues.
+        function parseData(text) {
+            console.log("Entering definitive data parser...");
             const universalText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
             const lines = universalText.trim().split('\n');
             
             if (lines.length <= 1) {
-                console.error("CSV has no data rows (or only a header).");
+                console.error("Data has no rows (or only a header).");
                 return [];
             }
             
-            const header = lines[0];
-            console.log("CSV Header found:", header);
-            
+            const header = lines[0].trim();
             const dataLines = lines.slice(1);
-            console.log(`Processing ${dataLines.length} data lines...`);
+            
+            // Auto-detect format based on header or first line content
+            let isTimestampFormat = header.startsWith('time,') || /^\d{10,}/.test(dataLines[0]);
+            
+            if (isTimestampFormat) {
+                console.log("Detected format: Unix Timestamp with Commas");
+                return parseTimestampCSV(dataLines);
+            } else {
+                console.log("Detected format: Date String with Spaces/Tabs");
+                return parseDateTimeSpaceSeparated(dataLines);
+            }
+        }
 
+        function parseTimestampCSV(dataLines) {
             const results = [];
             for (let i = 0; i < dataLines.length; i++) {
-                const line = dataLines[i];
-                const lineNumber = i + 2; // Line number in the original file
-
-                const cleanedLine = line.trim();
-                if (!cleanedLine) continue; // Skip empty lines silently
-
-                const parts = cleanedLine.split(',');
-                if (parts.length < 5) {
-                    // Log only the first few errors to avoid spamming
-                    if (results.length < 5) console.warn(`Line ${lineNumber} has < 5 parts:`, cleanedLine);
-                    continue;
-                }
+                const line = dataLines[i].trim();
+                if (!line) continue;
                 
+                const parts = line.split(',');
+                if (parts.length < 5) continue;
+
                 const dataPoint = {
                     time: parseInt(parts[0], 10),
                     open: parseFloat(parts[1]),
@@ -797,20 +800,42 @@
                     close: parseFloat(parts[4])
                 };
 
-                // Detailed NaN check for each property
-                let hasNaN = false;
-                if (isNaN(dataPoint.time)) { hasNaN = true; if (results.length < 5) console.warn(`NaN detected in 'time' on line ${lineNumber}. Raw value: "${parts[0]}"`); }
-                if (isNaN(dataPoint.open)) { hasNaN = true; if (results.length < 5) console.warn(`NaN detected in 'open' on line ${lineNumber}. Raw value: "${parts[1]}"`); }
-                if (isNaN(dataPoint.high)) { hasNaN = true; if (results.length < 5) console.warn(`NaN detected in 'high' on line ${lineNumber}. Raw value: "${parts[2]}"`); }
-                if (isNaN(dataPoint.low)) { hasNaN = true; if (results.length < 5) console.warn(`NaN detected in 'low' on line ${lineNumber}. Raw value: "${parts[3]}"`); }
-                if (isNaN(dataPoint.close)) { hasNaN = true; if (results.length < 5) console.warn(`NaN detected in 'close' on line ${lineNumber}. Raw value: "${parts[4]}"`); }
-
-                if (!hasNaN) {
+                if (!Object.values(dataPoint).some(isNaN)) {
                     results.push(dataPoint);
                 }
             }
-            
-            console.log(`parseCSV finished. Total valid records pushed: ${results.length}`);
+            return results;
+        }
+
+        function parseDateTimeSpaceSeparated(dataLines) {
+            const results = [];
+            for (let i = 0; i < dataLines.length; i++) {
+                const line = dataLines[i].trim();
+                if (!line) continue;
+
+                const parts = line.split(/\s+/); // Split by one or more whitespace chars
+                if (parts.length < 6) continue; // YYYY.MM.DD, HH:MM:SS, O, H, L, C
+
+                try {
+                    // Re-format date string from 'YYYY.MM.DD' to 'YYYY-MM-DD' for better compatibility
+                    const dateString = parts[0].replace(/\./g, '-') + ' ' + parts[1];
+                    const timestamp = new Date(dateString).getTime() / 1000; // Convert to seconds
+
+                    const dataPoint = {
+                        time: timestamp,
+                        open: parseFloat(parts[2]),
+                        high: parseFloat(parts[3]),
+                        low: parseFloat(parts[4]),
+                        close: parseFloat(parts[5])
+                    };
+
+                    if (!Object.values(dataPoint).some(isNaN)) {
+                        results.push(dataPoint);
+                    }
+                } catch (e) {
+                    // Ignore lines that cause date parsing errors
+                }
+            }
             return results;
         }
 
