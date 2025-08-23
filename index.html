@@ -369,7 +369,7 @@ const EVENTS = {
   "2025-01-03": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "俗稱「非農」的美國就業數據是市場最關注的指標之一。數據好壞將劇烈影響黃金價格，市場屏息以待！" },
   "2025-01-20": { time: "12:00", title: "🇺🇸 美國總統就職典禮", desc: "新任美國總統將於華盛頓特區宣誓就職。就職演說通常會概述新政府的施政藍圖，內容可能涉及國內外政策、經濟方向等，這些都可能成為市場關注的焦點。" },
   "2025-01-30": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "歐洲央行管理委員會將召開貨幣政策會議並發布利率決策聲明。市場將關注其對歐元区經濟前景和通膨路徑的最新評估。" },
-  "2025-02-07": { time: "21:30", title: "�🇸 美國非農就業數據 (NFP)", desc: "本月非農數據公布，將再次考驗市場對美國經濟復甦力度的信心。" },
+  "2025-02-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "本月非農數據公布，將再次考驗市場對美國經濟復甦力度的信心。" },
   "2025-03-05": { time: "10:00", title: "🇨🇳 中國全國人民代表大會年會開幕", desc: "中國將公布當年度的GDP增長目標、財政預算等主要經濟指標，並闡述相關政策方向。" },
   "2025-03-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "連續第三個月的非農數據，市場將尋找勞動力市場是否持續穩定的線索。" },
   "2025-03-19": { time: "03:00", title: "🇺🇸 聯準會利率決策 (FOMC)", desc: "聯準會將發布利率決策，會議將包含最新的經濟預測摘要 (SEP) 和「點陣圖」，揭示未來利率路徑預期。" },
@@ -613,11 +613,12 @@ function closePosition(positionId) {
     const position = state.positions[index];
     const exitPrice = state.gameData[state.currentBarIndex].c;
     const exitTime = state.gameData[state.currentBarIndex].date;
+    const finalPnl = (exitPrice - position.entryPrice) * (position.side === 'buy' ? 1 : -1) * position.lots * 100;
     
     logTransaction(position, exitPrice, exitTime);
-    addChartAnimation(exitPrice, position.side, 'close');
+    addChartAnimation(exitPrice, position.side, 'close', finalPnl);
 
-    state.account.balance += position.pnl;
+    state.account.balance += finalPnl;
     state.positions.splice(index, 1);
     
     updatePositionsList();
@@ -632,9 +633,10 @@ function closeAllPositions() {
 
     for (let i = state.positions.length - 1; i >= 0; i--) {
         const position = state.positions[i];
+        const finalPnl = (exitPrice - position.entryPrice) * (position.side === 'buy' ? 1 : -1) * position.lots * 100;
         logTransaction(position, exitPrice, exitTime);
-        addChartAnimation(exitPrice, position.side, 'close');
-        state.account.balance += position.pnl;
+        addChartAnimation(exitPrice, position.side, 'close', finalPnl);
+        state.account.balance += finalPnl;
     }
     state.positions = [];
     updatePositionsList();
