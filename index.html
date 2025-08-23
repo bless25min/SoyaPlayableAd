@@ -348,7 +348,7 @@ const EVENTS = {
   "2025-01-30": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "歐洲央行管理委員會將召開貨幣政策會議並發布利率決策聲明。市場將關注其對歐元区經濟前景和通膨路徑的最新評估。" },
   "2025-02-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "本月非農數據公布，將再次考驗市場對美國經濟復甦力度的信心。" },
   "2025-03-05": { time: "10:00", title: "🇨🇳 中國全國人民代表大會年會開幕", desc: "中國將公布當年度的GDP增長目標、財政預算等主要經濟指標，並闡述相關政策方向。" },
-  "2025-03-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "連續第三個月的非農數據，市場將尋找勞動力市場是否持續穩定的線索。" },
+  "2025-03-07": { time: "21:30", title: "🇺� 美國非農就業數據 (NFP)", desc: "連續第三個月的非農數據，市場將尋找勞動力市場是否持續穩定的線索。" },
   "2025-03-19": { time: "03:00", title: "🇺🇸 聯準會利率決策 (FOMC)", desc: "聯準會將發布利率決策，會議將包含最新的經濟預測摘要 (SEP) 和「點陣圖」，揭示未來利率路徑預期。" },
   "2025-04-04": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "第二季度的首次非農報告，將為市場對上半年的經濟預測定下基調。" },
   "2025-04-10": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "在第一季經濟數據公布之後，市場將關注歐洲央行是否會根據最新數據調整其貨幣政策立場。" },
@@ -377,7 +377,9 @@ const el = id => document.getElementById(id);
 let canvas, ctx, chartWrap;
 let CHART_COLORS = {};
 let hasPlayedOnce = false;
+let animationFrameId;
 
+// --- Data Handling ---
 function loadData() {
   return new Promise(async (resolve) => {
     try {
@@ -435,6 +437,7 @@ function parseData(text) {
     }).filter(Boolean);
 }
 
+// --- Game Flow ---
 function startGame() {
   if (!state.fullDataset || state.fullDataset.length < 200) {
       el('current-date').textContent = "數據錯誤"; return;
@@ -447,6 +450,7 @@ function startGame() {
     isPaused: true, gameTimer: null, animationSpeed: 100,
     view: { barsInView: 100, offset: 0 },
     pan: { isPanning: false, startX: 0, startOffset: 0 },
+    lastDrawTime: 0
   };
   
   document.querySelectorAll('.speed-btn.active').forEach(b => b.classList.remove('active'));
@@ -560,11 +564,13 @@ function closePosition(positionId) {
 
     const position = state.positions[index];
     const currentBar = state.gameData[state.currentBarIndex];
+    const exitPrice = currentBar.c;
+    const finalPnl = (exitPrice - position.entryPrice) * (position.side === 'buy' ? 1 : -1) * position.lots * 100;
     
-    logTransaction(position, currentBar.c, currentBar.date);
-    addChartAnimation(currentBar.c, position.side, 'close', position.pnl);
+    logTransaction(position, exitPrice, currentBar.date, finalPnl);
+    addChartAnimation(exitPrice, position.side, 'close', finalPnl);
 
-    state.account.balance += position.pnl;
+    state.account.balance += finalPnl;
     state.positions.splice(index, 1);
     
     updatePositionsList();
@@ -614,6 +620,11 @@ function updatePositions() {
         }
     }
     state.account.equity = state.account.balance + totalPnl;
+}
+
+function logTransaction(position, exitPrice, exitTime, pnl) {
+    state.journal.unshift({ ...position, exitPrice, exitTime, pnl });
+    updateJournalList();
 }
 
 function updateHUD() {
@@ -779,8 +790,8 @@ function addChartAnimation(price, side, type, pnl) {
     state.chartAnimations.push({ price, side, type, pnl, startTime: performance.now(), duration: 800 });
 }
 
-let animationFrameId;
 function draw() {
+    animationFrameId = requestAnimationFrame(draw);
     if (!ctx || !state.gameData) return;
     
     const dpr = window.devicePixelRatio || 1;
@@ -815,31 +826,33 @@ function draw() {
     drawCurrentPriceLine(y);
     drawTimeAxis(ctx, W, H, startIdx, endIdx, barWidth, state.view.offset);
 
-    // Draw Candles with Animation
     const now = performance.now();
+    if (!state.lastDrawTime) state.lastDrawTime = now;
+    const elapsed = now - state.lastDrawTime;
+    if (elapsed >= state.animationSpeed && !state.isPaused) {
+        state.lastDrawTime = now;
+    }
+    const progress = state.isPaused ? 1 : elapsed / state.animationSpeed;
+
     for (let i = 0; i < dataInView.length; i++) {
         const barIndex = startIdx + i;
         const b = dataInView[i];
         const x = (barIndex - state.view.offset) * barWidth + barWidth / 2;
         const isLastBar = barIndex === state.currentBarIndex;
         
+        const p = isLastBar ? progress : 1;
         const up = b.c >= b.o;
         const color = up ? CHART_COLORS.up : CHART_COLORS.down;
         ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 1.5;
         
-        if (isLastBar && !state.isPaused && !state.lastDrawTime) state.lastDrawTime = now;
-        const progress = isLastBar && !state.isPaused ? (now - state.lastDrawTime) / state.animationSpeed : 1;
-
-        if (progress >= 1 && isLastBar) state.lastDrawTime = now;
-        
-        const wickProgress = Math.min(1, progress / 0.5);
-        const bodyProgress = Math.min(1, Math.max(0, (progress - 0.5) / 0.5));
+        const wickProgress = Math.min(1, p / 0.5);
+        const bodyProgress = Math.min(1, Math.max(0, (p - 0.5) / 0.5));
         
         const wickH = y(b.o + (b.h - b.o) * wickProgress);
         const wickL = y(b.o + (b.l - b.o) * wickProgress);
         const bodyC = y(b.o + (b.c - b.o) * bodyProgress);
 
-        ctx.beginPath(); ctx.moveTo(x, y(b.h)); ctx.lineTo(x, y(b.l)); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, wickH); ctx.lineTo(x, wickL); ctx.stroke();
         
         const w = Math.max(2, barWidth * 0.7);
         const bodyY = Math.min(y(b.o), bodyC);
@@ -847,7 +860,6 @@ function draw() {
         ctx.fillRect(x - w / 2, bodyY, w, bodyH);
     }
   
-    // Draw Position Lines
     state.positions.forEach(p => {
         ctx.font = 'bold 12px sans-serif'; ctx.textBaseline = 'middle';
         
@@ -876,7 +888,6 @@ function draw() {
         ctx.setLineDash([]);
     });
 
-    // Draw Trade Animations
     state.chartAnimations = state.chartAnimations.filter(anim => {
         const elapsed = now - anim.startTime;
         if (elapsed > anim.duration) return false;
