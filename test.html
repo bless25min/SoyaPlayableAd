@@ -13,14 +13,14 @@
   --muted: #6b7280;
   --border-color: #e5e7eb;
   --accent: #4a72ff;
-  --good: #10b981;
-  --danger: #ef4444;
+  --good: #10b981; /* Green for profit */
+  --danger: #ef4444; /* Red for loss */
   --grid: rgba(0, 0, 0, 0.05);
-  /* Light Theme for Chart */
+  /* Chart Colors: Green for Up, Red for Down */
   --chart-bg: #ffffff;
   --chart-text: #6b7280;
-  --chart-up: #10b981;
-  --chart-down: #ef4444;
+  --chart-up: #10b981;   /* 陽棒顏色 */
+  --chart-down: #ef4444; /* 陰棒顏色 */
 }
 
 * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -126,10 +126,13 @@ html, body {
 #btnCloseAll { grid-area: close; background-color: var(--muted); color: white; }
 #btnBuy { grid-area: buy; }
 
-.btn { padding: 12px; font-size: 16px; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; transition: transform 0.1s ease; }
+.btn { padding: 12px; font-size: 16px; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; transition: transform 0.1s ease, filter 0.1s ease; }
 .btn.buy { background: var(--chart-up); color: white; }
 .btn.sell { background: var(--chart-down); color: white; }
-.btn:active { transform: scale(0.97); }
+.btn:active { 
+    transform: scale(0.96); 
+    filter: brightness(0.9);
+}
 
 .playback-controls {
     display: flex; justify-content: center; align-items: center;
@@ -178,12 +181,13 @@ html, body {
     align-items: center;
     justify-content: center;
     border-left: 1px solid var(--border-color);
+    transition: background-color 0.1s ease;
 }
 .stepper-btn:first-child {
     border-bottom: 1px solid var(--border-color);
 }
-.stepper-btn:hover {
-    background: #e5e7eb;
+.stepper-btn:active {
+    background: #e0e2e7;
 }
 
 
@@ -198,13 +202,53 @@ input[type=number] {
 }
 
 
-#positions-list { max-height: 25vh; overflow-y: auto; }
-.position-item { background: var(--panel-soft); padding: 10px; border-radius: 8px; margin-bottom: 8px; display: grid; grid-template-columns: 40px 1fr 1fr 70px; align-items: center; gap: 8px; }
+#positions-list, #journal-list { max-height: 25vh; overflow-y: auto; }
+.position-item { 
+    background: var(--panel-soft); 
+    padding: 10px; 
+    border-radius: 8px; 
+    margin-bottom: 8px; 
+    display: grid; 
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: 
+        "info pnl"
+        "sl tp"
+        "actions actions";
+    gap: 8px; 
+    align-items: center;
+}
+.position-item-info { grid-area: info; }
+.position-item-pnl { grid-area: pnl; text-align: right; font-weight: bold; }
+.position-item-sl { grid-area: sl; }
+.position-item-tp { grid-area: tp; }
+.position-item-actions { grid-area: actions; display: flex; gap: 8px; }
+
 .position-item .side-buy { color: var(--good); font-weight: bold; }
 .position-item .side-sell { color: var(--danger); font-weight: bold; }
 .position-item .pnl-up { color: var(--good); }
 .position-item .pnl-down { color: var(--danger); }
-.position-item .close-btn { padding: 6px; font-size: 12px; background: var(--border-color); }
+.position-item .close-btn, .position-item .modify-btn { flex: 1; padding: 6px; font-size: 12px; }
+.position-item .close-btn { background: var(--danger); color: white; }
+.position-item .modify-btn { background: var(--accent); color: white; }
+.position-item .input-group { margin-bottom: 0; }
+.position-item .input-group input { padding: 6px; font-size: 12px; }
+
+.journal-item {
+    background: var(--panel-soft); 
+    padding: 10px; 
+    border-radius: 8px; 
+    margin-bottom: 8px; 
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 16px;
+    font-size: 12px;
+}
+.journal-item-info { grid-column: 1 / 2; }
+.journal-item-pnl { grid-column: 2 / 3; grid-row: 1 / 3; text-align: right; font-weight: bold; font-size: 14px; align-self: center; }
+.journal-item-time { grid-column: 1 / 2; color: var(--muted); }
+.journal-item .pnl-up { color: var(--good); }
+.journal-item .pnl-down { color: var(--danger); }
+
 
 /* --- 彈窗 --- */
 .modal-overlay {
@@ -291,7 +335,7 @@ input[type=number] {
         <div id="positions-list"></div>
     </div>
     <div id="journal-panel" class="tab-content">
-        <div id="journal-list" style="max-height: 25vh; overflow-y: auto;"></div>
+        <div id="journal-list"></div>
     </div>
     <div class="playback-controls">
         <button class="btn" id="play-pause-btn">▶</button>
@@ -326,10 +370,10 @@ const EVENTS = {
   "2025-01-20": { time: "12:00", title: "🇺🇸 美國總統就職典禮", desc: "新任美國總統將於華盛頓特區宣誓就職。就職演說通常會概述新政府的施政藍圖，內容可能涉及國內外政策、經濟方向等，這些都可能成為市場關注的焦點。" },
   "2025-01-30": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "歐洲央行管理委員會將召開貨幣政策會議並發布利率決策聲明。市場將關注其對歐元区經濟前景和通膨路徑的最新評估。" },
   "2025-02-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "本月非農數據公布，將再次考驗市場對美國經濟復甦力度的信心。" },
-  "2025-03-05": { time: "10:00", title: "�🇳 中國全國人民代表大會年會開幕", desc: "中國將公布當年度的GDP增長目標、財政預算等主要經濟指標，並闡述相關政策方向。" },
+  "2025-03-05": { time: "10:00", title: "🇨🇳 中國全國人民代表大會年會開幕", desc: "中國將公布當年度的GDP增長目標、財政預算等主要經濟指標，並闡述相關政策方向。" },
   "2025-03-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "連續第三個月的非農數據，市場將尋找勞動力市場是否持續穩定的線索。" },
   "2025-03-19": { time: "03:00", title: "🇺🇸 聯準會利率決策 (FOMC)", desc: "聯準會將發布利率決策，會議將包含最新的經濟預測摘要 (SEP) 和「點陣圖」，揭示未來利率路徑預期。" },
-  "2025-04-04": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "第二季度的首次非農報告，將為市場對上半年的經濟預測定下基調。" },
+  "2025-04-04": { time: "21:30", title: "�🇸 美國非農就業數據 (NFP)", desc: "第二季度的首次非農報告，將為市場對上半年的經濟預測定下基調。" },
   "2025-04-10": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "在第一季經濟數據公布之後，市場將關注歐洲央行是否會根據最新數據調整其貨幣政策立場。" },
   "2025-04-21": { time: "09:00", title: "IMF 《世界經濟展望》報告", desc: "國際貨幣基金組織將更新對全球主要經濟體的增長預測，並分析全球面臨的潛在風險。" },
   "2025-05-02": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "春季的就業市場表現如何？本次非農數據將提供關鍵答案。" },
@@ -356,7 +400,6 @@ const CONFIG = {
 let state = {};
 const el = id => document.getElementById(id);
 let canvas, ctx, chartWrap;
-// ******** FIX: Object to hold computed chart colors ********
 let CHART_COLORS = {};
 
 // ===== 數據處理 =====
@@ -404,6 +447,7 @@ function startGame() {
   state.currentBarIndex = 0;
   state.positions = [];
   state.journal = [];
+  state.chartAnimations = [];
   state.account = { balance: CONFIG.initialBalance, equity: CONFIG.initialBalance };
   state.isPaused = true;
   clearInterval(state.gameTimer);
@@ -441,6 +485,7 @@ function startGame() {
 
   updateHUD();
   updatePositionsList();
+  updateJournalList();
   draw();
   el('play-pause-btn').textContent = '▶';
 }
@@ -528,6 +573,17 @@ function resumeGame() {
 }
 
 // ===== 交易邏輯 =====
+function logTransaction(position, exitPrice, exitTime) {
+    const pnl = (exitPrice - position.entryPrice) * (position.side === 'buy' ? 1 : -1) * position.lots * 100;
+    state.journal.unshift({
+        ...position,
+        exitPrice,
+        exitTime,
+        pnl
+    });
+    updateJournalList();
+}
+
 function openOrder(side) {
     const lots = parseFloat(el('trade-lots').value);
     const sl = parseFloat(el('trade-sl').value) || null;
@@ -538,8 +594,10 @@ function openOrder(side) {
         return;
     }
     const currentPrice = state.gameData[state.currentBarIndex].c;
+    const entryTime = state.gameData[state.currentBarIndex].date;
     
-    state.positions.push({ id: Date.now(), side, entryPrice: currentPrice, lots, sl, tp, pnl: 0 });
+    state.positions.push({ id: Date.now(), side, entryPrice, entryTime, lots, sl, tp, pnl: 0 });
+    addChartAnimation(currentPrice, side, 'open');
     updatePositionsList();
     draw();
 }
@@ -547,9 +605,17 @@ function openOrder(side) {
 function closePosition(positionId) {
     const index = state.positions.findIndex(p => p.id === positionId);
     if (index === -1) return;
+
     const position = state.positions[index];
+    const exitPrice = state.gameData[state.currentBarIndex].c;
+    const exitTime = state.gameData[state.currentBarIndex].date;
+    
+    logTransaction(position, exitPrice, exitTime);
+    addChartAnimation(exitPrice, position.side, 'close');
+
     state.account.balance += position.pnl;
     state.positions.splice(index, 1);
+    
     updatePositionsList();
     updateHUD();
     draw();
@@ -557,8 +623,13 @@ function closePosition(positionId) {
 
 function closeAllPositions() {
     if (state.positions.length === 0) return;
+    const exitPrice = state.gameData[state.currentBarIndex].c;
+    const exitTime = state.gameData[state.currentBarIndex].date;
+
     for (let i = state.positions.length - 1; i >= 0; i--) {
         const position = state.positions[i];
+        logTransaction(position, exitPrice, exitTime);
+        addChartAnimation(exitPrice, position.side, 'close');
         state.account.balance += position.pnl;
     }
     state.positions = [];
@@ -567,6 +638,31 @@ function closeAllPositions() {
     draw();
 }
 
+function modifyPosition(positionId) {
+    const position = state.positions.find(p => p.id === positionId);
+    if (!position) return;
+
+    const slInput = el(`pos-sl-${positionId}`);
+    const tpInput = el(`pos-tp-${positionId}`);
+
+    const newSl = parseFloat(slInput.value) || null;
+    const newTp = parseFloat(tpInput.value) || null;
+    
+    position.sl = newSl;
+    position.tp = newTp;
+
+    draw(); 
+    
+    const itemEl = slInput.closest('.position-item');
+    itemEl.style.transition = 'none';
+    itemEl.style.backgroundColor = 'var(--accent)';
+    setTimeout(() => {
+        itemEl.style.transition = 'background-color 0.5s ease';
+        itemEl.style.backgroundColor = '';
+    }, 100);
+}
+
+
 function updatePositions() {
     if (!state.gameData || state.currentBarIndex >= state.gameData.length) return;
     const currentBar = state.gameData[state.currentBarIndex];
@@ -574,7 +670,7 @@ function updatePositions() {
     for (let i = state.positions.length - 1; i >= 0; i--) {
         const p = state.positions[i];
         const direction = p.side === 'buy' ? 1 : -1;
-        p.pnl = (currentBar.c - p.entryPrice) * direction * p.lots * 100; // 假設1手=100單位
+        p.pnl = (currentBar.c - p.entryPrice) * direction * p.lots * 100;
         totalPnl += p.pnl;
         
         const hitSL = (p.sl && ((p.side === 'buy' && currentBar.l <= p.sl) || (p.side === 'sell' && currentBar.h >= p.sl)));
@@ -582,9 +678,11 @@ function updatePositions() {
         
         if (hitSL || hitTP) {
             const exitPrice = hitSL ? p.sl : p.tp;
-            const finalPnl = (exitPrice - p.entryPrice) * direction * p.lots * 100;
-            state.account.balance += finalPnl;
+            logTransaction(p, exitPrice, currentBar.date);
+            addChartAnimation(exitPrice, p.side, 'close');
+            state.account.balance += (exitPrice - p.entryPrice) * direction * p.lots * 100;
             state.positions.splice(i, 1);
+            updatePositionsList();
         }
     }
     state.account.equity = state.account.balance + totalPnl;
@@ -609,10 +707,64 @@ function updatePositionsList() {
         return;
     }
     listEl.innerHTML = state.positions.map(p => {
-        const pnlClass = p.pnl > 0 ? 'pnl-up' : (p.pnl < 0 ? 'pnl-down' : '');
-        return `<div class="position-item"><span class="side-${p.side}">${p.side === 'buy' ? '買入' : '賣出'}</span><div>${p.lots} 手 @ ${p.entryPrice.toFixed(2)}</div><div class="${pnlClass}">${p.pnl.toFixed(2)}</div><button class="btn close-btn" onclick="closePosition(${p.id})">平倉</button></div>`;
+        const pnlClass = p.pnl >= 0 ? 'pnl-up' : 'pnl-down';
+        const sideClass = p.side === 'buy' ? 'side-buy' : 'side-sell';
+        const sideText = p.side === 'buy' ? '買入' : '賣出';
+        
+        return `
+        <div class="position-item">
+            <div class="position-item-info">
+                <span class="${sideClass}">${sideText}</span> ${p.lots} 手 @ ${p.entryPrice.toFixed(2)}
+            </div>
+            <div class="position-item-pnl ${pnlClass}">
+                ${p.pnl.toFixed(2)}
+            </div>
+            <div class="position-item-sl input-group">
+                <label for="pos-sl-${p.id}">停損 SL</label>
+                <input id="pos-sl-${p.id}" type="number" placeholder="無" value="${p.sl || ''}">
+            </div>
+            <div class="position-item-tp input-group">
+                <label for="pos-tp-${p.id}">停利 TP</label>
+                <input id="pos-tp-${p.id}" type="number" placeholder="無" value="${p.tp || ''}">
+            </div>
+            <div class="position-item-actions">
+                <button class="btn modify-btn" onclick="modifyPosition(${p.id})">修改</button>
+                <button class="btn close-btn" onclick="closePosition(${p.id})">平倉</button>
+            </div>
+        </div>`;
     }).join('');
 }
+
+function updateJournalList() {
+    const listEl = el('journal-list');
+    if (state.journal.length === 0) {
+        listEl.innerHTML = '<p style="text-align:center; color: var(--muted);">沒有交易紀錄</p>';
+        return;
+    }
+    listEl.innerHTML = state.journal.map(j => {
+        const pnlClass = j.pnl >= 0 ? 'pnl-up' : 'pnl-down';
+        const sideText = j.side === 'buy' ? '買入' : '賣出';
+        const pnlText = `${j.pnl >= 0 ? '+' : ''}${j.pnl.toFixed(2)}`;
+        const timeFormat = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+        const entryTimeStr = j.entryTime.toLocaleTimeString('en-GB', timeFormat);
+        const exitTimeStr = j.exitTime.toLocaleTimeString('en-GB', timeFormat);
+
+        return `
+        <div class="journal-item">
+            <div class="journal-item-info">
+                ${sideText} ${j.lots} 手 @ ${j.entryPrice.toFixed(2)} → ${j.exitPrice.toFixed(2)}
+            </div>
+            <div class="journal-item-time">
+                ${entryTimeStr} → ${exitTimeStr}
+            </div>
+            <div class="journal-item-pnl ${pnlClass}">
+                ${pnlText}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+
 function showEventModal(event) {
     el('event-title').textContent = event.title;
     el('event-desc').textContent = event.desc;
@@ -685,9 +837,25 @@ function drawTimeAxis(ctx, W, H, startIdx, endIdx, barWidth, offset) {
     }
 }
 
+function addChartAnimation(price, side, type) {
+    state.chartAnimations.push({
+        price,
+        side,
+        type, // 'open' or 'close'
+        startTime: performance.now(),
+        duration: 500 // 0.5 seconds
+    });
+    if (state.isPaused) {
+        requestAnimationFrame(() => draw()); // Ensure animation plays even when paused
+    }
+}
+
 
 // ===== 繪圖 =====
 function draw(animationProgress = 1) {
+  if (state.chartAnimations.length > 0) {
+      requestAnimationFrame(() => draw());
+  }
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
   canvas.width = rect.width * dpr;
@@ -697,7 +865,6 @@ function draw(animationProgress = 1) {
   const H = rect.height;
   const chartH = H - CONFIG.timeAxisHeight;
   
-  // 繪製背景
   ctx.fillStyle = CHART_COLORS.bg;
   ctx.fillRect(0, 0, W, H);
 
@@ -753,28 +920,77 @@ function draw(animationProgress = 1) {
     ctx.fillStyle = color;
     ctx.lineWidth = 1.5;
     
-    // Wick
     ctx.beginPath();
     ctx.moveTo(x, highY);
     ctx.lineTo(x, lowY);
     ctx.stroke();
     
-    // Body
     const w = Math.max(2, barWidth * 0.7);
     ctx.fillRect(x - w / 2, Math.min(openY, closeY), w, Math.max(1, Math.abs(openY - closeY)));
   }
   
-  // 繪製持倉線
+  // 繪製持倉線 & 損益標籤
   state.positions.forEach(p => {
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textBaseline = 'middle';
+    
     const entryY = y(p.entryPrice);
-    if (entryY > chartH || entryY < 0) return;
-    ctx.strokeStyle = p.side === 'buy' ? CHART_COLORS.up : CHART_COLORS.down;
-    ctx.setLineDash([5, 5]);
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(0, entryY); ctx.lineTo(W - 60, entryY); ctx.stroke();
-    if (p.sl) { const slY = y(p.sl); ctx.strokeStyle = CHART_COLORS.down; ctx.beginPath(); ctx.moveTo(0, slY); ctx.lineTo(W - 60, slY); ctx.stroke(); }
-    if (p.tp) { const tpY = y(p.tp); ctx.strokeStyle = CHART_COLORS.up; ctx.beginPath(); ctx.moveTo(0, tpY); ctx.lineTo(W - 60, tpY); ctx.stroke(); }
+    if (entryY <= chartH && entryY >= 0) {
+        ctx.strokeStyle = p.side === 'buy' ? CHART_COLORS.up : CHART_COLORS.down;
+        ctx.setLineDash([2, 4]);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(0, entryY); ctx.lineTo(W - 60, entryY); ctx.stroke();
+        
+        const pnlText = `${p.pnl >= 0 ? '+' : ''}${p.pnl.toFixed(2)}`;
+        const labelText = `${p.side.toUpperCase()} @ ${p.entryPrice.toFixed(2)} (${pnlText})`;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = p.pnl >= 0 ? CHART_COLORS.up : CHART_COLORS.down;
+        ctx.fillRect(5, entryY - 10, ctx.measureText(labelText).width + 8, 20);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(labelText, 9, entryY);
+    }
+
+    if (p.sl) {
+        const slY = y(p.sl);
+        if (slY <= chartH && slY >= 0) {
+            ctx.strokeStyle = CHART_COLORS.down;
+            ctx.beginPath(); ctx.moveTo(0, slY); ctx.lineTo(W - 60, slY); ctx.stroke();
+            ctx.textAlign = 'right';
+            ctx.fillStyle = CHART_COLORS.down;
+            ctx.fillText(`SL ${p.sl.toFixed(2)}`, W - 65, slY);
+        }
+    }
+    if (p.tp) {
+        const tpY = y(p.tp);
+        if (tpY <= chartH && tpY >= 0) {
+            ctx.strokeStyle = CHART_COLORS.up;
+            ctx.beginPath(); ctx.moveTo(0, tpY); ctx.lineTo(W - 60, tpY); ctx.stroke();
+            ctx.textAlign = 'right';
+            ctx.fillStyle = CHART_COLORS.up;
+            ctx.fillText(`TP ${p.tp.toFixed(2)}`, W - 65, tpY);
+        }
+    }
     ctx.setLineDash([]);
+  });
+
+  // 繪製成交動畫
+  const now = performance.now();
+  state.chartAnimations = state.chartAnimations.filter(anim => {
+      const elapsed = now - anim.startTime;
+      if (elapsed > anim.duration) return false;
+
+      const progress = elapsed / anim.duration;
+      const x = (state.currentBarIndex - state.view.offset) * barWidth + barWidth / 2;
+      const animY = y(anim.price);
+      
+      ctx.beginPath();
+      ctx.globalAlpha = 1 - progress;
+      ctx.strokeStyle = anim.side === 'buy' ? CHART_COLORS.up : CHART_COLORS.down;
+      ctx.lineWidth = 2 + (progress * 4); // Expanding circle
+      ctx.arc(x, animY, 5 + progress * 15, 0, 2 * Math.PI);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      return true;
   });
 }
 
@@ -815,112 +1031,4 @@ function setupSteppers() {
         if (!button) return;
 
         const targetInputId = button.dataset.target;
-        const direction = button.dataset.direction;
-        const input = el(targetInputId);
-
-        if (!input) return;
-
-        let currentValue = parseFloat(input.value);
-        const step = parseFloat(input.step || input.dataset.step || 1);
-        
-        // Special logic for SL/TP: if empty, set to current price
-        if (['trade-sl', 'trade-tp'].includes(targetInputId) && isNaN(currentValue)) {
-            if (state.gameData && state.gameData[state.currentBarIndex]) {
-                const currentPrice = state.gameData[state.currentBarIndex].c;
-                input.value = currentPrice.toFixed(2);
-                return; // Stop after setting the initial price
-            }
-        }
-
-        if (isNaN(currentValue)) currentValue = 0;
-
-        let newValue = direction === 'up' ? currentValue + step : currentValue - step;
-        
-        // Enforce min for lots
-        if (targetInputId === 'trade-lots') {
-            const min = parseFloat(input.min);
-            if (!isNaN(min) && newValue < min) {
-                newValue = min;
-            }
-        }
-        
-        // Format to appropriate decimal places
-        const decimals = (String(step).split('.')[1] || '').length;
-        input.value = newValue.toFixed(decimals);
-    });
-}
-
-
-// ===== 初始化 =====
-async function init() {
-  canvas = el('chart');
-  ctx = canvas.getContext('2d');
-  chartWrap = el('chartWrap');
-  
-  const dataLoaded = await loadData();
-  
-  if (dataLoaded) {
-    // ******** FIX: Get computed colors for canvas drawing ********
-    const style = getComputedStyle(document.documentElement);
-    CHART_COLORS.up = style.getPropertyValue('--chart-up').trim();
-    CHART_COLORS.down = style.getPropertyValue('--chart-down').trim();
-    CHART_COLORS.bg = style.getPropertyValue('--chart-bg').trim();
-    CHART_COLORS.text = style.getPropertyValue('--chart-text').trim();
-
-    el('btnBuy').addEventListener('click', () => openOrder('buy'));
-    el('btnSell').addEventListener('click', () => openOrder('sell'));
-    el('btnCloseAll').addEventListener('click', closeAllPositions);
-    
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            if(btn.dataset.tab === 'positions-panel') {
-                pauseGame();
-                updatePositionsList();
-            }
-            document.querySelector('.tab-btn.active').classList.remove('active');
-            document.querySelector('.tab-content.active').classList.remove('active');
-            btn.classList.add('active');
-            el(btn.dataset.tab).classList.add('active');
-        });
-    });
-    
-    document.querySelectorAll('.modal-overlay').forEach(modal => {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.remove('visible');
-            }
-        });
-    });
-
-    el('event-continue-btn').addEventListener('click', () => {
-        el('eventModal').classList.remove('visible');
-        resumeGame();
-    });
-
-    el('play-pause-btn').addEventListener('click', () => {
-        state.isPaused ? resumeGame() : pauseGame();
-    });
-    el('step-btn').addEventListener('click', stepForward);
-    el('speed-controls').addEventListener('click', (e) => {
-        if (e.target.classList.contains('speed-btn')) {
-            document.querySelector('.speed-btn.active').classList.remove('active');
-            e.target.classList.add('active');
-            state.animationSpeed = parseInt(e.target.dataset.speed);
-            if (!state.isPaused) {
-                resumeGame();
-            }
-        }
-    });
-
-    setupInteraction();
-    setupSteppers(); 
-    startGame();
-  }
-}
-
-document.addEventListener('DOMContentLoaded', init);
-
-</script>
-</body>
-</html>
-�
+        const direction = but�
