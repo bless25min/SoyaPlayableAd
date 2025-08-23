@@ -366,10 +366,10 @@ input[type=number] {
 <script>
 // ===== 財經事件數據 (省略) =====
 const EVENTS = {
-  "2025-01-03": { time: "21:30", title: "🇺� 美國非農就業數據 (NFP)", desc: "俗稱「非農」的美國就業數據是市場最關注的指標之一。數據好壞將劇烈影響黃金價格，市場屏息以待！" },
+  "2025-01-03": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "俗稱「非農」的美國就業數據是市場最關注的指標之一。數據好壞將劇烈影響黃金價格，市場屏息以待！" },
   "2025-01-20": { time: "12:00", title: "🇺🇸 美國總統就職典禮", desc: "新任美國總統將於華盛頓特區宣誓就職。就職演說通常會概述新政府的施政藍圖，內容可能涉及國內外政策、經濟方向等，這些都可能成為市場關注的焦點。" },
   "2025-01-30": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "歐洲央行管理委員會將召開貨幣政策會議並發布利率決策聲明。市場將關注其對歐元区經濟前景和通膨路徑的最新評估。" },
-  "2025-02-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "本月非農數據公布，將再次考驗市場對美國經濟復甦力度的信心。" },
+  "2025-02-07": { time: "21:30", title: "�🇸 美國非農就業數據 (NFP)", desc: "本月非農數據公布，將再次考驗市場對美國經濟復甦力度的信心。" },
   "2025-03-05": { time: "10:00", title: "🇨🇳 中國全國人民代表大會年會開幕", desc: "中國將公布當年度的GDP增長目標、財政預算等主要經濟指標，並闡述相關政策方向。" },
   "2025-03-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "連續第三個月的非農數據，市場將尋找勞動力市場是否持續穩定的線索。" },
   "2025-03-19": { time: "03:00", title: "🇺🇸 聯準會利率決策 (FOMC)", desc: "聯準會將發布利率決策，會議將包含最新的經濟預測摘要 (SEP) 和「點陣圖」，揭示未來利率路徑預期。" },
@@ -407,7 +407,6 @@ function loadData() {
   return new Promise(async (resolve) => {
     try {
       // ******** FINAL FIX: Using the absolute raw URL from your GitHub repository ********
-      // This is the most reliable way to ensure the data is loaded in a GitHub Pages environment.
       const response = await fetch('https://raw.githubusercontent.com/bless25min/SoyaPlayableAd/main/XAUUSD_M15.csv');
       if (!response.ok) throw new Error('Network response was not ok');
       const text = await response.text();
@@ -683,9 +682,10 @@ function updatePositions() {
         
         if (hitSL || hitTP) {
             const exitPrice = hitSL ? p.sl : p.tp;
+            const finalPnl = (exitPrice - p.entryPrice) * direction * p.lots * 100;
             logTransaction(p, exitPrice, currentBar.date);
-            addChartAnimation(exitPrice, p.side, 'close');
-            state.account.balance += (exitPrice - p.entryPrice) * direction * p.lots * 100;
+            addChartAnimation(exitPrice, p.side, 'close', finalPnl);
+            state.account.balance += finalPnl;
             state.positions.splice(i, 1);
             updatePositionsList();
         }
@@ -842,16 +842,17 @@ function drawTimeAxis(ctx, W, H, startIdx, endIdx, barWidth, offset) {
     }
 }
 
-function addChartAnimation(price, side, type) {
+function addChartAnimation(price, side, type, pnl) {
     state.chartAnimations.push({
         price,
         side,
         type, // 'open' or 'close'
+        pnl, // only for 'close' type
         startTime: performance.now(),
-        duration: 500 // 0.5 seconds
+        duration: 800 
     });
     if (state.isPaused) {
-        requestAnimationFrame(() => draw()); // Ensure animation plays even when paused
+        requestAnimationFrame(() => draw()); 
     }
 }
 
@@ -900,24 +901,23 @@ function draw(animationProgress = 1) {
     const progress = isLastBar ? animationProgress : 1;
     const up = b.c >= b.o;
     const openY = y(b.o);
-    let lowY = y(b.l);
-    let highY = y(b.h);
-    let closeY = y(b.c);
+    let lowY, highY, closeY;
 
     if (isLastBar && progress < 1) {
-        const wick1Target = up ? lowY : highY;
-        const wick2Target = up ? highY : lowY;
-        const wick1Progress = Math.max(0, Math.min(1, progress / 0.4));
-        const wick2Progress = Math.max(0, Math.min(1, (progress - 0.4) / 0.4));
-        const bodyProgress = Math.max(0, Math.min(1, (progress - 0.8) / 0.2));
-        
-        const currentWick1Y = openY + (wick1Target - openY) * wick1Progress;
-        const currentWick2Y = openY + (wick2Target - openY) * wick2Progress;
-        const currentCloseY = openY + (closeY - openY) * bodyProgress;
+        const wickProgress = Math.max(0, Math.min(1, progress / 0.5));
+        const bodyProgress = Math.max(0, Math.min(1, (progress - 0.5) / 0.5));
 
-        lowY = Math.min(openY, currentWick1Y, currentWick2Y);
-        highY = Math.max(openY, currentWick1Y, currentWick2Y);
-        closeY = currentCloseY;
+        const currentLow = b.o + (b.l - b.o) * wickProgress;
+        const currentHigh = b.o + (b.h - b.o) * wickProgress;
+        const currentClose = b.o + (b.c - b.o) * bodyProgress;
+
+        lowY = y(currentLow);
+        highY = y(currentHigh);
+        closeY = y(currentClose);
+    } else {
+        lowY = y(b.l);
+        highY = y(b.h);
+        closeY = y(b.c);
     }
 
     const color = up ? CHART_COLORS.up : CHART_COLORS.down;
@@ -988,12 +988,33 @@ function draw(animationProgress = 1) {
       const x = (state.currentBarIndex - state.view.offset) * barWidth + barWidth / 2;
       const animY = y(anim.price);
       
-      ctx.beginPath();
       ctx.globalAlpha = 1 - progress;
-      ctx.strokeStyle = anim.side === 'buy' ? CHART_COLORS.up : CHART_COLORS.down;
-      ctx.lineWidth = 2 + (progress * 4); // Expanding circle
-      ctx.arc(x, animY, 5 + progress * 15, 0, 2 * Math.PI);
-      ctx.stroke();
+      const color = anim.side === 'buy' ? CHART_COLORS.up : CHART_COLORS.down;
+
+      if (anim.type === 'open') {
+          const arrowSize = 10 + progress * 10;
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          if (anim.side === 'buy') {
+              ctx.moveTo(x, animY + arrowSize);
+              ctx.lineTo(x - arrowSize / 2, animY);
+              ctx.lineTo(x + arrowSize / 2, animY);
+          } else { // sell
+              ctx.moveTo(x, animY - arrowSize);
+              ctx.lineTo(x - arrowSize / 2, animY);
+              ctx.lineTo(x + arrowSize / 2, animY);
+          }
+          ctx.closePath();
+          ctx.fill();
+      } else { // close
+          ctx.font = `bold ${14 + progress * 8}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = anim.pnl >= 0 ? CHART_COLORS.up : CHART_COLORS.down;
+          const pnlText = `${anim.pnl >= 0 ? '+' : ''}${anim.pnl.toFixed(2)}`;
+          ctx.fillText(pnlText, x, animY - 15 - (progress * 30));
+      }
+      
       ctx.globalAlpha = 1;
       return true;
   });
@@ -1143,3 +1164,4 @@ document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
+�
