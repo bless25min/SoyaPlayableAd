@@ -753,34 +753,67 @@
             }
         }
         
+        /**
+         * A highly robust CSV parser with detailed debugging logs.
+         * Normalizes line endings and provides specific warnings for invalid data.
+         */
         function parseCSV(text) {
-            const lines = text.trim().split('\n').slice(1);
-            return lines.map((line, index) => {
+            console.log("Entering ultra-robust parseCSV function...");
+            // Step 1: Normalize line endings to prevent cross-platform issues.
+            const universalText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            const lines = universalText.trim().split('\n');
+            
+            if (lines.length <= 1) {
+                console.error("CSV has no data rows (or only a header).");
+                return [];
+            }
+            
+            const header = lines[0];
+            console.log("CSV Header found:", header);
+            
+            const dataLines = lines.slice(1);
+            console.log(`Processing ${dataLines.length} data lines...`);
+
+            const results = [];
+            for (let i = 0; i < dataLines.length; i++) {
+                const line = dataLines[i];
+                const lineNumber = i + 2; // Line number in the original file
+
                 const cleanedLine = line.trim();
-                if (!cleanedLine) return null;
+                if (!cleanedLine) continue; // Skip empty lines silently
 
                 const parts = cleanedLine.split(',');
-                if (parts.length < 5) return null;
-
-                const [time, open, high, low, close] = parts;
+                if (parts.length < 5) {
+                    // Log only the first few errors to avoid spamming
+                    if (results.length < 5) console.warn(`Line ${lineNumber} has < 5 parts:`, cleanedLine);
+                    continue;
+                }
                 
                 const dataPoint = {
-                    time: parseInt(time, 10),
-                    open: parseFloat(open),
-                    high: parseFloat(high),
-                    low: parseFloat(low),
-                    close: parseFloat(close)
+                    time: parseInt(parts[0], 10),
+                    open: parseFloat(parts[1]),
+                    high: parseFloat(parts[2]),
+                    low: parseFloat(parts[3]),
+                    close: parseFloat(parts[4])
                 };
 
-                // Validate that all numbers are actual numbers
-                if (Object.values(dataPoint).some(isNaN)) {
-                     console.warn(`Skipping invalid data on line ${index + 2}:`, line);
-                     return null;
-                }
-                return dataPoint;
+                // Detailed NaN check for each property
+                let hasNaN = false;
+                if (isNaN(dataPoint.time)) { hasNaN = true; if (results.length < 5) console.warn(`NaN detected in 'time' on line ${lineNumber}. Raw value: "${parts[0]}"`); }
+                if (isNaN(dataPoint.open)) { hasNaN = true; if (results.length < 5) console.warn(`NaN detected in 'open' on line ${lineNumber}. Raw value: "${parts[1]}"`); }
+                if (isNaN(dataPoint.high)) { hasNaN = true; if (results.length < 5) console.warn(`NaN detected in 'high' on line ${lineNumber}. Raw value: "${parts[2]}"`); }
+                if (isNaN(dataPoint.low)) { hasNaN = true; if (results.length < 5) console.warn(`NaN detected in 'low' on line ${lineNumber}. Raw value: "${parts[3]}"`); }
+                if (isNaN(dataPoint.close)) { hasNaN = true; if (results.length < 5) console.warn(`NaN detected in 'close' on line ${lineNumber}. Raw value: "${parts[4]}"`); }
 
-            }).filter(Boolean); // Filter out any null entries
+                if (!hasNaN) {
+                    results.push(dataPoint);
+                }
+            }
+            
+            console.log(`parseCSV finished. Total valid records pushed: ${results.length}`);
+            return results;
         }
+
 
         function selectRandomMonth(data) {
             if (!data || data.length === 0) {
@@ -791,7 +824,7 @@
             const months = {};
             data.forEach(d => {
                 const date = new Date(d.time * 1000);
-                if (isNaN(date.getTime())) return; // Skip invalid dates
+                if (isNaN(date.getTime())) return;
                 
                 const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
                 if (!months[monthKey]) {
@@ -807,7 +840,7 @@
             }
 
             const randomMonthKey = monthKeys[Math.floor(Math.random() * monthKeys.length)];
-            return months[randomMonthKey] || []; // Add || [] as a final safeguard
+            return months[randomMonthKey] || [];
         }
 
         function resetChallenge() {
