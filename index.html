@@ -394,7 +394,7 @@ function draw(){
     ctx.strokeStyle=color; ctx.setLineDash([5,4]);
     ctx.beginPath(); ctx.moveTo(0,y(p.entry)); ctx.lineTo(W,y(p.entry)); ctx.stroke();
     ctx.setLineDash([]); ctx.fillStyle=color; ctx.font='12px system-ui';
-    ctx.fillText(\`\${p.side} @ \${p.entry.toFixed(2)} | \${p.pnlR?.toFixed?p.pnlR.toFixed(2):'0.00'}R / $\${p.pnl$?.toFixed?p.pnl$.toFixed(2):'0.00'}\`, 20, 28+14*idx);
+    ctx.fillText(\`\${p.side} @ \${p.entry.toFixed(2)} | \${p.pnlR?.toFixed?p.pnlR.toFixed(2):'0.00'}R / $\${p.pnlUsd?.toFixed?p.pnlUsd.toFixed(2):'0.00'}\`, 20, 28+14*idx);
   });
 }
 
@@ -450,14 +450,14 @@ function renderPositions(){
       <tbody>\${state.positions.map((p,i)=>{
         const sl = Number.isFinite(p.sl)?p.sl.toFixed(2):'';
         const tp = Number.isFinite(p.tp)?p.tp.toFixed(2):'';
-        const pnl = p.pnl$?.toFixed ? p.pnl$.toFixed(2) : '0.00';
+        const pnl = p.pnlUsd?.toFixed ? p.pnlUsd.toFixed(2) : '0.00';
         return \`<tr><td>\${p.side==='LONG'?'多':'空'}</td><td>\${p.entry.toFixed(2)}</td><td>\${sl}</td><td>\${tp}</td><td>\${p.size}</td><td>\${pnl}</td><td><button class="btn" data-i="\${i}">×</button></td></tr>\`;
       }).join('')}</tbody>
     </table>\`;
   box.querySelectorAll('button[data-i]').forEach(btn=> btn.onclick=()=> closePosition(parseInt(btn.dataset.i,10)) );
 }
 
-function recalcAccount(){ let unreal=0; for(const p of state.positions){ if(Number.isFinite(p.pnl$)) unreal+=p.pnl$; } account.equity = account.balance + unreal; }
+function recalcAccount(){ let unreal=0; for(const p of state.positions){ if(Number.isFinite(p.pnlUsd)) unreal+=p.pnlUsd; } account.equity = account.balance + unreal; }
 function validBrackets(side, entry, sl, tp){
   const okSL=(sl==null) ? false : (side==='LONG'? sl<entry : sl>entry);
   const okTP=(tp==null) || (side==='LONG'? tp>entry : tp<entry);
@@ -471,7 +471,7 @@ function openMarket(side){
   const sl = p.sl, tp = Number.isFinite(p.tp)? p.tp : null;
   const chk=validBrackets(side, entry, sl, tp);
   if(!chk.ok){ if(!chk.okSL) toast('停損價不合理'); if(!chk.okTP) toast('停利價不合理'); return; }
-  state.positions.push({ id:Date.now()+Math.random(), side, entry, sl, tp, size:p.lots, R0:Math.abs(entry-sl), pnl$:0, pnlR:0, status:'open', openTime: state.bars[state.visible-1]?.t||'' });
+  state.positions.push({ id:Date.now()+Math.random(), side, entry, sl, tp, size:p.lots, R0:Math.abs(entry-sl), pnlUsd:0, pnlR:0, status:'open', openTime: state.bars[state.visible-1]?.t||'' });
   logEvent('開倉',{side,price:entry,size:p.lots});
   navigator.vibrate?.(10);
   if(p.lots>0) completeNode('lots');
@@ -504,7 +504,7 @@ function updateOrders(){
     const hit = (o.side==='LONG') ? (o.type==='LIMIT' ? q.ask<=o.price : q.ask>=o.price) : (o.type==='LIMIT' ? q.bid>=o.price : q.bid<=o.price);
     if(hit){
       const entry=(o.side==='LONG')?q.ask:q.bid;
-      state.positions.push({ id:Date.now()+Math.random(), side:o.side, entry, sl:o.sl, tp:o.tp, size:o.size, R0:Math.abs(entry-o.sl), pnl$:0, pnlR:0, status:'open', openTime: state.bars[state.visible-1]?.t||'' });
+      state.positions.push({ id:Date.now()+Math.random(), side:o.side, entry, sl:o.sl, tp:o.tp, size:o.size, R0:Math.abs(entry-o.sl), pnlUsd:0, pnlR:0, status:'open', openTime: state.bars[state.visible-1]?.t||'' });
       logEvent('掛單觸發',{side:o.side,price:entry,size:o.size}); completeNode('pend');
     } else keep.push(o);
   }
@@ -514,7 +514,7 @@ function updatePositions(){
   const q=lastQuote(); const bid=q.bid, ask=q.ask, mid=q.mid;
   for(let i=state.positions.length-1;i>=0;i--){
     const p=state.positions[i]; const sign=p.side==='LONG'?1:-1; const exitPx = p.side==='LONG'?bid:ask;
-    p.pnl$ = (exitPx - p.entry)*sign*p.size;
+    p.pnlUsd = (exitPx - p.entry)*sign*p.size;
     p.pnlR = (mid - p.entry)*sign / (p.R0||1);
     const slP = Number(p.sl), tpP = Number(p.tp);
     const hitSL = Number.isFinite(slP) && ((p.side==='LONG' && bid<=slP) || (p.side==='SHORT' && ask>=slP));
@@ -528,16 +528,16 @@ function closePosition(idx, exit, reason='手動'){
   const p = state.positions[idx]; if(!p) return;
   const fill = exit ?? (p.side==='LONG'?lastQuote().bid:lastQuote().ask);
   const sign = p.side==='LONG'?1:-1;
-  const pnl$ = (fill - p.entry) * sign * p.size;
+  const pnlUsd = (fill - p.entry) * sign * p.size;
   const pnlR = (fill - p.entry) * sign / (p.R0||1);
-  p.realized$ = pnl$; p.realizedR = pnlR;
-  account.balance += pnl$; account.equity = account.balance;
+  p.realizedUsd = pnlUsd; p.realizedR = pnlR;
+  account.balance += pnlUsd; account.equity = account.balance;
   state.positions.splice(idx,1);
   logEvent('平倉',{side:p.side,price:fill,size:p.size,note:reason});
   navigator.vibrate?.(10);
-  if(pnl$>0){ makeConfetti(50); sfx(1200,150); document.querySelector('.orderDock')?.classList.add('profitPulse'); setTimeout(()=>document.querySelector('.orderDock')?.classList.remove('profitPulse'), 900); }
+  if(pnlUsd>0){ makeConfetti(50); sfx(1200,150); document.querySelector('.orderDock')?.classList.add('profitPulse'); setTimeout(()=>document.querySelector('.orderDock')?.classList.remove('profitPulse'), 900); }
   else{ const cw=document.getElementById('chartWrap'); cw?.classList.add('lossShake','lossFlash'); setTimeout(()=>cw?.classList.remove('lossShake','lossFlash'), 600); sfx(220,200,.18); }
-  if(pnl$>0) completeNode('profit');
+  if(pnlUsd>0) completeNode('profit');
   recalcAccount(); renderPositions();
   if(state.tour.enabled && state.tour.step===3){ state.tour.step++; guideNext();
     if(!tourBonusAwarded){ tourBonusAwarded=true; account.balance += 100; account.equity=account.balance; toast('教學金 +$100'); }
