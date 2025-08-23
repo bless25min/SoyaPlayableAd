@@ -414,13 +414,13 @@ input[type=number] {
     <div id="journal-panel" class="tab-content">
         <div id="journal-list"></div>
     </div>
-    <div class="playback-controls">
+    <div class="playback-controls" id="playback-controls">
         <button class="btn" id="play-pause-btn">▶</button>
         <button class="btn" id="step-btn">逐K →</button>
         <div id="speed-controls">
-            <button class="btn speed-btn active" data-speed="400">0.25x</button>
+            <button class="btn speed-btn" data-speed="400">0.25x</button>
             <button class="btn speed-btn" data-speed="200">0.5x</button>
-            <button class="btn speed-btn" data-speed="100">1x</button>
+            <button class="btn speed-btn active" data-speed="100">1x</button>
             <button class="btn speed-btn" data-speed="50">2x</button>
             <button class="btn speed-btn" data-speed="10">5x</button>
         </div>
@@ -530,7 +530,6 @@ function parseData(text) {
     const header = lines.shift() || '';
     const dataLines = lines;
     
-    // Auto-detect format
     const isTimestampFormat = header.startsWith('time,') || /^\d{10,}/.test(dataLines[0]);
     
     if (isTimestampFormat) {
@@ -543,7 +542,7 @@ function parseData(text) {
                 o: parseFloat(parts[1]), h: parseFloat(parts[2]),
                 l: parseFloat(parts[3]), c: parseFloat(parts[4])
             };
-            return Object.values(p).some(val => isNaN(val) || val === null) ? null : p;
+            return Object.values(p).some(val => val === null || (typeof val === 'object' && isNaN(val.getTime())) || (typeof val === 'number' && isNaN(val))) ? null : p;
         }).filter(Boolean);
     } else {
         console.log("偵測到格式: 日期時間字串 + 空格/Tab 分隔");
@@ -557,10 +556,11 @@ function parseData(text) {
                 o: parseFloat(parts[2]), h: parseFloat(parts[3]),
                 l: parseFloat(parts[4]), c: parseFloat(parts[5]),
             };
-            return Object.values(p).some(val => isNaN(val) || val === null) ? null : p;
+            return Object.values(p).some(val => val === null || (typeof val === 'object' && isNaN(val.getTime())) || (typeof val === 'number' && isNaN(val))) ? null : p;
         }).filter(Boolean);
     }
 }
+
 
 // --- Game Flow ---
 function startGame() {
@@ -623,13 +623,12 @@ function gameLoop() {
     if (bar) {
         const dateStr = bar.date.toISOString().slice(0, 10);
         const event = EVENTS[dateStr];
-        if (event && bar.date.getHours() * 60 + bar.date.getMinutes() >= parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1])) {
-            if (!event.triggered) {
-                pauseGame();
-                showEventModal(event);
-                event.triggered = true;
-                return;
-            }
+        const eventTime = event ? parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]) : null;
+        if (event && !event.triggered && (bar.date.getHours() * 60 + bar.date.getMinutes() >= eventTime)) {
+            pauseGame();
+            showEventModal(event);
+            event.triggered = true;
+            return;
         }
     }
     
@@ -651,18 +650,7 @@ function gameLoop() {
 
 function stepForward() {
     pauseGame();
-    if (state.currentBarIndex < state.gameData.length - 1) {
-        state.currentBarIndex++;
-        updatePositions();
-        updateHUD();
-        if (state.view.offset + state.view.barsInView < state.currentBarIndex + 10) {
-            state.view.offset = state.currentBarIndex - state.view.barsInView + 10;
-            clampOffset();
-        }
-        draw();
-    } else {
-        showEndScreen();
-    }
+    gameLoop();
 }
 
 function pauseGame() {
@@ -710,12 +698,11 @@ function closePosition(positionId) {
     const position = state.positions[index];
     const exitPrice = state.gameData[state.currentBarIndex].c;
     const exitTime = state.gameData[state.currentBarIndex].date;
-    const finalPnl = (exitPrice - position.entryPrice) * (position.side === 'buy' ? 1 : -1) * position.lots * 100;
     
     logTransaction(position, exitPrice, exitTime);
-    addChartAnimation(exitPrice, position.side, 'close', finalPnl);
+    addChartAnimation(exitPrice, position.side, 'close', position.pnl);
 
-    state.account.balance += finalPnl;
+    state.account.balance += position.pnl;
     state.positions.splice(index, 1);
     
     updatePositionsList();
@@ -725,9 +712,6 @@ function closePosition(positionId) {
 
 function closeAllPositions() {
     if (state.positions.length === 0) return;
-    const exitPrice = state.gameData[state.currentBarIndex].c;
-    const exitTime = state.gameData[state.currentBarIndex].date;
-
     [...state.positions].forEach(p => closePosition(p.id));
 }
 
@@ -768,7 +752,6 @@ function updatePositions() {
         const hitTP = (p.tp && ((p.side === 'buy' && currentBar.h >= p.tp) || (p.side === 'sell' && currentBar.l <= p.tp)));
         
         if (hitSL || hitTP) {
-            const exitPrice = hitSL ? p.sl : p.tp;
             closePosition(p.id);
         }
     }
@@ -852,7 +835,6 @@ function updateJournalList() {
     }).join('');
 }
 
-
 function showEventModal(event) {
     el('event-title').textContent = event.title;
     el('event-desc').textContent = event.desc;
@@ -933,7 +915,7 @@ function drawTimeAxis(ctx, W, H, startIdx, endIdx, barWidth, offset) {
         const date = bar.date;
         const dateStr = date.toISOString().slice(5, 10);
         
-        if (dateStr !== lastDateStr && i % labelMod === 0) {
+        if (dateStr !== lastDateStr && i % labelMod < 1) {
             ctx.fillText(dateStr, x, H - CONFIG.timeAxisHeight + 5);
             lastDateStr = dateStr;
         }
@@ -944,16 +926,13 @@ function addChartAnimation(price, side, type, pnl) {
     state.chartAnimations.push({ price, side, type, pnl, startTime: performance.now(), duration: 800 });
 }
 
-
 // --- Main Drawing Function ---
 let lastAnimationTime = 0;
 function draw(animationProgress = 1) {
     if (!ctx) return;
     const now = performance.now();
-    if (now - lastAnimationTime < 16 && state.isPaused) { // Limit framerate when paused
-        requestAnimationFrame(() => draw());
-        return;
-    }
+    requestAnimationFrame(draw);
+    if (now - lastAnimationTime < 16 && state.isPaused && state.chartAnimations.length === 0) return;
     lastAnimationTime = now;
 
     const dpr = window.devicePixelRatio || 1;
@@ -993,40 +972,24 @@ function draw(animationProgress = 1) {
         const barIndex = startIdx + i;
         const b = dataInView[i];
         const x = (barIndex - state.view.offset) * barWidth + barWidth / 2;
-        const isLastBar = barIndex === state.currentBarIndex;
-        
-        const progress = isLastBar && !state.isPaused ? (now % state.animationSpeed) / state.animationSpeed : 1;
         
         const up = b.c >= b.o;
-        const openY = y(b.o);
-        let lowY, highY, closeY;
-
-        if (isLastBar && progress < 1 && !state.isPaused) {
-            const wickProgress = Math.min(1, progress / 0.5);
-            const bodyProgress = Math.min(1, Math.max(0, (progress - 0.5) / 0.5));
-            lowY = y(b.o + (b.l - b.o) * wickProgress);
-            highY = y(b.o + (b.h - b.o) * wickProgress);
-            closeY = y(b.o + (b.c - b.o) * bodyProgress);
-        } else {
-            lowY = y(b.l); highY = y(b.h); closeY = y(b.c);
-        }
-
         const color = up ? CHART_COLORS.up : CHART_COLORS.down;
         ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 1.5;
         
-        ctx.beginPath(); ctx.moveTo(x, highY); ctx.lineTo(x, lowY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, y(b.h)); ctx.lineTo(x, y(b.l)); ctx.stroke();
         
         const w = Math.max(2, barWidth * 0.7);
-        ctx.fillRect(x - w / 2, Math.min(openY, closeY), w, Math.max(1, Math.abs(openY - closeY)));
+        ctx.fillRect(x - w / 2, Math.min(y(b.o), y(b.c)), w, Math.max(1, Math.abs(y(b.o) - y(b.c))));
     }
   
-    // Draw Position Lines & PnL
+    // Draw Position Lines
     state.positions.forEach(p => {
         ctx.font = 'bold 12px sans-serif'; ctx.textBaseline = 'middle';
         
         [{price: p.entryPrice, color: p.side === 'buy' ? CHART_COLORS.up : CHART_COLORS.down, dash: [2,4], label: 'ENTRY'},
-         {price: p.sl, color: 'orange', dash: [5,5], label: 'SL'},
-         {price: p.tp, color: 'purple', dash: [5,5], label: 'TP'}
+         {price: p.sl, color: '#f59e0b', dash: [5,5], label: 'SL'},
+         {price: p.tp, color: '#8b5cf6', dash: [5,5], label: 'TP'}
         ].forEach(line => {
             if(!line.price) return;
             const lineY = y(line.price);
@@ -1038,8 +1001,10 @@ function draw(animationProgress = 1) {
                     const pnlText = `${p.pnl >= 0 ? '+' : ''}${p.pnl.toFixed(2)}`;
                     const labelText = `${p.side.toUpperCase()} @ ${p.entryPrice.toFixed(2)} (${pnlText})`;
                     ctx.textAlign = 'left';
-                    ctx.fillStyle = p.pnl >= 0 ? CHART_COLORS.up : CHART_COLORS.down;
-                    ctx.fillRect(5, lineY - 10, ctx.measureText(labelText).width + 8, 20);
+                    const bgColor = p.pnl >= 0 ? CHART_COLORS.up : CHART_COLORS.down;
+                    const textWidth = ctx.measureText(labelText).width;
+                    ctx.fillStyle = bgColor;
+                    ctx.fillRect(5, lineY - 10, textWidth + 8, 20);
                     ctx.fillStyle = '#ffffff';
                     ctx.fillText(labelText, 9, lineY);
                 }
@@ -1054,7 +1019,8 @@ function draw(animationProgress = 1) {
         if (elapsed > anim.duration) return false;
 
         const progress = elapsed / anim.duration;
-        const x = (state.currentBarIndex - state.view.offset) * barWidth + barWidth / 2;
+        const barIndex = state.positions.find(p => p.entryPrice === anim.price) ? state.currentBarIndex -1 : state.currentBarIndex;
+        const x = (barIndex - state.view.offset) * barWidth + barWidth / 2;
         const animY = y(anim.price);
         
         ctx.globalAlpha = 1 - progress;
@@ -1079,10 +1045,7 @@ function draw(animationProgress = 1) {
         ctx.globalAlpha = 1;
         return true;
     });
-    
-    if (state.chartAnimations.length > 0) requestAnimationFrame(() => draw());
 }
-
 
 // --- Interaction ---
 function setupInteraction() {
@@ -1090,7 +1053,7 @@ function setupInteraction() {
     el('zoom-out').onclick = () => handleZoom(-1);
     chartWrap.addEventListener('wheel', e => { e.preventDefault(); handleZoom(e.deltaY < 0 ? 1 : -1); }, { passive: false });
     const startPan = (x) => { state.pan.isPanning = true; state.pan.startX = x; state.pan.startOffset = state.view.offset; };
-    const movePan = (x) => { if (!state.pan.isPanning) return; const dx = x - state.pan.startX; const barWidth = chartWrap.clientWidth / state.view.barsInView; state.view.offset = state.pan.startOffset - dx / barWidth; clampOffset(true); draw(); };
+    const movePan = (x) => { if (!state.pan.isPanning) return; const dx = x - state.pan.startX; const barWidth = chartWrap.clientWidth / state.view.barsInView; state.view.offset = state.pan.startOffset - dx / barWidth; clampOffset(true); };
     const endPan = () => { state.pan.isPanning = false; };
     chartWrap.addEventListener('mousedown', e => startPan(e.clientX));
     chartWrap.addEventListener('mousemove', e => movePan(e.clientX));
@@ -1107,11 +1070,10 @@ function handleZoom(direction) {
     state.view.offset = centerBar - newBarsInView / 2;
     state.view.barsInView = newBarsInView;
     clampOffset(true);
-    draw();
 }
 function clampOffset(isUserAction = false) {
-    const maxOffset = state.gameData.length - (isUserAction ? state.view.barsInView : 5);
-    state.view.offset = Math.max(-state.view.barsInView/2, Math.min(state.view.offset, maxOffset));
+    const maxOffset = state.gameData.length - (isUserAction ? state.view.barsInView * 0.8 : 5);
+    state.view.offset = Math.max(-state.view.barsInView * 0.2, Math.min(state.view.offset, maxOffset));
 }
 
 function setupSteppers() {
@@ -1159,11 +1121,20 @@ function showTutorialStep(stepIndex) {
     const overlay = el('tutorial-overlay'), highlight = el('tutorial-highlight'), box = el('tutorial-box');
     const text = el('tutorial-text'), nextBtn = el('tutorial-next'), dots = el('tutorial-dots');
 
+    // *** FIX: Added null check for stability ***
+    const target = step.elementId ? el(step.elementId) : null;
+    if (step.elementId && !target) {
+        console.error(`Tutorial Error: Element with ID "${step.elementId}" not found. Skipping step.`);
+        // Skip to the next step
+        if (++tutorialStep >= tutorialSteps.length) endTutorial(); else showTutorialStep(tutorialStep);
+        return;
+    }
+
     text.textContent = step.text;
     dots.innerHTML = tutorialSteps.map((_, i) => `<div class="tutorial-dot ${i === stepIndex ? 'active' : ''}"></div>`).join('');
 
-    if (step.elementId) {
-        const target = el(step.elementId), rect = target.getBoundingClientRect();
+    if (target) {
+        const rect = target.getBoundingClientRect();
         highlight.style.left = `${rect.left - 5}px`; highlight.style.top = `${rect.top - 5}px`;
         highlight.style.width = `${rect.width + 10}px`; highlight.style.height = `${rect.height + 10}px`;
         box.style.transform = '';
