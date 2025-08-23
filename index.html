@@ -2,905 +2,392 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
-<title>反轉分析線訓練 Playable — 真實數據版</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>交易獲利挑戰賽</title>
 <style>
-:root{
-  --bg:#eef3ff; --panel:#ffffff; --panel-soft:#f4f7ff;
-  --text:#1f2a44; --muted:#5b6b8b;
-  --accent:#2bb673; --accent2:#2aa3ff;
-  --danger:#ff5f6d; --good:#21cf7a; --warn:#ffcc57;
-  --grid:#1f2a4414;
-  /* 新增 K 線色彩：更高對比度提升可讀性 */
-  --k-up-stroke: rgba(52,211,153,0.9);
-  --k-up-fill:   rgba(52,211,153,0.3);
-  --k-down-stroke: rgba(248,113,113,0.9);
-  --k-down-fill:   rgba(248,113,113,0.3);
-}
-*{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-body{margin:0;background:linear-gradient(180deg,#f9fbff,#eef3ff 50%);color:var(--text)}
-.wrap{max-width:1180px;margin:0 auto;padding:12px}
-.toolbar{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid #dbe4ff;border-radius:10px;padding:8px 10px;box-shadow:0 6px 18px rgba(31,42,68,.10)}
-.btn{
-  border-radius:14px; background:linear-gradient(180deg,#ffffff,#f1f6ff);
-  border:1px solid #dbe4ff; color:#1f2a44; box-shadow:0 6px 16px rgba(31,42,68,.10);
-  padding:6px 10px; cursor:pointer; transition: transform .06s ease, box-shadow .25s ease, background .25s ease;
-}
-.btn:hover{ box-shadow:0 10px 24px rgba(31,42,68,.18); }
-.btn:active{ transform:translateY(1px) scale(.98); }
-.btn.buy { background:linear-gradient(180deg,#c9ffe6,#98ffd0); color:#0c2a1a; }
-.btn.sell{ background:linear-gradient(180deg,#ffd4d8,#ffadb6); color:#2a0c0c; }
-.toolbar .seg{display:flex;border:1px solid #dbe4ff;border-radius:8px;overflow:hidden}
-.toolbar .seg button{border:0;background:var(--panel-soft);color:var(--text);padding:6px 10px}
-.toolbar .seg button.active{background:#e2e8f9}
-.sp{flex:1}
-.layout{display:grid;grid-template-columns:220px 1fr;gap:10px;margin-top:10px}
-.market{background:var(--panel);border:1px solid #dbe4ff;border-radius:10px;padding:10px}
-.market h3{font-size:13px;margin:0 0 8px;color:var(--muted)}
-.quote{display:flex;justify-content:space-between;padding:6px 8px;border-radius:8px;background:var(--panel-soft);margin-bottom:6px}
-.quote small{color:var(--muted)}
-#chartWrap{position:relative;background:var(--panel-soft);border:1px solid #dbe4ff;border-radius:12px;min-height:560px}
-#chart{width:100%;height:560px;display:block}
-.priceAxis{position:absolute;right:6px;top:6px;bottom:36px;width:70px;pointer-events:none}
-.priceAxis .tick{position:absolute;right:0;color:var(--text);font-size:11px;transform:translateY(-50%)}
-.timeAxis{position:absolute;left:8px;right:8px;bottom:6px;height:24px;color:var(--muted);font-size:11px}
-.timeAxis .tick{position:absolute;bottom:0;transform:translateX(-50%)}
-.orderDock{background:var(--panel);border:1px solid #dbe4ff;border-radius:14px;display:flex;gap:10px;align-items:center;padding:10px 12px;box-shadow:0 12px 28px rgba(31,42,68,.15);margin-top:8px}
-.orderDock input{width:90px;background:var(--panel-soft);border:1px solid #dbe4ff;border-radius:8px;padding:6px 8px;color:var(--text)}
-.tag{font-size:12px;background:var(--panel-soft);border:1px solid #dbe4ff;color:var(--text);border-radius:999px;padding:4px 8px}
-.panel{background:var(--panel);border:1px solid #dbe4ff;border-radius:14px;padding:8px;margin-top:10px}
-.panel table{width:100%;border-collapse:collapse;font-size:12px}
-.panel th,.panel td{border-bottom:1px dashed #dbe4ff;padding:6px;text-align:left;color:var(--text)}
-.panel th{color:var(--muted)}
-.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--panel);color:var(--text);border:1px solid #dbe4ff;padding:10px 14px;border-radius:999px;box-shadow:0 8px 30px rgba(31,42,68,.15);font-size:13px}
-
-/* 收益/虧損回饋動畫 */
-.profitPulse{ animation:pulse .8s ease-out; }
-.lossShake { animation:shake .5s ease-in-out; }
-@keyframes pulse {
-  0%{ box-shadow:0 0 0 0 rgba(33,207,122,.45); }
-  100%{ box-shadow:0 0 0 22px rgba(33,207,122,0); }
-}
-@keyframes shake {
-  10%, 90% { transform: translateX(-2px); }
-  20%, 80% { transform: translateX(4px); }
-  30%, 50%, 70% { transform: translateX(-7px); }
-  40%, 60% { transform: translateX(7px); }
+:root {
+  --bg: #f4f7fc;
+  --panel: #ffffff;
+  --panel-soft: #f9fafc;
+  --text: #1a1e2b;
+  --muted: #6b7280;
+  --border-color: #e5e7eb;
+  --accent: #4a72ff;
+  --good: #10b981; /* Green for profit */
+  --danger: #ef4444; /* Red for loss */
+  --grid: rgba(0, 0, 0, 0.05);
+  /* Chart Colors: Green for Up, Red for Down */
+  --chart-bg: #ffffff;
+  --chart-text: #6b7280;
+  --chart-up: #10b981;   /* 陽棒顏色 */
+  --chart-down: #ef4444; /* 陰棒顏色 */
 }
 
-/* Confetti 粒子容器 */
-#confetti { position:fixed; inset:0; pointer-events:none; z-index:9999; }
+* { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
 
-/* 教學引導 */
-.tour-mask{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:9997; }
-.tour-tip{
-  position:fixed; padding:12px 14px; background:#132342; color:#e7f1ff;
-  border:1px solid #ffffff3a; border-radius:12px; z-index:9998; max-width:280px;
-  box-shadow:0 8px 28px rgba(0,0,0,.35);
+html, body {
+  margin: 0; padding: 0; height: 100%; width: 100%;
+  overflow: hidden; background-color: var(--bg); color: var(--text);
+  font-size: 14px;
 }
-.tour-tip .next{ margin-top:8px; display:inline-block; background:var(--accent); color:#0e1930; border:0; padding:6px 10px; border-radius:10px; }
-.tour-hi{ position:relative; z-index:9999; box-shadow:0 0 0 4px var(--accent2); }
 
-/* Mobile 優化：小螢幕下增大操作區域與排版 */
-@media (max-width: 768px) {
-  .layout { grid-template-columns: 1fr; }
-  .layout aside.market { order: 2; margin-top: 10px; }
-  #chartWrap { min-height: 360px; }
-  .orderDock { flex-wrap: wrap; justify-content: center; }
-  .orderDock label,
-  .orderDock .tag { flex: 1 1 calc(50% - 10px); margin-bottom: 8px; }
-  .orderDock .btn { flex: 1 1 calc(50% - 10px); margin-bottom: 8px; }
-  .panel table { font-size: 11px; }
-  .toolbar { flex-wrap: wrap; gap: 6px; }
-  .toolbar .seg button { flex: 1 1 auto; }
+.app-container {
+  display: flex; flex-direction: column; height: 100%; width: 100%;
+  max-width: 420px; margin: 0 auto; background-color: var(--panel);
+  box-shadow: 0 0 20px rgba(0,0,0,0.05);
 }
+
+/* --- 頂部資訊 --- */
+.header {
+  padding: 8px 16px; border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0; text-align: center;
+}
+.header .stats { display: flex; justify-content: space-around; font-size: 14px; }
+.header .stats div { display: flex; flex-direction: column; }
+.header .stats .label { font-size: 12px; color: var(--muted); }
+.header .stats .value { font-weight: bold; }
+.header .pnl-up { color: var(--good); }
+.header .pnl-down { color: var(--danger); }
+.progress-bar { width: 100%; height: 4px; background: var(--border-color); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+.progress-bar-inner { width: 0%; height: 100%; background: var(--accent); transition: width 0.2s linear; }
+
+/* --- 圖表區 --- */
+#chartWrap {
+  flex-grow: 1; position: relative; background: var(--chart-bg);
+  min-height: 0; cursor: grab;
+}
+#chartWrap:active { cursor: grabbing; }
+#chart { width: 100%; height: 100%; display: block; }
+
+.price-axis {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 60px;
+    pointer-events: none;
+    border-left: 1px solid var(--border-color);
+}
+.price-axis-tick {
+    position: absolute;
+    width: 100%;
+    padding-right: 5px;
+    font-size: 12px;
+    color: var(--chart-text);
+    transform: translateY(-50%);
+    text-align: right;
+}
+.price-line {
+    position: absolute;
+    left: 0;
+    right: 60px;
+    height: 1px;
+    pointer-events: none;
+    border-top: 1px dashed var(--muted);
+}
+.price-line-label {
+    position: absolute;
+    right: 60px;
+    padding: 2px 6px;
+    font-size: 12px;
+    color: #ffffff;
+    border-radius: 4px;
+    transform: translate(100%, -50%);
+}
+
+/* --- 底部操作區 --- */
+.actions-panel {
+  flex-shrink: 0; background: var(--panel);
+  border-top: 1px solid var(--border-color);
+}
+.tabs { display: flex; border-bottom: 1px solid var(--border-color); }
+.tab-btn {
+  flex: 1; padding: 12px; background: none; border: none;
+  color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent;
+  font-size: 14px;
+}
+.tab-btn.active { color: var(--text); border-bottom-color: var(--accent); font-weight: bold; }
+
+.tab-content { display: none; padding: 12px; }
+.tab-content.active { display: block; }
+
+#trade-panel-content {
+    display: grid;
+    grid-template-areas:
+        "sl lots tp"
+        "sell close buy";
+    gap: 8px;
+    align-items: center;
+}
+#trade-sl-group { grid-area: sl; }
+#trade-lots-group { grid-area: lots; }
+#trade-tp-group { grid-area: tp; }
+#btnSell { grid-area: sell; }
+#btnCloseAll { grid-area: close; background-color: var(--muted); color: white; }
+#btnBuy { grid-area: buy; }
+
+.btn { padding: 12px; font-size: 16px; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; transition: transform 0.1s ease, filter 0.1s ease; }
+.btn.buy { background: var(--chart-up); color: white; }
+.btn.sell { background: var(--chart-down); color: white; }
+.btn:active { 
+    transform: scale(0.96); 
+    filter: brightness(0.9);
+}
+
+.playback-controls {
+    display: flex; justify-content: center; align-items: center;
+    gap: 8px; padding: 8px 0;
+}
+.playback-controls .btn {
+    background: var(--panel-soft); color: var(--text);
+    border: 1px solid var(--border-color);
+    padding: 8px 10px; font-size: 12px;
+}
+.playback-controls .btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+.input-group { display: flex; flex-direction: column; text-align: center;}
+.input-group label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.input-group input { text-align: center; width: 100%; background: var(--bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px; color: var(--text); font-size: 14px; }
+
+/* Input Stepper Styles */
+.input-stepper {
+    display: flex;
+    align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.input-stepper input {
+    border: none;
+    background: transparent;
+    flex-grow: 1;
+    padding: 8px;
+    width: 50px; /* Give it a base width */
+}
+.stepper-btns {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+}
+.stepper-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0 8px;
+    color: var(--muted);
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-left: 1px solid var(--border-color);
+    transition: background-color 0.1s ease;
+}
+.stepper-btn:first-child {
+    border-bottom: 1px solid var(--border-color);
+}
+.stepper-btn:active {
+    background: #e0e2e7;
+}
+
+
+/* Hides the default arrows for number input */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+
+#positions-list, #journal-list { max-height: 25vh; overflow-y: auto; }
+.position-item { 
+    background: var(--panel-soft); 
+    padding: 10px; 
+    border-radius: 8px; 
+    margin-bottom: 8px; 
+    display: grid; 
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: 
+        "info pnl"
+        "sl tp"
+        "actions actions";
+    gap: 8px; 
+    align-items: center;
+}
+.position-item-info { grid-area: info; }
+.position-item-pnl { grid-area: pnl; text-align: right; font-weight: bold; }
+.position-item-sl { grid-area: sl; }
+.position-item-tp { grid-area: tp; }
+.position-item-actions { grid-area: actions; display: flex; gap: 8px; }
+
+.position-item .side-buy { color: var(--good); font-weight: bold; }
+.position-item .side-sell { color: var(--danger); font-weight: bold; }
+.position-item .pnl-up { color: var(--good); }
+.position-item .pnl-down { color: var(--danger); }
+.position-item .close-btn, .position-item .modify-btn { flex: 1; padding: 6px; font-size: 12px; }
+.position-item .close-btn { background: var(--danger); color: white; }
+.position-item .modify-btn { background: var(--accent); color: white; }
+.position-item .input-group { margin-bottom: 0; }
+.position-item .input-group input { padding: 6px; font-size: 12px; }
+
+.journal-item {
+    background: var(--panel-soft); 
+    padding: 10px; 
+    border-radius: 8px; 
+    margin-bottom: 8px; 
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 16px;
+    font-size: 12px;
+}
+.journal-item-info { grid-column: 1 / 2; }
+.journal-item-pnl { grid-column: 2 / 3; grid-row: 1 / 3; text-align: right; font-weight: bold; font-size: 14px; align-self: center; }
+.journal-item-time { grid-column: 1 / 2; color: var(--muted); }
+.journal-item .pnl-up { color: var(--good); }
+.journal-item .pnl-down { color: var(--danger); }
+
+
+/* --- 彈窗 --- */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.5);
+  backdrop-filter: blur(4px); z-index: 9997;
+  display: flex; justify-content: center; align-items: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+}
+.modal-overlay.visible { opacity: 1; pointer-events: auto; }
+.modal-content {
+  width: min(90vw, 380px); background: var(--panel);
+  border: 1px solid var(--border-color); border-radius: 16px;
+  padding: 24px; text-align: center;
+  transform: scale(0.9); transition: transform 0.3s ease;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+.modal-overlay.visible .modal-content { transform: scale(1); }
+.modal-header { font-weight: bold; margin-bottom: 16px; font-size: 20px; }
+.event-modal-icon { font-size: 48px; margin-bottom: 12px; }
+.event-modal-desc { color: var(--muted); margin-bottom: 20px; text-align: left; line-height: 1.6; }
 
 </style>
 </head>
 <body>
-<div id="confetti"></div>
-<div class="wrap">
-  <div class="toolbar">
-    <button class="btn" id="btnPlay">播放/暫停 (Space)</button>
-    <button class="btn" id="btnStep">逐K (→)</button>
-    <button class="btn" id="btnLive">回到最新(F)</button>
-    <div class="seg" id="spdSeg">
-      <button data-spd="900">慢</button>
-      <button data-spd="650" class="active">中</button>
-      <button data-spd="400">快</button>
+
+<div class="app-container">
+  <div class="header">
+    <div class="stats">
+        <div><span class="label">模擬日期</span><span class="value" id="current-date">--</span></div>
+        <div><span class="label">帳戶淨值</span><span class="value" id="equity">$10000.00</span></div>
+        <div><span class="label">總損益</span><span class="value" id="total-pnl">$0.00</span></div>
     </div>
-    <div class="sp"></div>
-    <label class="tag">可視K數
-      <input id="barsRange" type="range" min="120" max="320" value="200" style="vertical-align:middle;">
-    </label>
-    <label class="tag">圖高
-      <input id="hRange" type="range" min="360" max="820" value="560" style="vertical-align:middle;">
-    </label>
-    <button class="btn" id="btnReroll">重新隨機開始</button>
-    <button class="btn" id="btnPath">技能樹</button>
-    <button class="btn" id="btnGuide">新手教學</button>
-    <span class="tag" id="hudInfo">XAUUSD M15</span>
+    <div class="progress-bar"><div id="progress-bar-inner" class="progress-bar-inner"></div></div>
   </div>
-
-  <div id="pathPanel" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9997;">
-    <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:min(92vw,520px); background:var(--panel); border:1px solid #dbe4ff; border-radius:16px; padding:14px;">
-      <div style="font-weight:800; margin-bottom:8px">Trader Path 技能樹</div>
-      <div id="pathGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;"></div>
-      <div style="text-align:right;margin-top:8px"><button class="btn" id="btnPathClose">關閉</button></div>
+  <div id="chartWrap">
+    <canvas id="chart"></canvas>
+    <div id="price-lines-container"></div>
+    <div class="price-axis" id="price-axis"></div>
+  </div>
+  <div class="actions-panel">
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="trade-panel">交易</button>
+        <button class="tab-btn" data-tab="positions-panel">持倉</button>
+        <button class="tab-btn" data-tab="journal-panel">紀錄</button>
+    </div>
+    <div id="trade-panel" class="tab-content active">
+        <div id="trade-panel-content">
+            <div id="trade-sl-group" class="input-group">
+                <label for="trade-sl">停損 SL</label>
+                <div class="input-stepper">
+                    <input id="trade-sl" type="number" placeholder="價格" data-step="0.5">
+                    <div class="stepper-btns">
+                        <button class="stepper-btn" data-target="trade-sl" data-direction="up">▲</button>
+                        <button class="stepper-btn" data-target="trade-sl" data-direction="down">▼</button>
+                    </div>
+                </div>
+            </div>
+            <div id="trade-lots-group" class="input-group">
+                <label for="trade-lots">手數</label>
+                <div class="input-stepper">
+                    <input id="trade-lots" type="number" value="0.1" step="0.01" min="0.01">
+                    <div class="stepper-btns">
+                        <button class="stepper-btn" data-target="trade-lots" data-direction="up">▲</button>
+                        <button class="stepper-btn" data-target="trade-lots" data-direction="down">▼</button>
+                    </div>
+                </div>
+            </div>
+            <div id="trade-tp-group" class="input-group">
+                <label for="trade-tp">停利 TP</label>
+                <div class="input-stepper">
+                     <input id="trade-tp" type="number" placeholder="價格" data-step="0.5">
+                     <div class="stepper-btns">
+                        <button class="stepper-btn" data-target="trade-tp" data-direction="up">▲</button>
+                        <button class="stepper-btn" data-target="trade-tp" data-direction="down">▼</button>
+                    </div>
+                </div>
+            </div>
+            <button class="btn sell" id="btnSell">Sell</button>
+            <button class="btn" id="btnCloseAll">平倉</button>
+            <button class="btn buy" id="btnBuy">Buy</button>
+        </div>
+    </div>
+    <div id="positions-panel" class="tab-content">
+        <div id="positions-list"></div>
+    </div>
+    <div id="journal-panel" class="tab-content">
+        <div id="journal-list"></div>
+    </div>
+    <div class="playback-controls">
+        <button class="btn" id="play-pause-btn">▶</button>
+        <button class="btn" id="step-btn">逐K →</button>
+        <div id="speed-controls">
+            <button class="btn speed-btn active" data-speed="400">0.25x</button>
+            <button class="btn speed-btn" data-speed="200">0.5x</button>
+            <button class="btn speed-btn" data-speed="100">1x</button>
+            <button class="btn speed-btn" data-speed="50">2x</button>
+            <button class="btn speed-btn" data-speed="10">5x</button>
+        </div>
+        <button class="btn" id="zoom-out">-</button>
+        <button class="btn" id="zoom-in">+</button>
     </div>
   </div>
-
-  <div class="layout">
-    <aside class="market">
-      <h3>市場報價</h3>
-      <div class="quote"><b>XAUUSD</b><span><small>買價</small> <b id="qBid">—</b> / <small>賣價</small> <b id="qAsk">—</b></span></div>
-    </aside>
-
-    <main id="chartCol">
-      <div id="chartWrap">
-        <canvas id="chart"></canvas>
-        <div class="priceAxis" id="priceAxis"></div>
-        <div class="timeAxis" id="timeAxis"></div>
-      </div>
-        <div class="orderDock">
-  <div style="font-weight:800;margin-right:6px">下單</div>
-  <label>手數<input id="lots" type="number" value="1" min="0.01" step="0.01"></label>
-  <label>停損價(SL)<input id="slPrice" type="number" placeholder="可選"></label>
-  <label>停利價(TP)<input id="tpPrice" type="number" placeholder="可選"></label>
-  <label>掛單價<input id="pendPrice" type="number" placeholder="可選"></label>
-
-  <button class="btn buy"  id="btnBuyNow">立即買入</button>
-  <button class="btn sell" id="btnSellNow">立即賣出</button>
-  <button class="btn buy"  id="btnPendBuy">掛單買入</button>
-  <button class="btn sell" id="btnPendSell">掛單賣出</button>
-  <button class="btn"      id="btnCloseAll">平倉全部</button>
-
-  <span class="tag" id="riskBuy">買入停損：$0.00</span>
-  <span class="tag" id="riskSell">賣出停損：$0.00</span>
-  <span class="tag" id="riskPend">掛單停損：$0.00</span>
 </div>
-      </main>
-  </div>
 
-  <section class="bottom" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
-    <div class="panel">
-      <table>
-        <thead><tr><th>方向</th><th>進場</th><th>SL</th><th>TP</th><th>手數</th><th>損益</th><th></th></tr></thead>
-        <tbody id="posBody"></tbody>
-      </table>
+<!-- 事件 Modal -->
+<div id="eventModal" class="modal-overlay">
+    <div class="modal-content event-modal-content">
+      <div class="event-modal-icon">📰</div>
+      <h2 class="modal-header" id="event-title"></h2>
+      <p class="event-modal-desc" id="event-desc"></p>
+      <button class="btn" id="event-continue-btn">繼續</button>
     </div>
-    <div class="panel">
-      <table>
-        <thead><tr><th>時間</th><th>事件</th><th>方向</th><th>價位</th><th>手數</th><th>備註</th></tr></thead>
-        <tbody id="journalBody"></tbody>
-      </table>
-    </div>
-  </section>
-</div>
-
-<div id="tourMask" class="tour-mask" style="display:none"></div>
-<div id="tourTip" class="tour-tip" style="display:none"></div>
-<div id="ctaPanel" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9996;">
-  <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:300px; background:var(--panel); border:1px solid #dbe4ff; border-radius:16px; padding:16px; text-align:center;">
-    <div id="ctaInfo" style="margin-bottom:12px;font-weight:700;">挑戰完成！</div>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      <a href="#" target="_blank" id="ctaLine" class="btn">領取檢核清單</a>
-      <a href="#" target="_blank" id="ctaSite" class="btn">看 3 分鐘教學</a>
-    </div>
-    <div style="margin-top:10px"><button class="btn" id="ctaClose">再試一次</button></div>
-  </div>
 </div>
 
 <script>
-// ===== Config =====
+// ===== 財經事件數據 (省略) =====
+const EVENTS = {
+  "2025-01-03": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "俗稱「非農」的美國就業數據是市場最關注的指標之一。數據好壞將劇烈影響黃金價格，市場屏息以待！" },
+  "2025-01-20": { time: "12:00", title: "🇺🇸 美國總統就職典禮", desc: "新任美國總統將於華盛頓特區宣誓就職。就職演說通常會概述新政府的施政藍圖，內容可能涉及國內外政策、經濟方向等，這些都可能成為市場關注的焦點。" },
+  "2025-01-30": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "歐洲央行管理委員會將召開貨幣政策會議並發布利率決策聲明。市場將關注其對歐元区經濟前景和通膨路徑的最新評估。" },
+  "2025-02-07": { time: "21:30", title: "�🇸 美國非農就業數據 (NFP)", desc: "本月非農數據公布，將再次考驗市場對美國經濟復甦力度的信心。" },
+  "2025-03-05": { time: "10:00", title: "🇨🇳 中國全國人民代表大會年會開幕", desc: "中國將公布當年度的GDP增長目標、財政預算等主要經濟指標，並闡述相關政策方向。" },
+  "2025-03-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "連續第三個月的非農數據，市場將尋找勞動力市場是否持續穩定的線索。" },
+  "2025-03-19": { time: "03:00", title: "🇺🇸 聯準會利率決策 (FOMC)", desc: "聯準會將發布利率決策，會議將包含最新的經濟預測摘要 (SEP) 和「點陣圖」，揭示未來利率路徑預期。" },
+  "2025-04-04": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "第二季度的首次非農報告，將為市場對上半年的經濟預測定下基調。" },
+  "2025-04-10": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "在第一季經濟數據公布之後，市場將關注歐洲央行是否會根據最新數據調整其貨幣政策立場。" },
+  "2025-04-21": { time: "09:00", title: "IMF 《世界經濟展望》報告", desc: "國際貨幣基金組織將更新對全球主要經濟體的增長預測，並分析全球面臨的潛在風險。" },
+  "2025-05-02": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "春季的就業市場表現如何？本次非農數據將提供關鍵答案。" },
+  "2025-05-09": { time: "15:00", title: "🇷🇺 俄羅斯勝利日閱兵", desc: "俄羅斯總統通常會發表演說，市場會關注其發言是否包含任何新的地緣政治信號。" },
+  "2025-06-06": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "夏季前的最後一次重要就業報告，可能影響聯準會下半年的政策預期。" },
+  "2025-06-13": { time: "14:00", title: "G7 領袖峰會開幕", desc: "七國集團峰會在加拿大舉行，會議議程涵蓋全球經濟、氣候變遷、地緣政治等多項議題。" },
+  "2025-07-01": { time: "10:00", title: "🇨🇳 中國共產黨成立週年紀念日", desc: "相關活動和聲明可能會傳達關於中國未來發展方向的信號。" },
+  "2025-07-03": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "因7月4日為美國獨立日假期，本月非農數據提前至週四公布。" },
+  "2025-07-30": { time: "21:30", title: "🇺🇸 美國第二季GDP初值", desc: "該數據是衡量美國經濟健康狀況的重要指標，將提供對第二季度經濟活動的初步評估。" },
+  "2025-08-01": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "八月的非農報告，將為夏末的市場情緒定調。" },
+  "2025-08-15": { time: "12:00", title: "🇮🇳 印度獨立紀念日", desc: "印度總理將發表演說，闡述未來政府的施政重點，尤其是在經濟發展和外交政策方面。" }
+};
+
+// ===== 遊戲設定 =====
 const CONFIG = {
-  symbol: "XAUUSD",
-  timeframe: "M15",
-  playSpeed: 650,
-  startBars: 60,
-  windowBars: 200,
-};
-
-// ===== State =====
-const state = {
-  timeframe: CONFIG.timeframe,
-  playSpeed: CONFIG.playSpeed,
-  bars: [],
-  visible: 0,
-  timer: null,
-  dataset: [],
-  view:{scaleX:1, offsetBar:0, userPanned:false, followTail:true},
-  positions: [],
-  orders: [],
-  trades: [],
-  journal: [],
-  tour: {step:0, enabled:false}
-};
-const el=id=>document.getElementById(id);
-const ECON = { initialBalance: 1000, pipValuePerLot: 1 };
-const account = { balance: ECON.initialBalance, equity: ECON.initialBalance };
-
-const PATH = {
-  nodes: [
-    { id:'lots',    title:'輸入手數',           desc:'在下單區輸入手數',         reward:100, done:false, dep:[] },
-    { id:'setSL',   title:'設定停損價',         desc:'任一持倉有 SL',           reward:100, done:false, dep:['lots'] },
-    { id:'mktOpen', title:'完成一筆市價下單',   desc:'買入或賣出任一筆',         reward:100, done:false, dep:['lots'] },
-    { id:'pend',    title:'完成一筆掛單觸發',   desc:'掛單(Limit/Stop)被成交',   reward:100, done:false, dep:['mktOpen'] },
-    { id:'profit',  title:'完成一次獲利平倉',   desc:'任何單獲利 > 0',           reward:100, done:false, dep:['mktOpen'] },
-  ]
-};
-function loadPath(){
-  try{
-    const raw=localStorage.getItem('TRADER_PATH'); if(raw){ const s=JSON.parse(raw);
-      PATH.nodes.forEach(n=>{ const o=s[n.id]; if(o){ n.done=o.done; if(o.done) account.balance += n.reward; }});
-      account.equity = account.balance;
-    }
-  }catch(_){ }
-}
-function savePath(){
-  const s={}; PATH.nodes.forEach(n=> s[n.id]={done:n.done}); localStorage.setItem('TRADER_PATH',JSON.stringify(s));
-}
-function renderPath(){
-  const g=document.getElementById('pathGrid'); if(!g) return;
-  g.innerHTML = PATH.nodes.map(n=>{
-    const lock = n.dep.some(d=> !PATH.nodes.find(x=>x.id===d)?.done );
-    const st   = n.done ? '完成' : (lock?'鎖定':'可挑戰');
-    return `<div style="border:1px solid #dbe4ff;border-radius:12px;padding:10px;background:${n.done?'#e8fff3':(lock?'#f2f5ff':'#ffffff')}">
-      <div style="font-weight:700">${n.title}</div>
-      <div style="font-size:12px;color:#5b6b8b;min-height:36px">${n.desc}</div>
-      <div style="font-size:12px">獎勵：$${n.reward}｜狀態：${st}</div>
-    </div>`;
-  }).join('');
-}
-function completeNode(id){
-  const n = PATH.nodes.find(x=>x.id===id); if(!n || n.done) return;
-  n.done=true; account.balance += n.reward; account.equity = account.balance;
-  savePath(); renderPath(); refreshHUD();
-  makeConfetti(40); sfx(1200,160); toast(`任務完成：「${n.title}」＋$${n.reward}`);
-}
-function loadPathAndRender(){ loadPath(); renderPath(); }
-function toast(msg,ms=1200){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),ms);}
-
-function sfx(freq=880, dur=120, vol=.12){
-  try{
-    const a=new AudioContext(), o=a.createOscillator(), g=a.createGain();
-    o.frequency.value=freq; o.connect(g); g.gain.value=vol; g.connect(a.destination);
-    o.start(); g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime+dur/1000); o.stop(a.currentTime+dur/1000);
-  }catch(_){ }
-}
-
-function makeConfetti(n=40){
-  const box=document.getElementById('confetti'); box.innerHTML='';
-  for(let i=0;i<n;i++){
-    const d=document.createElement('div');
-    d.style.cssText=`position:absolute;left:${Math.random()*100}%;top:-10px;width:6px;height:10px;background:hsl(${Math.random()*360},90%,60%);opacity:.9;transform:rotate(${Math.random()*360}deg);`;
-    box.appendChild(d);
-    const t=Math.random()*1.2+0.8;
-    d.animate([{transform:'translateY(0)'},{transform:`translateY(${window.innerHeight+40}px)`}],{duration:t*1000,easing:'cubic-bezier(.2,.8,.2,1)'}).onfinish=()=>d.remove();
-  }
-  setTimeout(()=>box.innerHTML='',1500);
-}
-
-state.journal = state.journal || [];
-function logEvent(kind, payload){
-  state.journal.push({t: state.bars[state.visible-1]?.t || '', kind, ...payload});
-  renderJournal();
-}
-function renderJournal(){
-  const box=document.getElementById('journalBody'); if(!box) return;
-  box.innerHTML = state.journal.slice(-50).reverse().map(j=>{
-    const side = j.side ? (j.side==='LONG'?'多':'空') : '';
-    return `<tr><td>${j.t}</td><td>${j.kind}</td><td>${side}</td><td>${j.price?.toFixed?j.price.toFixed(2):''}</td><td>${j.size||''}</td><td>${j.note||''}</td></tr>`;
-  }).join('');
-}
-
-function guideStart(){ state.tour={step:0, enabled:true}; guideNext(); }
-function guideNext(){
-  const steps = [
-    {el:'#lots', tip:'① 先輸入手數（每跳1點 = 每手 $1）', enable:['#lots']},
-    {el:'#btnBuyNow', tip:'② 點「立即買入」或「立即賣出」建倉', enable:['#btnBuyNow','#btnSellNow']},
-    {el:'.orderDock', tip:'③ 看這裡：即時顯示停損金額、持倉損益'},
-    {el:'#posBody', tip:'④ 點持倉列右側「×」手動平倉完成一局', enable:['#posBody button']}
-  ];
-  const m=el('tourMask'), t=el('tourTip');
-  if(!state.tour.enabled){ m.style.display=t.style.display='none'; document.querySelectorAll('.tour-disabled').forEach(e=>e.disabled=false); document.querySelectorAll('.tour-hi').forEach(e=>e.classList.remove('tour-hi')); return; }
-  const s = steps[state.tour.step];
-  if(!s){ m.style.display=t.style.display='none'; state.tour.enabled=false; document.querySelectorAll('.tour-disabled').forEach(e=>e.disabled=false); document.querySelectorAll('.tour-hi').forEach(e=>e.classList.remove('tour-hi')); return; }
-  document.querySelectorAll('button,input').forEach(e=>{ e.disabled=true; e.classList.add('tour-disabled'); });
-  if(s.enable){ s.enable.forEach(sel=>{ document.querySelectorAll(sel).forEach(e=>e.disabled=false); }); }
-  document.querySelectorAll('.tour-hi').forEach(e=>e.classList.remove('tour-hi'));
-  const target=document.querySelector(s.el); target?.classList.add('tour-hi');
-  const r = target.getBoundingClientRect();
-  m.style.display=t.style.display='block';
-  t.style.left=`${r.left}px`; t.style.top=`${r.bottom+8}px`;
-  t.innerHTML = `<div>${s.tip}</div><button class="next btn">下一步</button>`;
-  t.querySelector('.next').onclick=()=>{ state.tour.step++; guideNext(); };
-}
-el('btnGuide').onclick=guideStart;
-
-function showCTA(p){
-  el('ctaInfo').textContent = `本局結果：${p.realizedUsd>=0?'+':'-'}$${Math.abs(p.realizedUsd).toFixed(2)} / ${p.realizedR>=0?'+':'-'}${Math.abs(p.realizedR).toFixed(2)}R`;
-  el('ctaPanel').style.display='block';
-}
-el('ctaClose').onclick=()=>{ el('ctaPanel').style.display='none'; reset(); };
-
-// ===== CSV loader =====
-function qs(name){ return new URLSearchParams(location.search).get(name); }
-function guessGitHubRaw(){
-  if(location.hostname.endsWith('github.io')){
-    const owner = location.hostname.split('.')[0];
-    const repo = location.pathname.split('/').filter(Boolean)[0] || '';
-    if(repo){
-      return [
-        `${location.protocol}//${location.host}/${repo}/XAUUSD_M15.csv`,
-        `https://raw.githubusercontent.com/${owner}/${repo}/main/XAUUSD_M15.csv`,
-        `https://raw.githubusercontent.com/${owner}/${repo}/master/XAUUSD_M15.csv`
-      ];
-    }
-  }
-  return [];
-}
-function candidateCSVUrls(){
-  const q = qs('csv');
-  const list = [];
-  if(q) list.push(q);
-  list.push('XAUUSD_M15.csv','./XAUUSD_M15.csv','/XAUUSD_M15.csv');
-  list.push(...guessGitHubRaw());
-  return list;
-}
-async function loadFirstCSV(){
-  const urls = candidateCSVUrls();
-  for(const u of urls){
-    try{
-      const r = await fetch(u, {cache:'no-store', mode:'cors'});
-      if(r.ok){
-        const text = await r.text();
-        const rows = parseOHLC(text);
-        if(rows.length >= 100){
-          console.log('CSV loaded:', u, rows.length);
-          return rows;
-        }
-      }
-    }catch(e){ console.warn('fetch failed', u, e); }
-  }
-  return [];
-}
-function parseOHLC(text){
-  if(!text) return [];
-  // 去 BOM
-  if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
-  const lines = text.split(/\r?\n/).filter(l => l && !/^#/.test(l));
-  if(lines.length < 2) return [];
-
-  // 自動偵測分隔符：; / , / \t
-  const first = lines.find(l => /[0-9]/.test(l)) || lines[0];
-  let delim = ',';
-  if(first.includes(';')) delim = ';';
-  else if(first.includes('\t')) delim = '\t';
-
-  // 若第一行是表頭，抓欄位索引
-  const hdrLower = lines[0].toLowerCase();
-  const hasHeader = /(time|date)/.test(hdrLower) && /(open|high|low|close)/.test(hdrLower);
-  const cols = hasHeader ? hdrLower.split(delim) : null;
-  const idx = (k)=> hasHeader ? cols.findIndex(x=>x.includes(k)) : -1;
-
-  const out = [];
-  for(let n = hasHeader?1:0; n < lines.length; n++){
-    const a = lines[n].split(delim).map(s => s.trim());
-    if(a.length < 5) continue;
-
-    let dt, o, h, l, c;
-
-    // ①「日期+時間在同一欄」：YYYY.MM.DD HH:MM[:SS]
-    if(/^\d{4}[-./]\d{2}[-./]\d{2}\s+\d{1,2}:\d{2}(:\d{2})?$/.test(a[0])){
-      dt = a[0].replace(/[.]/g,'-');
-      o = parseFloat(a[1]); h = parseFloat(a[2]); l = parseFloat(a[3]); c = parseFloat(a[4]);
-    }
-    // ②「日期、時間分兩欄」：YYYY.MM.DD, HH:MM, O,H,L,C
-    else if(/^\d{4}[-./]\d{2}[-./]\d{2}$/.test(a[0]) && /^\d{1,2}:\d{2}(:\d{2})?$/.test(a[1])){
-      dt = a[0].replace(/[.]/g,'-') + ' ' + a[1];
-      o = parseFloat(a[2]); h = parseFloat(a[3]); l = parseFloat(a[4]); c = parseFloat(a[5]);
-    }
-    // ③ 表頭索引：Time/Open/High/Low/Close
-    else if(hasHeader){
-      const ti = idx('time')>-1 ? idx('time') : idx('date');
-      dt = (a[ti] || '').replace(/[.]/g,'-');
-      o = parseFloat(a[idx('open')]); h = parseFloat(a[idx('high')]);
-      l = parseFloat(a[idx('low')]);  c = parseFloat(a[idx('close')]);
-    }else{
-      continue; // 不認得的格式
-    }
-
-    if(!isFinite(o)||!isFinite(h)||!isFinite(l)||!isFinite(c)) continue;
-    out.push({ t: new Date(dt), o, h, l, c });
-  }
-
-out.sort((x,y)=>x.t - y.t);
-return out;
-}
-
-function prepareFromDataset(rows){
-  const bars = rows.map((b,i)=>({ t:`${String(b.t.getHours()).padStart(2,'0')}:${String(b.t.getMinutes()).padStart(2,'0')}`,
-    o:i?rows[i-1].c:b.o, h:b.h, l:b.l, c:b.c }));
-  state.bars = bars;
-
-  const minTail = 200, startMin = 60;
-  const maxIdx = Math.max(startMin, bars.length - minTail);
-  const anchorIdx = Math.floor(Math.random() * maxIdx);
-  state.visible = Math.max(startMin, anchorIdx);
-  state.view = { scaleX:1, offsetBar:0, userPanned:false, followTail:true };
-  state.positions=[]; state.orders=[]; state.trades=[];
-}
-function currentWindow(){
-  const total = state.bars.length;
-  const right = Math.max(1, Math.min(state.visible, total)); // 已解鎖到第幾根
-  const win   = CONFIG.windowBars || 200;
-
-  let start, end;
-  if (state.view.followTail) {
-    start = Math.max(0, right - win);
-    end   = right;
-  } else {
-    const off = state.view.offsetBar || 0;
-    start = Math.max(0, Math.min(total - win, right - win + off));
-    end   = Math.min(total, start + win);
-  }
-  return { start, end, win, right, total };
-}
-
-// ===== Rendering =====
-const canvas=el('chart'); const pxAxis=el('priceAxis'); const tmAxis=el('timeAxis');
-let pan=false, lastX=0, panAccum=0;
-function draw(){
-  const ctx = canvas.getContext('2d'); const W = canvas.width = canvas.clientWidth; const H = canvas.height = canvas.clientHeight;
-  ctx.clearRect(0,0,W,H);
-  const {start,end} = currentWindow();
-  const data=state.bars.slice(start,end);
-  if(!data.length) return;
-  const hi = Math.max(...data.map(b=>b.h));
-    const lo = Math.min(...data.map(b=>b.l));
-  const pad = (hi - lo) * 0.12 || 5;
-  const yMax = hi + pad, yMin = lo - pad;
-  const xStep = W / Math.max(48, data.length + 2);
-  const y = v => H - (v - yMin) / (yMax - yMin) * H;
-  // 讀取主題色彩：網格與 K 線色
-  const style = getComputedStyle(document.documentElement);
-  const gridColor = style.getPropertyValue('--grid').trim() || 'rgba(31,42,68,0.08)';
-  const upStroke = style.getPropertyValue('--k-up-stroke').trim()   || 'rgba(52,211,153,0.9)';
-  const upFill   = style.getPropertyValue('--k-up-fill').trim()     || 'rgba(52,211,153,0.3)';
-  const dnStroke = style.getPropertyValue('--k-down-stroke').trim() || 'rgba(248,113,113,0.9)';
-  const dnFill   = style.getPropertyValue('--k-down-fill').trim()   || 'rgba(248,113,113,0.3)';
-
-  // grid
-  const step = state.timeframe === 'M15'? 4 : 12;
-  ctx.strokeStyle = gridColor;
-  for (let i = 0; i < 6; i++) {
-    const yv = H * i / 5;
-    ctx.beginPath(); ctx.moveTo(0, yv); ctx.lineTo(W, yv); ctx.stroke();
-  }
-  ctx.setLineDash([3,6]);
-  for (let i = 0; i < data.length; i += step) {
-    const x = 24 + i * xStep;
-    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
-  }
-  ctx.setLineDash([]);
-
-  // 日期分隔線與標籤
-  ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,.12)';
-  ctx.fillStyle = 'rgba(200,208,240,.75)';
-  ctx.font = '11px system-ui';
-  const xStep2 = W / Math.max(1, data.length);
-  for (let i = 1; i < data.length; i++) {
-    const p = data[i-1], c = data[i];
-    const d1 = p._date || (p._date = p.t.split(':')[0]);
-    const d2 = c._date || (c._date = c.t.split(':')[0]);
-    if (d2 === '00') {
-      const x = i * xStep2;
-      ctx.setLineDash([3,6]); ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillText('日切換', x+4, 14);
-    }
-  }
-  ctx.restore();
-
-  // candles
-  for(let i=0;i<data.length;i++){
-    const b = data[i], x = 24 + i * xStep, up = b.c >= b.o;
-    ctx.strokeStyle = up ? upStroke : dnStroke;
-    ctx.fillStyle   = up ? upFill   : dnFill;
-    ctx.beginPath(); ctx.moveTo(x,y(b.h)); ctx.lineTo(x,y(b.l)); ctx.stroke();
-    const w = Math.max(3, xStep * 0.6), y1 = y(b.o), y2 = y(b.c);
-    ctx.fillRect(x - w/2, Math.min(y1, y2), w, Math.max(2, Math.abs(y1 - y2)));
-  }
-  // manual positions
-  state.positions.forEach((p,idx)=>{
-    const color = p.side === 'LONG' ? '#79e0ab' : '#ff9b9b';
-    ctx.strokeStyle = color;
-    ctx.setLineDash([5,4]);
-    ctx.beginPath(); ctx.moveTo(0, y(p.entry)); ctx.lineTo(W, y(p.entry)); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = color; ctx.font = '12px system-ui';
-    const rTxt = Number.isFinite(p.pnlR)   ? p.pnlR.toFixed(2)   : '0.00';
-    const uTxt = Number.isFinite(p.pnlUsd) ? p.pnlUsd.toFixed(2) : '0.00';
-    ctx.fillText(`${p.side} @ ${p.entry.toFixed(2)} | ${rTxt}R / $${uTxt}`, 20, 28 + 14 * idx);
-  });
-  // axes
-  pxAxis.innerHTML=''; const ticks=6; for(let i=0;i<=ticks;i++){const v=yMin+(yMax-yMin)*i/ticks; const d=document.createElement('div'); d.className='tick'; d.style.top=`${H-(H*i/ticks)}px`; d.textContent=v.toFixed(2); pxAxis.appendChild(d);} tmAxis.innerHTML=''; const tStep=state.timeframe==='M15'?4:12; for(let i=0;i<data.length;i+=tStep){const d=document.createElement('div'); d.className='tick'; d.style.left=`${(24+i*xStep)}px`; d.textContent=data[i].t; tmAxis.appendChild(d);} 
-}
-
-canvas.addEventListener('mousedown', e => {
-  pan = true; lastX = e.clientX;
-  state.view.userPanned = true;
-  state.view.followTail = false;  // 一旦拖曳就退出跟隨
-});
-window.addEventListener('mouseup', () => { pan = false; });
-
-canvas.addEventListener('mousemove', e => {
-  if (!pan) return;
-  const dx = e.clientX - lastX; lastX = e.clientX; panAccum += dx;
-  if(Math.abs(panAccum) >= 8){
-    const { right, total } = currentWindow();
-    const lower = -(right - 1);
-    const upper = (total - right) - 1;
-    const step  = panAccum>0 ? -1 : 1;
-    state.view.offsetBar = Math.max(lower, Math.min(upper, (state.view.offsetBar||0) + step));
-    panAccum += panAccum>0 ? -8 : 8;
-    draw();
-  }
-});
-
-// ===== HUD & Banners =====
-function refreshHUD(){
-  const last = state.bars[state.visible-1];
-  if(last){
-    el('qBid').textContent = last.c.toFixed(2);
-    el('qAsk').textContent = (last.c+0.2).toFixed(2);
-  }
-  el('hudInfo').textContent = `XAUUSD M15｜本金 $${account.balance.toFixed(2)}｜已實現 $${(account.balance-ECON.initialBalance).toFixed(2)}`;
-}
-
-function num(v){ const x=parseFloat(v); return Number.isFinite(x)?x:NaN; }
-function getInputs(){
-  return {
-    lots: num(document.getElementById('lots').value),
-    sl  : num(document.getElementById('slPrice').value),
-    tp  : num(document.getElementById('tpPrice').value),
-    pend: num(document.getElementById('pendPrice').value)
-  };
-}
-function lastQuote(){
-  const mid = state.bars[state.visible-1]?.c ?? 0;
-  const spr = 0.2;
-  return { mid, bid: mid - spr/2, ask: mid + spr/2 };
-}
-function computeRiskPreview(){
-  const p=getInputs(), q=lastQuote();
-  const lots=Number.isFinite(p.lots)?p.lots:0;
-  const sl = Number.isFinite(p.sl)?p.sl:null;
-  let rBuy=0, rSell=0, rPend=0;
-  if(lots>0 && sl!=null){
-    rBuy  = Math.abs(q.ask - sl) * lots;
-    rSell = Math.abs(q.bid - sl) * lots;
-  }
-  if(lots>0 && Number.isFinite(p.pend) && sl!=null){
-    rPend = Math.abs(p.pend - sl) * lots;
-  }
-  document.getElementById('riskBuy').textContent  = `買入停損：$${rBuy.toFixed(2)}`;
-  document.getElementById('riskSell').textContent = `賣出停損：$${rSell.toFixed(2)}`;
-  document.getElementById('riskPend').textContent = `掛單停損：$${rPend.toFixed(2)}`;
-}
-
-function renderPositions(){
-  const box=document.getElementById('posBody'); if(!box) return;
-  box.innerHTML = state.positions.map((p,i)=>{
-    const sl = Number.isFinite(p.sl)?p.sl.toFixed(2):'';
-    const tp = Number.isFinite(p.tp)?p.tp.toFixed(2):'';
-    const pnlTxt = Number.isFinite(p.pnlUsd) ? p.pnlUsd.toFixed(2) : '0.00';
-    return `<tr><td>${p.side==='LONG'?'多':'空'}</td><td>${p.entry.toFixed(2)}</td><td>${sl}</td><td>${tp}</td><td>${p.size}</td><td>${pnlTxt}</td><td><button data-i="${i}" class="btn">×</button></td></tr>`;
-  }).join('');
-  box.querySelectorAll('button').forEach(btn=>{
-    btn.onclick=()=>{ closePosition(parseInt(btn.dataset.i,10)); };
-  });
-}
-
-function recalcAccount(){
-  let unreal = 0;
-  for (const p of state.positions) {
-    if (Number.isFinite(p.pnlUsd)) unreal += p.pnlUsd;
-  }
-  account.equity = account.balance + unreal;
-}
-
-function validBrackets(side, entry, sl, tp){
-  const okSL = (sl==null) || (side==='LONG' ? sl < entry : sl > entry);
-  const okTP = (tp==null) || (side==='LONG' ? tp > entry : tp < entry);
-  return {ok: okSL && okTP, okSL, okTP};
-}
-
-function openMarket(side){
-  const p=getInputs();
-  if(!(p.lots>0)) return toast('請先輸入「手數」');
-
-  const q=lastQuote(); const entry = side==='LONG' ? q.ask : q.bid;
-  const sl = Number.isFinite(p.sl)? p.sl : null;
-  const tp = Number.isFinite(p.tp)? p.tp : null;
-
-  const chk = validBrackets(side, entry, sl, tp);
-  if(!chk.ok){
-    if(!chk.okSL) toast('停損價不合理：多單需小於進場、空單需大於進場');
-    if(!chk.okTP) toast('停利價不合理：多單需大於進場、空單需小於進場');
-    return;
-  }
-
-  state.positions.push({
-    id: Date.now()+Math.random(), side, entry, sl, tp,
-    size: p.lots,
-    R0: sl!=null ? Math.abs(entry-sl) : 1,
-    pnlUsd: 0, pnlR: 0, status:'open', openTime: state.bars[state.visible-1]?.t || ''
-  });
-
-  logEvent('開倉',{side,price:entry,size:p.lots});
-  navigator.vibrate?.(10);
-  if(p.lots>0) completeNode('lots');
-  if(Number.isFinite(p.sl)) completeNode('setSL');
-  completeNode('mktOpen');
-
-  recalcAccount(); renderPositions(); refreshHUD(); draw(); computeRiskPreview();
-  toast(`${side==='LONG'?'買入':'賣出'} @ ${entry.toFixed(2)} 開倉`);
-  if(state.tour.enabled && state.tour.step===1){ state.tour.step++; guideNext(); }
-}
-
-function placePending(side){
-  const p=getInputs();
-  if(!(p.lots>0) || !Number.isFinite(p.pend))
-    return toast('掛單請輸入「手數」「掛單價」');
-
-  const q=lastQuote();
-  const type = (side==='LONG')
-    ? (p.pend<q.bid ? 'LIMIT':'STOP')
-    : (p.pend>q.ask ? 'LIMIT':'STOP');
-
-  const sl = Number.isFinite(p.sl)? p.sl : null;
-  const tp = Number.isFinite(p.tp)? p.tp : null;
-
-  const chk = validBrackets(side, p.pend, sl, tp);
-  if(!chk.ok){
-    if(!chk.okSL) toast('停損價不合理：多單需小於進場、空單需大於進場');
-    if(!chk.okTP) toast('停利價不合理：多單需大於進場、空單需小於進場');
-    return;
-  }
-
-  state.orders=state.orders||[];
-  state.orders.push({
-    id: Date.now()+Math.random(),
-    side, type, price:p.pend, sl, tp, size:p.lots
-  });
-  navigator.vibrate?.(10);
-  if(p.lots>0) completeNode('lots');
-  if(Number.isFinite(p.sl)) completeNode('setSL');
-  toast(`${side==='LONG'?'掛單買入':'掛單賣出'} ${type} @ ${p.pend.toFixed(2)} 已建立`);
-}
-
-function closePosition(idx, exit, reason='手動'){
-  const p = state.positions[idx]; if(!p) return;
-  const fill = exit ?? (p.side==='LONG'?lastQuote().bid:lastQuote().ask);
-  const sign = p.side==='LONG'?1:-1;
-  const pnlUsd = (fill - p.entry) * sign * p.size;
-  const pnlR  = (fill - p.entry) * sign / (p.R0||1);
-  p.realizedUsd = pnlUsd; p.realizedR = pnlR;
-  account.balance += pnlUsd; account.equity = account.balance;
-  state.positions.splice(idx,1);
-  logEvent('平倉',{side:p.side,price:fill,size:p.size,note:reason});
-
-  navigator.vibrate?.(10);
-  if(pnlUsd > 0) completeNode('profit');
-
-  if(p.realizedUsd >= 0){
-    const od = document.querySelector('.orderDock');
-    if(od) od.classList.add('profitPulse');
-    setTimeout(()=>{ if(od) od.classList.remove('profitPulse'); }, 900);
-    makeConfetti(50); sfx(1200,150);
-    toast(`獲利平倉 +$${p.realizedUsd.toFixed(2)} / +${p.realizedR.toFixed(2)}R`);
-  } else {
-    const cw = document.getElementById('chartWrap');
-    if(cw) cw.classList.add('lossShake');
-    setTimeout(()=>{ if(cw) cw.classList.remove('lossShake'); }, 600);
-    sfx(200,200,.18);
-    toast(`虧損平倉 -$${Math.abs(p.realizedUsd).toFixed(2)} / -${Math.abs(p.realizedR).toFixed(2)}R`);
-  }
-
-  recalcAccount(); renderPositions(); refreshHUD();
-  if(state.tour.enabled && state.tour.step===3){ state.tour.step++; guideNext(); }
-  if(state.positions.length===0) showCTA(p);
-}
-
-function closeAll(){
-  for(let i=state.positions.length-1;i>=0;i--){
-    closePosition(i, undefined,'平倉全部');
-  }
-  computeRiskPreview();
-}
-
-function updateOrders(){
-  if(!state.orders?.length) return;
-  const q=lastQuote(); const keep=[];
-  for(const o of state.orders){
-    const hit = (o.side==='LONG')
-      ? (o.type==='LIMIT' ? q.ask<=o.price : q.ask>=o.price)
-      : (o.type==='LIMIT' ? q.bid>=o.price : q.bid<=o.price);
-    if(hit){
-      const entry=(o.side==='LONG')?q.ask:q.bid;
-      state.positions.push({
-        id:Date.now()+Math.random(), side:o.side, entry,
-        sl:o.sl, tp:o.tp, size:o.size,
-        R0:o.sl!=null?Math.abs(entry-o.sl):1,
-        pnl$:0, pnlR:0, status:'open', openTime: state.bars[state.visible-1]?.t || ''
-      });
-      logEvent('掛單觸發',{side:o.side,price:entry,size:o.size});
-      completeNode('pend');
-    } else keep.push(o);
-  }
-  state.orders = keep;
-}
-
-function updatePositions(){
-  const q=lastQuote();
-  const bid=q.bid, ask=q.ask, mid=q.mid;
-  for(let i=state.positions.length-1;i>=0;i--){
-    const p=state.positions[i];
-    const sign = p.side==='LONG'?1:-1;
-    const exitPx = p.side==='LONG'?bid:ask;
-    p.pnlUsd = (exitPx - p.entry) * sign * p.size;
-    p.pnlR = (mid - p.entry) * sign / (p.R0 || 1);
-    const slP = (p.sl == null ? NaN : Number(p.sl));
-    const tpP = (p.tp == null ? NaN : Number(p.tp));
-    const hitSL = Number.isFinite(slP) && ((p.side==='LONG' && bid<=slP) || (p.side==='SHORT' && ask>=slP));
-    const hitTP = Number.isFinite(tpP) && ((p.side==='LONG' && bid>=tpP) || (p.side==='SHORT' && ask<=tpP));
-    if(hitSL || hitTP){
-      const exit = hitSL? slP : tpP;
-      closePosition(i, exit, hitSL?'SL':'TP');
-    }
-  }
-  recalcAccount();
-  renderPositions(); refreshHUD();
-}
-
-// ===== Playback =====
-function togglePlay(force){ const playing=!!state.timer; if(playing && !force){ clearInterval(state.timer); state.timer=null; toast('暫停'); return;} if(!playing){ state.timer=setInterval(stepOnce,state.playSpeed); toast('播放中…'); }}
-function stepOnce(){
-  if(state.visible >= state.bars.length){
-    clearInterval(state.timer); state.timer=null; return;
-  }
-  state.visible++;
-  if (state.view.followTail) {
-    state.view.userPanned = false;
-    state.view.offsetBar  = 0;
-  }
-  draw();
-  updateOrders();
-  updatePositions();
-  computeRiskPreview();
-  refreshHUD();
-}
-
-// ===== Boot / Reset =====
-async function boot(){ state.dataset = await loadFirstCSV(); if(state.dataset.length===0){ console.error('無法載入CSV'); }
-  reset(); }
-function reset(){ clearInterval(state.timer); state.timer=null; state.visible=0; state.positions=[]; state.orders=[]; state.trades=[]; state.journal=[];
-  state.view.offsetBar = 0;
-  state.view.userPanned = false;
-  state.view.followTail = true;
-  if(state.dataset.length){
-    prepareFromDataset(state.dataset);
-    draw(); refreshHUD(); computeRiskPreview(); renderPositions(); renderJournal();
-    return;
-  }
-  state.bars=[]; draw(); refreshHUD(); renderPositions(); renderJournal(); toast('請提供 M15 CSV'); }
-
-['spdSeg'].forEach(id=>el(id).addEventListener('click',e=>{ if(e.target.tagName!=='BUTTON')return; [...e.currentTarget.children].forEach(b=>b.classList.remove('active')); e.target.classList.add('active'); if(id==='spdSeg'){ state.playSpeed=parseInt(e.target.dataset.spd,10); } }));
-
-el('btnPlay').onclick=()=>togglePlay();
-el('btnStep').onclick=()=>stepOnce();
-function goLive(){
-  state.view.offsetBar = 0;
-  state.view.userPanned = false;
-  state.view.followTail = true;
-  draw();
-}
-document.getElementById('btnLive').onclick = goLive;
-window.addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault();togglePlay();} if(e.code==='ArrowRight'){stepOnce();} if(e.key==='+'){state.playSpeed=Math.max(200,state.playSpeed-100);} if(e.key==='-'){state.playSpeed=Math.min(1200,state.playSpeed+100);} if(e.key.toLowerCase()==='f') goLive(); });
-
-el('btnBuyNow').onclick=()=>openMarket('LONG');
-el('btnSellNow').onclick=()=>openMarket('SHORT');
-el('btnPendBuy').onclick=()=>placePending('LONG');
-el('btnPendSell').onclick=()=>placePending('SHORT');
-el('btnCloseAll').onclick=()=>closeAll();
-el('btnReroll').onclick=()=>{ reset(); toast('已隨機選擇新的起始位置'); };
-el('barsRange').oninput=e=>{ CONFIG.windowBars=parseInt(e.target.value,10)||200; draw(); };
-el('hRange').oninput=e=>{ const h=parseInt(e.target.value,10)||560; el('chart').style.height=h+'px'; el('chartWrap').style.minHeight=h+'px'; draw(); };
-['slPrice','tpPrice','pendPrice'].forEach(id=> el(id).addEventListener('input', computeRiskPreview));
-el('lots').addEventListener('input', e=>{ computeRiskPreview(); if(num(e.target.value)>0) completeNode('lots'); });
-document.getElementById('btnPath').onclick = ()=>{ document.getElementById('pathPanel').style.display='block'; renderPath(); };
-document.getElementById('btnPathClose').onclick = ()=>{ document.getElementById('pathPanel').style.display='none'; };
-loadPathAndRender();
-window.addEventListener('beforeunload',()=>{ state.orders=[]; state.positions=[]; state.trades=[]; });
-
-async function __selfcheck(){
-  const errs=[];
-  const html=document.documentElement.outerHTML;
-  const mm=(html.match(/addEventListener\(['"]mousemove['"]/g)||[]).length;
-  if(mm>1) errs.push('mousemove 綁定重複');
-  if(!(state.bars?.length>0)) errs.push('bars 未載入');
-  if(!(state.visible>0)) errs.push('visible 無效');
-  if(!(PATH.nodes?.length>=5)) errs.push('PATH 節點不足');
-  if(!(CONFIG.windowBars>=120 && CONFIG.windowBars<=320)) errs.push('windowBars 非120-320');
-  if(!/買入/.test(el('btnBuyNow')?.textContent||'')) errs.push('UI 非中文');
-  if(!/Number\.isFinite\(slP\)/.test(updatePositions.toString())) errs.push('hitSL 未使用 Number.isFinite');
-  if(/停損價\(SL\)/.test(openMarket.toString())) errs.push('openMarket 仍要求SL');
-  if(!el('btnReroll')) errs.push('btnReroll 不存在');
-  if(!/validBrackets/.test(openMarket.toString()) || !/validBrackets/.test(placePending.toString())) errs.push('缺少 validBrackets 檢核');
-  if(errs.length){ console.error('[自查]',errs); toast('自查異常，請看Console'); } else console.log('[自查] OK');
-}
-window.addEventListener('load',()=>setTimeout(__selfcheck,200));
-
-boot();
-
-// === Iteration Note 1 ===
-// - Done: 建立隨機起始日與昨日高低分析線
-// - Fixes: 修正停損預覽與下單檢核
-// - QA: 自查通過
-// - Next: 改善拖曳與快捷鍵
-// === Iteration Note 2 ===
-// - Done: 完成極簡下單面板與風險標籤
-// - Fixes: 移除多餘訊號與訓練功能
-// - QA: 掛單、即時風險顯示正常
-// - Next: 優化分析線呈現
-// === Iteration Note 3 ===
-// - Done: 加入交易紀錄與持倉列表
-// - Fixes: 解決 listener 重複綁定
-// - QA: 平倉/掛單觸發皆記錄
-// - Next: 減少繪圖耗能
-// === Iteration Note 4 ===
-// - Done: UI 色票更新為 MiTRADE 風格
-// - Fixes: 按鍵 F 回到最新、拖曳手感優化
-// - QA: 連續播放與拖曳穩定
-// - Next: 整體效能檢查
-// === Iteration Note 5 ===
-// - Done: 自查腳本確認、程式碼整理
-// - Fixes: 無
-// - QA: 啟動五次皆通過
-// - Next: --
-// === Iteration Note 6 ===
-// - Done: 移除分析線、固定 200 根視窗、加入日分隔線與平倉動畫
-// - Fixes: 無
-// - QA: 基本自查通過
-// - Next: 更多遊戲化與任務系統
-// === Iteration Note 7 ===
-// - Done: 亮色主題、帳戶模型與技能樹初版
-// - Fixes: SL/TP 觸發邏輯使用 Bid/Ask
-// - QA: 自查通過
-// - Next: 優化互動手感
-// === Iteration Note 8 ===
-// - Done: 任務完成震動與獎勵動畫
-// - Fixes: 掛單觸發後立即更新權益
-// - QA: SL/TP 10 次測試皆正確
-// - Next: 加強本地儲存穩定性
-// === Iteration Note 9 ===
-// - Done: 技能樹資料持久化與 UI 微調
-// - Fixes: 修正 HUD 資訊刷新延遲
-// - QA: 重新載入後進度維持
-// - Next: 改善手機版排版
-// === Iteration Note 10 ===
-// - Done: 按鈕 hover/active 反饋與震動容錯
-// - Fixes: 移除未用變數 realizedPnL
-// - QA: 連續操作穩定
-// - Next: 監控效能
-// === Iteration Note 11 ===
-// - Done: 自查擴充、五輪 QA 總結
-// - Fixes: 無
-// - QA: 最終自查通過
-// - Next: --
-</script>
-</body>
-</html>
+  gameDurationMonths: 1,
+  �
