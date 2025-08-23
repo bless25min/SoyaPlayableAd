@@ -610,8 +610,11 @@ function startGame() {
   el('step-btn').disabled = false;
   
   if (!hasPlayedOnce) {
-    startTutorial();
-    hasPlayedOnce = true;
+    // FIX: Delay tutorial start to ensure all elements are rendered
+    setTimeout(() => {
+        startTutorial();
+        hasPlayedOnce = true;
+    }, 100);
   }
 }
 
@@ -1287,7 +1290,6 @@ function showTutorialStep(stepIndex) {
         `<div class="tutorial-dot ${i === stepIndex ? 'active' : ''}"></div>`
     ).join('');
 
-    // FIX: Use a timeout to ensure the DOM is ready for getBoundingClientRect
     setTimeout(() => {
         if (step.elementId) {
             const target = el(step.elementId);
@@ -1319,7 +1321,7 @@ function showTutorialStep(stepIndex) {
             box.style.left = `50%`;
             box.style.transform = 'translate(-50%, -50%)';
         }
-    }, 50); // 50ms delay
+    }, 50);
 
     if (stepIndex === tutorialSteps.length - 1) {
         nextBtn.textContent = '開始挑戰！';
