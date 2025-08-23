@@ -142,7 +142,6 @@
                 <!-- Play/Pause icon will be injected by JS -->
             </button>
             <button id="step-forward-btn" class="p-2 rounded-md hover:bg-border-color">
-                <!-- [FIXED] Changed icon to step-forward -->
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M15.5 3.5a.5.5 0 0 0-1 0V7.248l-6.267-3.636C7.692 3.29 7 3.67 7 4.304v7.384c0 .63.692 1.01 1.233.697L14.5 8.752V12a.5.5 0 0 0 1 0V4a.5.5 0 0 0-.5-.5z"/></svg>
             </button>
             <div class="flex items-center space-x-2 text-sm">
@@ -253,7 +252,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Playback
     const playPauseBtn = document.getElementById('play-pause-btn');
-    // [FIXED] Corrected button ID
     const stepForwardBtn = document.getElementById('step-forward-btn');
     const speedControl = document.getElementById('speed-control');
 
@@ -375,8 +373,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadData() {
         showModal("載入中...", "正在從伺服器獲取市場數據，請稍候...", []);
         try {
-            // [FIXED] Updated to your GitHub repository URL
-            const dataUrl = 'https://raw.githubusercontent.com/bless25min/SoyaPlayableAd/main/dist/XAUUSD_M15.csv';
+            // [UPDATED] Corrected the data source URL as per your request.
+            const dataUrl = 'https://raw.githubusercontent.com/bless25min/SoyaPlayableAd/refs/heads/main/XAUUSD_M15.csv';
             const response = await fetch(dataUrl);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -1034,7 +1032,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function bindPermanentEventListeners() {
         // Playback
         playPauseBtn.addEventListener('click', togglePlayPause);
-        // [FIXED] Corrected event listener target
         stepForwardBtn.addEventListener('click', stepForward);
         speedControl.addEventListener('change', (e) => changeSpeed(parseFloat(e.target.value)));
 
