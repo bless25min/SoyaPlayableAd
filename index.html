@@ -28,23 +28,6 @@
             --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
 
-        /* Dark Theme (optional, can be activated via JS) */
-        /*
-        :root[data-theme="dark"] {
-            --background-color: #18191a;
-            --chart-background: #242526;
-            --text-color: #e4e6eb;
-            --border-color: #3a3b3c;
-            --primary-button-bg: #2374e1;
-            --primary-button-hover: #3982e4;
-            --secondary-button-bg: #3a3b3c;
-            --secondary-button-text: #e4e6eb;
-            --secondary-button-hover: #4f5051;
-            --inactive-tab-bg: #303031;
-            --active-tab-bg: #242526;
-        }
-        */
-
         html,
         body {
             margin: 0;
@@ -374,7 +357,6 @@
         #cta-button:hover {
             background-color: #3aa122;
         }
-
     </style>
 </head>
 
@@ -477,7 +459,7 @@
 
                 this.ohlcData = [];
                 this.animations = [];
-                this.visibleCandles = []; // *** FIX: Initialize to empty array ***
+                this.visibleCandles = []; 
 
                 this.candleWidth = 8;
                 this.candleSpacing = 4;
@@ -522,7 +504,7 @@
             }
 
             calculatePriceRange() {
-                if (this.visibleCandles.length === 0) return;
+                if (!this.visibleCandles || this.visibleCandles.length === 0) return;
 
                 let min = Infinity, max = -Infinity;
                 for(const candle of this.visibleCandles) {
@@ -530,7 +512,6 @@
                     max = Math.max(max, candle.high);
                 }
 
-                // Add some padding
                 const padding = (max - min) * 0.1;
                 this.minPrice = min - padding;
                 this.maxPrice = max + padding;
@@ -547,6 +528,7 @@
             }
             
             drawPositions() {
+                if (!window.positions) return;
                 positions.forEach(pos => {
                     this.drawPositionLine(pos.entryPrice, 'blue', pos.pnl);
                     if (pos.sl) this.drawPositionLine(pos.sl, 'red');
@@ -573,9 +555,8 @@
                 }
             }
 
-
             drawDateSeparators() {
-                if (!this.visibleCandles || this.visibleCandles.length === 0) return; // Defensive check
+                if (!this.visibleCandles || this.visibleCandles.length === 0) return;
 
                 this.ctx.strokeStyle = '#e0e0e0';
                 this.ctx.lineWidth = 1;
@@ -597,15 +578,12 @@
                         this.ctx.moveTo(x, 0);
                         this.ctx.lineTo(x, this.canvas.clientHeight);
                         this.ctx.stroke();
-                        
                         this.ctx.setLineDash([]);
-                        
                         this.ctx.fillText(date.toLocaleDateString(), x + 5, this.canvas.clientHeight - 10);
                     }
                     lastDate = candleDate;
                 }
             }
-
 
             getXPosition(index) {
                 const totalCandleWidth = (this.candleWidth + this.candleSpacing) * this.zoom;
@@ -613,15 +591,13 @@
             }
 
             drawCandles() {
-                if (!this.visibleCandles || this.visibleCandles.length === 0) return; // Defensive check
+                if (!this.visibleCandles || this.visibleCandles.length === 0) return;
 
                 const totalCandleWidth = (this.candleWidth + this.candleSpacing) * this.zoom;
                 
                 this.visibleCandles.forEach((candle, i) => {
                     const x = this.getXPosition(i);
-                     if (x < -totalCandleWidth || x > this.canvas.clientWidth + totalCandleWidth) {
-                        return; // Don't draw off-screen candles
-                    }
+                     if (x < -totalCandleWidth || x > this.canvas.clientWidth + totalCandleWidth) return;
 
                     const openY = this.priceToY(candle.open);
                     const closeY = this.priceToY(candle.close);
@@ -632,24 +608,15 @@
                     this.ctx.strokeStyle = isBullish ? 'green' : 'red';
                     this.ctx.fillStyle = isBullish ? 'green' : 'red';
                     
-                    // Draw wick
                     this.ctx.beginPath();
                     this.ctx.moveTo(x + (this.candleWidth * this.zoom) / 2, highY);
                     this.ctx.lineTo(x + (this.candleWidth * this.zoom) / 2, lowY);
                     this.ctx.stroke();
 
-                    // Draw body
-                    const bodyHeight = Math.abs(openY - closeY);
+                    const bodyHeight = Math.max(1, Math.abs(openY - closeY));
                     const bodyY = Math.min(openY, closeY);
                     
-                    if (bodyHeight < 1) { // If body is very small, draw a line
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(x, openY);
-                        this.ctx.lineTo(x + this.candleWidth * this.zoom, openY);
-                        this.ctx.stroke();
-                    } else {
-                        this.ctx.fillRect(x, bodyY, this.candleWidth * this.zoom, bodyHeight);
-                    }
+                    this.ctx.fillRect(x, bodyY, this.candleWidth * this.zoom, bodyHeight);
                 });
             }
 
@@ -669,7 +636,7 @@
                 this.ctx.fillStyle = '#333';
                 this.ctx.font = '12px Arial';
                 
-                if (this.maxPrice === -Infinity) return; // Don't draw if no price range
+                if (this.maxPrice === -Infinity || this.minPrice === Infinity) return;
 
                 const priceRange = this.maxPrice - this.minPrice;
                 const numTicks = 8;
@@ -688,13 +655,13 @@
              
             addOpenPositionAnimation(price, type) {
                 const y = this.priceToY(price);
-                const x = this.canvas.clientWidth - 55; // Right edge minus axis width
+                const x = this.canvas.clientWidth - 55;
                 this.animations.push({ type: 'arrow', x, y, dir: type === 'buy' ? 1 : -1, life: 60 });
             }
 
             addClosePositionAnimation(price, pnl) {
                 const y = this.priceToY(price);
-                const x = this.canvas.clientWidth - 100; // A bit to the left of the axis
+                const x = this.canvas.clientWidth - 100;
                 this.animations.push({ type: 'pnl', x, y, pnl, life: 90, startY: y });
             }
             
@@ -719,10 +686,10 @@
                         }
                         this.ctx.fill();
                     } else if (anim.type === 'pnl') {
-                        const pnlText = (pnl > 0 ? '+' : '') + pnl.toFixed(2);
-                        this.ctx.fillStyle = pnl > 0 ? 'rgba(0, 128, 0, 0.8)' : 'rgba(255, 0, 0, 0.8)';
+                        const pnlText = (anim.pnl > 0 ? '+' : '') + anim.pnl.toFixed(2);
+                        this.ctx.fillStyle = anim.pnl > 0 ? 'rgba(0, 128, 0, 0.8)' : 'rgba(255, 0, 0, 0.8)';
                         this.ctx.font = 'bold 14px Arial';
-                        anim.y -= 0.5; // Float up
+                        anim.y -= 0.5;
                         this.ctx.globalAlpha = anim.life / 90;
                         this.ctx.fillText(pnlText, anim.x, anim.y);
                     }
@@ -734,38 +701,16 @@
                  this.ctx.restore();
             }
 
-
             priceToY(price) {
                 const priceRange = this.maxPrice - this.minPrice;
-                if (priceRange === 0) return this.canvas.clientHeight / 2;
+                if (priceRange <= 0) return this.canvas.clientHeight / 2;
                 return (1 - (price - this.minPrice) / priceRange) * this.canvas.clientHeight;
             }
 
-            onMouseDown(e) {
-                this.isDragging = true;
-                this.lastMouseX = e.clientX;
-            }
-
-            onMouseMove(e) {
-                if (this.isDragging) {
-                    const dx = e.clientX - this.lastMouseX;
-                    this.panX -= dx;
-                    this.lastMouseX = e.clientX;
-                    this.draw();
-                }
-            }
-
-            onMouseUp() {
-                this.isDragging = false;
-            }
-
-            onWheel(e) {
-                e.preventDefault();
-                const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-                this.zoom *= zoomFactor;
-                this.zoom = Math.max(0.1, Math.min(10, this.zoom));
-                this.draw();
-            }
+            onMouseDown(e) { this.isDragging = true; this.lastMouseX = e.clientX; }
+            onMouseMove(e) { if (this.isDragging) { const dx = e.clientX - this.lastMouseX; this.panX -= dx; this.lastMouseX = e.clientX; this.draw(); } }
+            onMouseUp() { this.isDragging = false; }
+            onWheel(e) { e.preventDefault(); const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9; this.zoom = Math.max(0.1, Math.min(10, this.zoom * zoomFactor)); this.draw(); }
         }
 
         // --- GLOBAL STATE ---
@@ -778,80 +723,117 @@
         let chart;
         let positions = [];
         let nextPositionId = 1;
-        let account = {
-            balance: 10000,
-            equity: 10000
-        };
-        const VISIBLE_CANDLE_COUNT = 60; // Number of candles to display initially
+        let account = { balance: 10000, equity: 10000 };
+        const VISIBLE_CANDLE_COUNT = 60;
         let tutorialStep = 0;
 
         // --- CORE FUNCTIONS ---
 
         async function loadDataAndStart() {
+            console.log("Starting data load...");
             try {
                 const response = await fetch('XAUUSD_M15.csv');
+                 if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
                 const csvText = await response.text();
+                console.log(`CSV file fetched. Length: ${csvText.length} characters.`);
+                
                 const parsedData = parseCSV(csvText);
+                console.log(`CSV parsed. Total valid records: ${parsedData.length}`);
+
                 ohlcData = selectRandomMonth(parsedData);
+                console.log(`Random month selected. Records for this challenge: ${ohlcData.length}`);
+                
                 resetChallenge();
+
             } catch (error) {
-                console.error("Failed to load or parse CSV data:", error);
+                console.error("Fatal Error: Failed to load or process CSV data.", error);
+                alert("錯誤：無法載入或處理市場數據，請檢查控制台以獲取詳細資訊。");
             }
         }
         
         function parseCSV(text) {
-            const lines = text.split('\n').slice(1); // Skip header
-            return lines.map(line => {
-                const [time, open, high, low, close] = line.split(',');
-                if (!time) return null;
-                return {
-                    time: parseInt(time),
+            const lines = text.trim().split('\n').slice(1);
+            return lines.map((line, index) => {
+                const cleanedLine = line.trim();
+                if (!cleanedLine) return null;
+
+                const parts = cleanedLine.split(',');
+                if (parts.length < 5) return null;
+
+                const [time, open, high, low, close] = parts;
+                
+                const dataPoint = {
+                    time: parseInt(time, 10),
                     open: parseFloat(open),
                     high: parseFloat(high),
                     low: parseFloat(low),
                     close: parseFloat(close)
                 };
-            }).filter(Boolean);
+
+                // Validate that all numbers are actual numbers
+                if (Object.values(dataPoint).some(isNaN)) {
+                     console.warn(`Skipping invalid data on line ${index + 2}:`, line);
+                     return null;
+                }
+                return dataPoint;
+
+            }).filter(Boolean); // Filter out any null entries
         }
 
         function selectRandomMonth(data) {
+            if (!data || data.length === 0) {
+                console.warn("Input data for selectRandomMonth is empty. Returning empty array.");
+                return [];
+            }
+            
             const months = {};
             data.forEach(d => {
                 const date = new Date(d.time * 1000);
+                if (isNaN(date.getTime())) return; // Skip invalid dates
+                
                 const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
                 if (!months[monthKey]) {
                     months[monthKey] = [];
                 }
                 months[monthKey].push(d);
             });
+            
             const monthKeys = Object.keys(months);
+            if (monthKeys.length === 0) {
+                console.warn("No valid months found in data. Returning empty array.");
+                return [];
+            }
+
             const randomMonthKey = monthKeys[Math.floor(Math.random() * monthKeys.length)];
-            console.log("Selected data for:", randomMonthKey);
-            return months[randomMonthKey];
+            return months[randomMonthKey] || []; // Add || [] as a final safeguard
         }
 
-
         function resetChallenge() {
+            console.log("Resetting challenge...");
+            if (!ohlcData || ohlcData.length === 0) {
+                console.error("Challenge cannot be reset: ohlcData is empty or invalid.");
+                alert("錯誤：沒有有效的市場數據可以開始挑戰。");
+                return;
+            }
+
             currentIndex = VISIBLE_CANDLE_COUNT;
             visibleCandles = ohlcData.slice(0, VISIBLE_CANDLE_COUNT);
             chart.setData(ohlcData, visibleCandles);
             updateUI();
             showTutorialStep(0);
+            console.log("Challenge ready.");
         }
 
         function nextCandle() {
             if (currentIndex >= ohlcData.length -1) {
                 pauseGame();
                 showEndCard();
-                console.log("End of data reached.");
                 return;
             }
             currentIndex++;
             const newCandle = ohlcData[currentIndex];
-            visibleCandles.push(newCandle);
-            if (visibleCandles.length > VISIBLE_CANDLE_COUNT * 2) { // Keep DOM light
-                visibleCandles.shift();
-            }
             
             updatePositions(newCandle.close);
             chart.updateData(ohlcData.slice(Math.max(0, currentIndex - VISIBLE_CANDLE_COUNT), currentIndex + 1));
@@ -905,7 +887,6 @@
         function switchTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-
             document.getElementById(tabName).classList.add('active');
             document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
         }
@@ -923,20 +904,12 @@
             if (type === 'buy') {
                 if (sl && sl >= currentPrice) { alert('Buy Stop Loss must be below entry price.'); return; }
                 if (tp && tp <= currentPrice) { alert('Buy Take Profit must be above entry price.'); return; }
-            } else { // sell
+            } else {
                 if (sl && sl <= currentPrice) { alert('Sell Stop Loss must be above entry price.'); return; }
                 if (tp && tp >= currentPrice) { alert('Sell Take Profit must be below entry price.'); return; }
             }
             
-            const newPosition = {
-                id: nextPositionId++,
-                type: type,
-                entryPrice: currentPrice,
-                sl: sl,
-                tp: tp,
-                pnl: 0,
-            };
-            
+            const newPosition = { id: nextPositionId++, type, entryPrice: currentPrice, sl, tp, pnl: 0, };
             positions.push(newPosition);
             chart.addOpenPositionAnimation(currentPrice, type);
             updateUI();
@@ -957,14 +930,15 @@
             let positionsClosed = false;
             for (let i = positions.length - 1; i >= 0; i--) {
                 const pos = positions[i];
+                const pnlMultiplier = 100; // Simplified PnL calculation
                 if (pos.type === 'buy') {
-                    pos.pnl = (currentPrice - pos.entryPrice) * 100; // Simplified PnL
+                    pos.pnl = (currentPrice - pos.entryPrice) * pnlMultiplier;
                     if ((pos.sl && currentPrice <= pos.sl) || (pos.tp && currentPrice >= pos.tp)) {
                         closePosition(pos.id);
                         positionsClosed = true;
                     }
-                } else { // sell
-                    pos.pnl = (pos.entryPrice - currentPrice) * 100; // Simplified PnL
+                } else {
+                    pos.pnl = (pos.entryPrice - currentPrice) * pnlMultiplier;
                      if ((pos.sl && currentPrice >= pos.sl) || (pos.tp && currentPrice <= pos.tp)) {
                         closePosition(pos.id);
                         positionsClosed = true;
@@ -995,7 +969,6 @@
                 tableBody.appendChild(row);
             });
             
-            // Add event listeners to new close buttons
             tableBody.querySelectorAll('.close-pos-btn').forEach(btn => {
                 btn.addEventListener('click', () => closePosition(parseInt(btn.dataset.id)));
             });
@@ -1009,9 +982,8 @@
             const step = parseFloat(target.dataset.step);
             const input = document.getElementById(inputId);
             
-            if (input) {
+            if (input && ohlcData[currentIndex]) {
                 let currentValue = parseFloat(input.value) || ohlcData[currentIndex].close;
-                // Simplified step value for price
                 const priceStep = 0.5;
                 input.value = (currentValue + step * priceStep).toFixed(2);
             }
@@ -1036,12 +1008,10 @@
             const step = tutorialSteps[stepIndex];
             const element = document.getElementById(step.id);
             if (!element) {
-                // Add a small delay and retry, as DOM might not be ready
                 setTimeout(() => {
                     const elementRetry = document.getElementById(step.id);
                     if (!elementRetry) {
                          console.error(`Tutorial Error: Element with ID "${step.id}" not found.`);
-                         // Skip to next step or end tutorial
                          showTutorialStep(stepIndex + 1);
                          return;
                     }
@@ -1066,14 +1036,12 @@
 
             document.getElementById('tutorial-text').textContent = text;
             
-            // Position the box
             const boxTop = rect.bottom + 15;
             const boxLeft = rect.left;
             
             box.style.top = `${boxTop}px`;
             box.style.left = `${boxLeft}px`;
             
-            // Adjust if box is off-screen
             if (boxTop + box.offsetHeight > window.innerHeight) {
                  box.style.top = `${rect.top - box.offsetHeight - 15}px`;
             }
@@ -1087,57 +1055,28 @@
             const finalEquityEl = document.getElementById('final-equity');
             
             finalEquityEl.textContent = `$${account.equity.toFixed(2)}`;
-            if (account.equity >= account.balance) {
-                finalEquityEl.className = 'final-profit profit-positive';
-            } else {
-                finalEquityEl.className = 'final-profit profit-negative';
-            }
+            finalEquityEl.className = account.equity >= account.balance ? 'final-profit profit-positive' : 'final-profit profit-negative';
             endCard.style.display = 'flex';
         }
 
-
         // =================================================================================
         // INITIALIZATION
-        // This is the main entry point of the application.
-        // It waits for the DOM to be fully loaded before running any code.
         // =================================================================================
         document.addEventListener('DOMContentLoaded', () => {
-
-            // --- 1. Initialize Chart ---
             chart = new TradingChart('chart-canvas');
 
-            // --- 2. Setup Event Listeners ---
             document.getElementById('play-pause-btn').addEventListener('click', playPause);
-            document.getElementById('next-candle-btn').addEventListener('click', () => {
-                pauseGame();
-                nextCandle();
-            });
+            document.getElementById('next-candle-btn').addEventListener('click', () => { pauseGame(); nextCandle(); });
             document.getElementById('speed-selector').addEventListener('change', (e) => setSpeed(e.target.value));
-            
             document.getElementById('buy-btn').addEventListener('click', () => openPosition('buy'));
             document.getElementById('sell-btn').addEventListener('click', () => openPosition('sell'));
-            
-            document.querySelectorAll('.tab-button').forEach(button => {
-                button.addEventListener('click', () => switchTab(button.dataset.tab));
-            });
-            
+            document.querySelectorAll('.tab-button').forEach(button => { button.addEventListener('click', () => switchTab(button.dataset.tab)); });
             document.getElementById('trade-panel').addEventListener('click', handleStepButtonClick);
-
             document.getElementById('tutorial-next-btn').addEventListener('click', () => showTutorialStep(tutorialStep + 1));
+            document.getElementById('cta-button').addEventListener('click', (e) => { e.preventDefault(); window.open('https://www.google.com', '_blank'); });
             
-            document.getElementById('cta-button').addEventListener('click', (e) => {
-                e.preventDefault();
-                // In a real Playable Ad, this would call the ad network's specific exit function.
-                // For a web version, a simple window.open is fine.
-                window.open('https://www.google.com', '_blank');
-            });
-            
-            // --- 3. Load Data and Start Simulation ---
-            // This will also trigger the tutorial after data is ready.
             loadDataAndStart();
         });
-
     </script>
 </body>
-
 </html>
