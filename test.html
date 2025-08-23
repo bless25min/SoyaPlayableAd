@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>交易模擬遊戲</title>
+<title>情境式交易模擬器</title>
 <style>
 :root {
   --bg: #1a1e2b;
@@ -16,10 +16,6 @@
   --good: #28c782;
   --danger: #ff5f6d;
   --grid: rgba(75, 81, 105, 0.5);
-  --k-up-stroke: var(--good);
-  --k-up-fill: rgba(40, 199, 130, 0.3);
-  --k-down-stroke: var(--danger);
-  --k-down-fill: rgba(255, 95, 109, 0.3);
 }
 
 * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -40,7 +36,7 @@ html, body {
   flex-direction: column;
   height: 100%;
   width: 100%;
-  max-width: 420px; /* 最佳手機寬度 */
+  max-width: 420px;
   margin: 0 auto;
   background-color: var(--panel);
 }
@@ -48,12 +44,12 @@ html, body {
 /* --- 頂部資訊 --- */
 .header {
   text-align: center;
-  padding: 16px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
 }
-.header h1 { margin: 0; font-size: 20px; }
-.header p { margin: 4px 0 0; color: var(--muted); }
+.header h1 { margin: 0; font-size: 18px; color: var(--accent); }
+.header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.4; }
 
 /* --- 圖表區 --- */
 #chartWrap {
@@ -79,6 +75,14 @@ html, body {
   color: white;
   transform: translateY(-50%);
   pointer-events: none;
+  backdrop-filter: blur(2px);
+}
+.time-axis-label {
+    position: absolute;
+    bottom: 8px;
+    color: var(--muted);
+    font-size: 12px;
+    transform: translateX(-50%);
 }
 
 /* --- 底部操作區 --- */
@@ -109,51 +113,24 @@ html, body {
 
 /* --- 結果彈窗 --- */
 .modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.7);
-  backdrop-filter: blur(4px);
-  z-index: 9997;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
+  position: fixed; inset: 0; background: rgba(0,0,0,.7);
+  backdrop-filter: blur(4px); z-index: 9997;
+  display: flex; justify-content: center; align-items: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
 }
-.modal-overlay.visible {
-  opacity: 1;
-  pointer-events: auto;
-}
+.modal-overlay.visible { opacity: 1; pointer-events: auto; }
 .modal-content {
-  width: min(90vw, 320px);
-  background: var(--panel);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 24px;
-  text-align: center;
-  transform: scale(0.9);
-  transition: transform 0.3s ease;
+  width: min(90vw, 320px); background: var(--panel);
+  border: 1px solid var(--border-color); border-radius: 16px;
+  padding: 24px; text-align: center;
+  transform: scale(0.9); transition: transform 0.3s ease;
 }
-.modal-overlay.visible .modal-content {
-  transform: scale(1);
-}
-.modal-title {
-  font-size: 32px;
-  font-weight: bold;
-  margin: 0 0 8px;
-}
+.modal-overlay.visible .modal-content { transform: scale(1); }
+.modal-title { font-size: 32px; font-weight: bold; margin: 0 0 8px; }
 .modal-title.win { color: var(--good); }
 .modal-title.loss { color: var(--danger); }
-.modal-subtitle {
-  font-size: 16px;
-  color: var(--muted);
-  margin: 0 0 24px;
-}
-.modal-content .btn {
-  width: 100%;
-  margin-top: 8px;
-}
+.modal-subtitle { font-size: 16px; color: var(--muted); margin: 0 0 24px; }
+.modal-content .btn { width: 100%; margin-top: 8px; }
 .btn.cta { background: var(--accent); color: white; }
 .btn.retry { background: var(--panel-soft); color: var(--text); }
 
@@ -163,16 +140,16 @@ html, body {
 
 <div class="app-container">
   <div class="header">
-    <h1 id="game-title">價格將會...</h1>
-    <p id="game-subtitle">預測接下來 20 根 K 棒的走勢</p>
+    <h1 id="game-title">等待市場行情...</h1>
+    <p id="game-subtitle">載入數據中，請稍候。</p>
   </div>
   <div id="chartWrap">
     <canvas id="chart"></canvas>
   </div>
   <div class="actions-panel">
     <div class="main-actions">
-      <button class="btn buy" id="btnBuy">上漲</button>
-      <button class="btn sell" id="btnSell">下跌</button>
+      <button class="btn buy" id="btnBuy">買入 (看漲)</button>
+      <button class="btn sell" id="btnSell">賣出 (看跌)</button>
     </div>
   </div>
 </div>
@@ -181,43 +158,54 @@ html, body {
   <div class="modal-content">
     <h2 id="result-title" class="modal-title"></h2>
     <p id="result-subtitle" class="modal-subtitle"></p>
-    <button class="btn cta" id="btnCta">探索更多功能</button>
+    <button class="btn cta" id="btnCta">探索完整功能</button>
     <button class="btn retry" id="btnRetry">再玩一次</button>
   </div>
 </div>
-<div id="tooltip" class="tooltip"></div>
-
 
 <script>
+// ===== 財經事件數據與描述 =====
+const EVENTS = {
+  "2025-01-03": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
+  "2025-01-15": { time: "21:30", text: "🇺🇸 美國消費者物價指數 (CPI)", type: "CPI" },
+  "2025-01-29": { time: "03:00", text: "�🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
+  "2025-02-07": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
+  "2025-03-07": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
+  "2025-03-19": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
+  "2025-04-04": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
+  "2025-05-01": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
+  "2025-05-02": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
+  "2025-06-06": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
+  "2025-06-19": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
+  "2025-07-31": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
+  "2025-08-01": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
+};
+
+const EVENT_DESCRIPTIONS = {
+    "NFP": "今晚將公布俗稱「非農」的美國就業數據，這是市場最關注的指標之一。數據好壞將劇烈影響黃金價格，市場屏息以待！",
+    "CPI": "通膨數據 CPI 即將出爐！這個數字將決定聯準會的下一步棋。高於預期可能導致金價下跌，反之則可能上漲。",
+    "FOMC": "凌晨三點，聯準會將宣布最新的利率決策。主席鮑威爾的發言更是焦點中的焦點，任何鷹派或鴿派的暗示都可能引發市場巨震。",
+    "DEFAULT": "市場正處於關鍵時刻，多空雙方激烈交戰。請根據眼前的線索，做出你的判斷！"
+};
+
+
 // ===== 遊戲設定 =====
 const CONFIG = {
-  historyBars: 40,   // 顯示的歷史 K 棒數量
-  futureBars: 20,    // 預測的未來 K 棒數量
-  animationSpeed: 80, // 揭示動畫的速度 (ms)
+  historyBars: 150,   // 顯示約 1.5 天的歷史 K 棒
+  futureBars: 30,    // 預測未來 30 根 K 棒
+  animationSpeed: 60,
 };
 
-// ===== 遊戲狀態 =====
-const state = {
-  fullDataset: [],
-  currentGameData: [],
-  isRevealing: false,
-};
-
-// ===== DOM 元素 =====
+// ===== 遊戲狀態與 DOM 元素 (與前版類似) =====
+const state = { fullDataset: [], currentGameData: [], isRevealing: false };
 const el = id => document.getElementById(id);
-const canvas = el('chart');
-const ctx = canvas.getContext('2d');
-const buyBtn = el('btnBuy');
-const sellBtn = el('btnSell');
-const resultModal = el('resultModal');
-const resultTitle = el('result-title');
-const resultSubtitle = el('result-subtitle');
-const btnCta = el('btnCta');
-const btnRetry = el('btnRetry');
-const gameTitle = el('game-title');
-const gameSubtitle = el('game-subtitle');
+const canvas = el('chart'), ctx = canvas.getContext('2d');
+const buyBtn = el('btnBuy'), sellBtn = el('btnSell');
+const resultModal = el('resultModal'), resultTitle = el('result-title'), resultSubtitle = el('result-subtitle');
+const btnCta = el('btnCta'), btnRetry = el('btnRetry');
+const gameTitle = el('game-title'), gameSubtitle = el('game-subtitle');
 
-// ===== CSV 數據處理 =====
+// ===== 數據處理 (重大修改) =====
 async function loadData() {
   try {
     const response = await fetch('XAUUSD_M15.csv');
@@ -237,41 +225,52 @@ function parseOHLC(text) {
   const lines = text.split(/\r?\n/).filter(l => l && !/^\s*$/.test(l));
   if (lines.length < 2) return [];
   
-  const data = lines.slice(1).map(line => {
+  return lines.slice(1).map(line => {
     const parts = line.split('\t');
     if (parts.length < 6) return null;
+    const dateStr = parts[0].replace(/\./g, '-');
+    const timeStr = parts[1];
     return {
+      date: new Date(`${dateStr}T${timeStr}`),
       o: parseFloat(parts[2]),
       h: parseFloat(parts[3]),
       l: parseFloat(parts[4]),
       c: parseFloat(parts[5]),
     };
-  }).filter(Boolean); // 過濾掉解析失敗的行
-  
-  return data;
+  }).filter(Boolean);
 }
 
-// ===== 遊戲流程 =====
+// ===== 遊戲流程 (重大修改) =====
 function startGame() {
-  if (state.fullDataset.length < CONFIG.historyBars + CONFIG.futureBars) {
-    console.error("數據不足，無法開始遊戲");
-    return;
-  }
+  if (state.fullDataset.length < CONFIG.historyBars + CONFIG.futureBars) return;
 
-  // 重置狀態
   state.isRevealing = false;
   buyBtn.disabled = false;
   sellBtn.disabled = false;
   resultModal.classList.remove('visible');
-  gameTitle.textContent = "價格將會...";
   
-  // 隨機選取一段數據
   const totalGameBars = CONFIG.historyBars + CONFIG.futureBars;
   const startIndex = Math.floor(Math.random() * (state.fullDataset.length - totalGameBars));
   state.currentGameData = state.fullDataset.slice(startIndex, startIndex + totalGameBars);
 
-  // 繪製初始圖表
-  draw(false); // isFinal = false
+  // 檢查並設置事件情境
+  let eventFound = false;
+  for (let i = CONFIG.historyBars; i < state.currentGameData.length; i++) {
+      const bar = state.currentGameData[i];
+      const dateStr = bar.date.toISOString().slice(0, 10);
+      if (EVENTS[dateStr] && bar.date.getUTCHours() * 60 + bar.date.getUTCMinutes() >= parseInt(EVENTS[dateStr].time.split(':')[0]) * 60) {
+          gameTitle.textContent = EVENTS[dateStr].text;
+          gameSubtitle.textContent = EVENT_DESCRIPTIONS[EVENTS[dateStr].type] || EVENT_DESCRIPTIONS.DEFAULT;
+          eventFound = true;
+          break;
+      }
+  }
+  if (!eventFound) {
+      gameTitle.textContent = "關鍵的抉擇時刻";
+      gameSubtitle.textContent = EVENT_DESCRIPTIONS.DEFAULT;
+  }
+
+  draw(false);
 }
 
 function handleChoice(choice) {
@@ -281,12 +280,10 @@ function handleChoice(choice) {
   sellBtn.disabled = true;
   gameTitle.textContent = "揭曉結果...";
 
-  // 判斷輸贏
   const startPrice = state.currentGameData[CONFIG.historyBars - 1].c;
   const endPrice = state.currentGameData[state.currentGameData.length - 1].c;
   const isWin = (choice === 'buy' && endPrice >= startPrice) || (choice === 'sell' && endPrice < startPrice);
 
-  // 動畫揭示結果
   let currentBar = CONFIG.historyBars;
   const revealInterval = setInterval(() => {
     currentBar++;
@@ -313,9 +310,8 @@ function showResult(isWin, startPrice, endPrice) {
   resultModal.classList.add('visible');
 }
 
-// ===== 繪圖 =====
+// ===== 繪圖 (重大修改) =====
 function draw(isFinal, visibleBars = CONFIG.historyBars) {
-  const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
   canvas.width = rect.width * dpr;
@@ -328,13 +324,36 @@ function draw(isFinal, visibleBars = CONFIG.historyBars) {
   const dataToDraw = state.currentGameData.slice(0, visibleBars);
   if (dataToDraw.length === 0) return;
 
-  // 計算可視範圍
   const hi = Math.max(...state.currentGameData.map(b => b.h));
   const lo = Math.min(...state.currentGameData.map(b => b.l));
   const pad = (hi - lo) * 0.15 || 5;
   const yMax = hi + pad, yMin = lo - pad;
-  const xStep = W / (state.currentGameData.length -1);
+  const xStep = W / (state.currentGameData.length - 1);
   const y = v => H - ((v - yMin) / (yMax - yMin) * H);
+
+  // 繪製日期分隔線和時間標籤
+  document.querySelectorAll('.time-axis-label').forEach(el => el.remove());
+  let lastDateStr = '';
+  dataToDraw.forEach((b, i) => {
+    const currentDateStr = b.date.toISOString().slice(0, 10);
+    if (i > 0 && currentDateStr !== lastDateStr) {
+      ctx.strokeStyle = 'rgba(138, 147, 176, 0.3)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(i * xStep, 0);
+      ctx.lineTo(i * xStep, H);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      const label = document.createElement('div');
+      label.className = 'time-axis-label';
+      label.textContent = currentDateStr.slice(5);
+      label.style.left = `${i * xStep}px`;
+      el('chartWrap').appendChild(label);
+    }
+    lastDateStr = currentDateStr;
+  });
 
   // 繪製 K 棒
   dataToDraw.forEach((b, i) => {
@@ -347,15 +366,13 @@ function draw(isFinal, visibleBars = CONFIG.historyBars) {
     ctx.moveTo(x, y(b.h));
     ctx.lineTo(x, y(b.l));
     ctx.stroke();
-    const w = Math.max(3, xStep * 0.7);
+    const w = Math.max(2, xStep * 0.7);
     const y1 = y(b.o), y2 = y(b.c);
-    ctx.fillRect(x - w / 2, Math.min(y1, y2), w, Math.max(2, Math.abs(y1 - y2)));
+    ctx.fillRect(x - w / 2, Math.min(y1, y2), w, Math.max(1, Math.abs(y1 - y2)));
   });
 
-  // 清除舊的標記
-  document.querySelectorAll('.decision-line, .price-tag').forEach(el => el.remove());
-
   // 繪製決策線和價格標籤
+  document.querySelectorAll('.decision-line, .price-tag').forEach(el => el.remove());
   const decisionBarIndex = CONFIG.historyBars - 1;
   const decisionLineX = decisionBarIndex * xStep;
   
@@ -393,7 +410,6 @@ async function init() {
   sellBtn.addEventListener('click', () => handleChoice('sell'));
   btnRetry.addEventListener('click', startGame);
   btnCta.addEventListener('click', () => {
-      // 替換成您的真實連結
       window.open('https://example.com', '_blank');
   });
 
@@ -407,3 +423,4 @@ init();
 </script>
 </body>
 </html>
+�
