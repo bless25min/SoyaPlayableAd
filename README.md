@@ -28,19 +28,6 @@
 
 由於瀏覽器的安全限制 (`CORS policy`)，直接用檔案總管打開 `index.html` 會導致讀取 `XAUUSD_M15.csv` 失敗。為了模擬真實的網路環境 (如同在 Playable Ad 中)，您需要透過一個本地伺服器來運行此專案。
 
-**方法一：使用 VS Code 的 Live Server (推薦)**
-
-1.  在 VS Code 的擴充功能市集中，搜尋並安裝 **Live Server**。
-2.  安裝完成後，在 `index.html` 檔案上按右鍵，選擇 "Open with Live Server"。
-3.  程式將會自動在您的瀏覽器中開啟，並可以正常運作。
-
-**方法二：使用 Python**
-
-1.  確保您的電腦已安裝 Python。
-2.  打開您的終端機 (Terminal) 或命令提示字元 (cmd)。
-3.  使用 `cd` 指令切換到專案的根目錄 (與 `index.html` 同層)。
-4.  執行指令：`python -m http.server`
-5.  打開瀏覽器，在網址列輸入 `http://localhost:8000` 即可看到頁面。
 
 ## 檔案結構
 
