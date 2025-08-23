@@ -298,8 +298,8 @@ let canvas, ctx, chartWrap;
 function loadData() {
   return new Promise(async (resolve) => {
     try {
-      // 確保您的 CSV 檔案路徑正確
-      const response = await fetch('https://firebasestorage.googleapis.com/v0/b/gemini-beta-425302.appspot.com/o/XAUUSD_M15.csv?alt=media&token=d2551532-6846-4a67-91f1-28e67a11a8b1');
+      // ******** FIX: Changed file path to be relative ********
+      const response = await fetch('XAUUSD_M15.csv');
       if (!response.ok) throw new Error('Network response was not ok');
       const text = await response.text();
       state.fullDataset = parseOHLC(text);
@@ -331,7 +331,9 @@ function parseOHLC(text) {
 // ===== 遊戲流程 =====
 function startGame() {
   if (!state.fullDataset || state.fullDataset.length < 200) {
-      alert("市場數據不足或載入失敗，無法開始遊戲。");
+      // Do not use alert, as it might be blocked. Log to console instead.
+      console.error("市場數據不足或載入失敗，無法開始遊戲。");
+      el('current-date').textContent = "數據錯誤";
       return;
   }
   
@@ -357,7 +359,7 @@ function startGame() {
   const maxStartIndex = state.fullDataset.findIndex(b => b.date >= maxStartDate);
   
   if (minStartIndex === -1 || maxStartIndex === -1) {
-      alert("在數據集中找不到指定的日期範圍");
+      console.error("在數據集中找不到指定的日期範圍");
       return;
   }
 
@@ -400,7 +402,10 @@ function gameLoop() {
     state.currentBarIndex++;
     if (state.currentBarIndex >= state.gameData.length) {
         pauseGame();
-        alert(`挑戰結束！最終淨值: $${state.account.equity.toFixed(2)}`);
+        // Do not use alert. Maybe show a final modal. For now, just log.
+        console.log(`挑戰結束！最終淨值: $${state.account.equity.toFixed(2)}`);
+        el('play-pause-btn').disabled = true;
+        el('step-btn').disabled = true;
         return;
     }
     
@@ -466,7 +471,8 @@ function openOrder(side) {
     const sl = parseFloat(el('order-sl').value) || null;
     const tp = parseFloat(el('order-tp').value) || null;
     if (!lots || lots <= 0) {
-        alert("請輸入有效的手數");
+        // Simple validation, no alert
+        console.error("請輸入有效的手數");
         return;
     }
     const currentPrice = state.gameData[state.currentBarIndex].c;
