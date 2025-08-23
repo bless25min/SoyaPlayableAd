@@ -53,11 +53,23 @@ html, body {
 }
 #chartWrap:active { cursor: grabbing; }
 #chart { width: 100%; height: 100%; display: block; }
-.price-tag {
-  position: absolute; padding: 4px 8px; font-size: 12px;
-  border-radius: 4px; color: white; transform: translateY(-50%);
-  pointer-events: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+.price-line {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    pointer-events: none;
 }
+.price-line-label {
+    position: absolute;
+    right: 5px;
+    padding: 2px 6px;
+    font-size: 12px;
+    color: white;
+    border-radius: 4px;
+    transform: translateY(-50%);
+}
+#current-price-line .price-line-label { background-color: var(--accent); }
 .time-axis-label {
     position: absolute; bottom: 8px; color: var(--muted);
     font-size: 12px; transform: translateX(-50%);
@@ -92,36 +104,47 @@ html, body {
 
 /* --- 底部操作區 --- */
 .actions-panel {
-  flex-shrink: 0; padding: 12px; background: var(--panel);
+  flex-shrink: 0; background: var(--panel);
   border-top: 1px solid var(--border-color);
 }
-.main-actions {
-  display: grid; grid-template-columns: 1fr 1fr 80px; gap: 12px;
+.tabs { display: flex; border-bottom: 1px solid var(--border-color); }
+.tab-btn {
+  flex: 1; padding: 12px; background: none; border: none;
+  color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent;
 }
-.main-actions .btn {
-  padding: 14px; font-size: 16px; font-weight: bold;
-  border-radius: 12px; border: none; cursor: pointer;
-  transition: transform 0.1s ease;
-}
+.tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+
+.tab-content { display: none; padding: 12px; }
+.tab-content.active { display: block; }
+
+#trade-panel-content { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.input-group { display: flex; flex-direction: column; }
+.input-group label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.input-group input { width: 100%; background: var(--bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px; color: var(--text); font-size: 14px; }
+.trade-buttons { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.btn { padding: 12px; font-size: 16px; font-weight: bold; border-radius: 12px; border: none; cursor: pointer; transition: transform 0.1s ease; }
 .btn.buy { background: var(--good); color: white; }
 .btn.sell { background: var(--danger); color: white; }
-.btn.manage { background: var(--panel-soft); color: var(--text); }
 .btn:active { transform: scale(0.97); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .playback-controls {
     display: flex; justify-content: center; align-items: center;
-    gap: 8px; margin-top: 12px;
+    gap: 8px; padding: 8px 0;
 }
 .playback-controls .btn {
     background: var(--panel-soft); color: var(--text);
     border: 1px solid var(--border-color);
-    padding: 8px 10px;
-    font-size: 12px;
+    padding: 8px 10px; font-size: 12px;
 }
-.playback-controls .btn.active {
-    background: var(--accent); color: white; border-color: var(--accent);
-}
+.playback-controls .btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+#positions-list { max-height: 25vh; overflow-y: auto; }
+.position-item { background: var(--panel-soft); padding: 10px; border-radius: 8px; margin-bottom: 8px; display: grid; grid-template-columns: 40px 1fr 1fr 70px; align-items: center; gap: 8px; }
+.position-item .side-buy { color: var(--good); font-weight: bold; }
+.position-item .side-sell { color: var(--danger); font-weight: bold; }
+.position-item .pnl-up { color: var(--good); }
+.position-item .pnl-down { color: var(--danger); }
+.position-item .close-btn { padding: 6px; font-size: 12px; background: var(--border-color); }
 
 /* --- 彈窗 --- */
 .modal-overlay {
@@ -141,17 +164,7 @@ html, body {
 .modal-overlay.visible .modal-content { transform: scale(1); }
 .modal-header { font-weight: bold; margin-bottom: 8px; font-size: 20px; }
 .modal-body .input-group { margin-bottom: 12px; text-align: left; }
-.input-group label { font-size: 12px; color: var(--muted); margin-bottom: 4px; display: block; }
-.input-group input { width: 100%; background: var(--bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; color: var(--text); font-size: 16px; }
 .modal-footer .btn { width: 100%; margin-top: 8px; }
-
-#positions-list { max-height: 40vh; overflow-y: auto; }
-.position-item { background: var(--panel-soft); padding: 10px; border-radius: 8px; margin-bottom: 8px; display: grid; grid-template-columns: 40px 1fr 1fr 70px; align-items: center; gap: 8px; }
-.position-item .side-buy { color: var(--good); font-weight: bold; }
-.position-item .side-sell { color: var(--danger); font-weight: bold; }
-.position-item .pnl-up { color: var(--good); }
-.position-item .pnl-down { color: var(--danger); }
-.position-item .close-btn { padding: 6px; font-size: 12px; background: var(--border-color); }
 
 .event-modal-icon { font-size: 48px; margin-bottom: 12px; }
 .event-modal-desc { color: var(--muted); margin-bottom: 20px; text-align: left; line-height: 1.6; }
@@ -171,6 +184,7 @@ html, body {
   </div>
   <div id="chartWrap">
     <canvas id="chart"></canvas>
+    <div id="price-lines-container"></div>
     <div id="upcoming-event"></div>
     <div class="zoom-controls">
         <button id="zoom-in" class="zoom-btn">+</button>
@@ -178,10 +192,27 @@ html, body {
     </div>
   </div>
   <div class="actions-panel">
-    <div class="main-actions">
-      <button class="btn buy" id="btnBuy">買入</button>
-      <button class="btn sell" id="btnSell">賣出</button>
-      <button class="btn manage" id="btnManage">部位</button>
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="trade-panel">交易</button>
+        <button class="tab-btn" data-tab="positions-panel">持倉</button>
+        <button class="tab-btn" data-tab="journal-panel">紀錄</button>
+    </div>
+    <div id="trade-panel" class="tab-content active">
+        <div id="trade-panel-content">
+            <div class="input-group"><label for="lots">手數</label><input id="lots" type="number" value="0.1" step="0.01" min="0.01"></div>
+            <div class="input-group"><label for="slPrice">停損價</label><input id="slPrice" type="number" placeholder="可選"></div>
+            <div class="input-group"><label for="tpPrice">停利價</label><input id="tpPrice" type="number" placeholder="可選"></div>
+            <div class="trade-buttons">
+                <button class="btn sell" id="btnSell">市價賣出</button>
+                <button class="btn buy" id="btnBuy">市價買入</button>
+            </div>
+        </div>
+    </div>
+    <div id="positions-panel" class="tab-content">
+        <div id="positions-list"></div>
+    </div>
+    <div id="journal-panel" class="tab-content">
+        <div id="journal-list" style="max-height: 25vh; overflow-y: auto;"></div>
     </div>
     <div class="playback-controls">
         <button class="btn" id="play-pause-btn">▶</button>
@@ -196,26 +227,7 @@ html, body {
   </div>
 </div>
 
-<!-- Modals -->
-<div id="orderModal" class="modal-overlay">
-  <div class="modal-content">
-    <h2 class="modal-header" id="order-title"></h2>
-    <div class="modal-body">
-        <div class="input-group"><label for="lots">手數</label><input id="lots" type="number" value="0.1" step="0.01" min="0.01"></div>
-        <div class="input-group"><label for="slPrice">停損價 (可選)</label><input id="slPrice" type="number" placeholder="例如 2300.50"></div>
-        <div class="input-group"><label for="tpPrice">停利價 (可選)</label><input id="tpPrice" type="number" placeholder="例如 2350.50"></div>
-    </div>
-    <div class="modal-footer"><button class="btn" id="confirmOrderBtn">確認</button></div>
-  </div>
-</div>
-
-<div id="positionsModal" class="modal-overlay">
-  <div class="modal-content">
-    <h2 class="modal-header">目前持倉</h2>
-    <div class="modal-body" id="positions-list"></div>
-  </div>
-</div>
-
+<!-- Event Modal -->
 <div id="eventModal" class="modal-overlay">
     <div class="modal-content">
       <div class="event-modal-icon">📰</div>
@@ -260,28 +272,22 @@ const CONFIG = {
 // ===== 遊戲狀態與 DOM 元素 =====
 let state = {};
 const el = id => document.getElementById(id);
-const canvas = el('chart'), ctx = canvas.getContext('2d');
-const chartWrap = el('chartWrap');
-const btnBuy = el('btnBuy'), btnSell = el('btnSell'), btnManage = el('btnManage');
-const orderModal = el('orderModal'), orderTitle = el('order-title'), confirmOrderBtn = el('confirmOrderBtn');
-const positionsModal = el('positionsModal');
-const eventModal = el('eventModal'), eventTitle = el('event-title'), eventDesc = el('event-desc');
-const upcomingEventEl = el('upcoming-event');
 
 // ===== 數據處理 =====
-async function loadData() {
-  try {
-    const response = await fetch('XAUUSD_M15.csv');
-    if (!response.ok) throw new Error('Network response was not ok');
-    const text = await response.text();
-    state.fullDataset = parseOHLC(text);
-    return true;
-  } catch (error) {
-    console.error("無法載入或解析 CSV 數據:", error);
-    el('game-title').textContent = "錯誤";
-    el('game-subtitle').textContent = "無法載入市場數據，請刷新頁面。";
-    return false;
-  }
+function loadData() {
+  return new Promise(async (resolve) => {
+    try {
+      const response = await fetch('XAUUSD_M15.csv');
+      if (!response.ok) throw new Error('Network response was not ok');
+      const text = await response.text();
+      state.fullDataset = parseOHLC(text);
+      resolve(true);
+    } catch (error) {
+      console.error("無法載入或解析 CSV 數據:", error);
+      el('current-date').textContent = "錯誤";
+      resolve(false);
+    }
+  });
 }
 
 function parseOHLC(text) {
@@ -303,8 +309,7 @@ function parseOHLC(text) {
 // ===== 遊戲流程 =====
 function startGame() {
   if (!state.fullDataset || state.fullDataset.length < 200) {
-      el('game-title').textContent = "數據錯誤";
-      el('game-subtitle').textContent = "市場數據不足或載入失敗，無法開始遊戲。";
+      alert("市場數據不足或載入失敗，無法開始遊戲。");
       return;
   }
   
@@ -314,7 +319,7 @@ function startGame() {
   state.account = { balance: CONFIG.initialBalance, equity: CONFIG.initialBalance };
   state.isPaused = true;
   clearInterval(state.gameTimer);
-  state.animationSpeed = 100; // 預設 1x 速度
+  state.animationSpeed = 100;
   state.view = { barsInView: 100, offset: 0 };
   state.pan = { isPanning: false, startX: 0, startOffset: 0 };
 
@@ -325,7 +330,7 @@ function startGame() {
   const maxStartIndex = state.fullDataset.findIndex(b => b.date >= maxStartDate);
   
   if (minStartIndex === -1 || maxStartIndex === -1) {
-      console.error("在數據集中找不到指定的日期範圍");
+      alert("在數據集中找不到指定的日期範圍");
       return;
   }
 
@@ -340,7 +345,7 @@ function startGame() {
   
   state.gameData = state.fullDataset.slice(randomStartIndex, endIndex);
   state.currentBarIndex = 0;
-  state.view.offset = state.currentBarIndex - state.view.barsInView; // 讓最新 K 棒在最右邊
+  state.view.offset = state.currentBarIndex - state.view.barsInView;
 
   updateHUD();
   draw();
@@ -373,7 +378,7 @@ function gameLoop() {
     updatePositions();
     updateHUD();
     if (state.view.offset + state.view.barsInView < state.currentBarIndex + 5) {
-        state.view.offset++; // 自動滾動
+        state.view.offset++;
     }
     draw();
 }
@@ -469,11 +474,12 @@ function updatePositionsList() {
     }).join('');
 }
 function showEventModal(event) {
-    eventTitle.textContent = event.title;
-    eventDesc.textContent = event.desc;
-    eventModal.classList.add('visible');
+    el('event-title').textContent = event.title;
+    el('event-desc').textContent = event.desc;
+    el('eventModal').classList.add('visible');
 }
 function updateUpcomingEvent() {
+    const upcomingEventEl = el('upcoming-event');
     let nextEvent = null;
     let nextEventDate = null;
     for (let i = state.currentBarIndex; i < state.gameData.length; i++) {
@@ -557,7 +563,7 @@ function setupInteraction() {
     el('zoom-out').onclick = () => handleZoom(-1);
     chartWrap.addEventListener('wheel', e => { e.preventDefault(); handleZoom(e.deltaY < 0 ? 1 : -1); }, { passive: false });
     const startPan = (x) => { state.pan.isPanning = true; state.pan.startX = x; state.pan.startOffset = state.view.offset; };
-    const movePan = (x) => { if (!state.pan.isPanning) return; const dx = x - state.pan.startX; const barWidth = chartWrap.clientWidth / state.view.barsInView; state.view.offset = state.pan.startOffset - dx / barWidth; clampOffset(); draw(); };
+    const movePan = (x) => { if (!state.pan.isPanning) return; const dx = x - state.pan.startX; const barWidth = chartWrap.clientWidth / state.view.barsInView; state.view.offset = state.pan.startOffset - dx / barWidth; clampOffset(true); draw(); };
     const endPan = () => { state.pan.isPanning = false; };
     chartWrap.addEventListener('mousedown', e => startPan(e.clientX));
     chartWrap.addEventListener('mousemove', e => movePan(e.clientX));
@@ -573,33 +579,40 @@ function handleZoom(direction) {
     const centerBar = state.view.offset + oldBarsInView / 2;
     state.view.offset = centerBar - newBarsInView / 2;
     state.view.barsInView = newBarsInView;
-    clampOffset();
+    clampOffset(true);
     draw();
 }
-function clampOffset() {
-    state.view.offset = Math.max(0, Math.min(state.view.offset, state.currentBarIndex - state.view.barsInView / 2));
+function clampOffset(isUserAction = false) {
+    const maxOffset = state.currentBarIndex - (isUserAction ? state.view.barsInView : 5);
+    state.view.offset = Math.max(0, Math.min(state.view.offset, maxOffset));
 }
+
 
 // ===== 初始化 =====
 async function init() {
   const dataLoaded = await loadData();
   
   if (dataLoaded) {
-    el('btnBuy').addEventListener('click', () => {
+    const btnBuy = el('btnBuy'), btnSell = el('btnSell'), btnManage = el('btnManage');
+    const orderModal = el('orderModal'), orderTitle = el('order-title'), confirmOrderBtn = el('confirmOrderBtn');
+    const positionsModal = el('positionsModal');
+    const eventModal = el('eventModal');
+
+    btnBuy.addEventListener('click', () => {
         pauseGame();
         orderTitle.textContent = '建立買入訂單';
         confirmOrderBtn.className = 'btn buy';
         confirmOrderBtn.onclick = () => { openOrder('buy'); orderModal.classList.remove('visible'); };
         orderModal.classList.add('visible');
     });
-    el('btnSell').addEventListener('click', () => {
+    btnSell.addEventListener('click', () => {
         pauseGame();
         orderTitle.textContent = '建立賣出訂單';
         confirmOrderBtn.className = 'btn sell';
         confirmOrderBtn.onclick = () => { openOrder('sell'); orderModal.classList.remove('visible'); };
         orderModal.classList.add('visible');
     });
-    el('btnManage').addEventListener('click', () => {
+    btnManage.addEventListener('click', () => {
         pauseGame();
         updatePositionsList();
         positionsModal.classList.add('visible');
