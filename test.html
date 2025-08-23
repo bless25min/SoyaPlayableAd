@@ -215,7 +215,7 @@ const EVENTS = {
   "2025-01-23": { time: "20:45", text: "🇪🇺 歐洲央行利率決議 (ECB)", type: "ECB" },
   "2025-01-29": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
   "2025-02-07": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
-  "2025-02-14": { time: "21:30", text: "🇺🇸 美國零售銷售數據", type: "Retail" },
+  "2025-02-14": { time: "21:30", text: "🇺� 美國零售銷售數據", type: "Retail" },
   "2025-02-27": { time: "21:30", text: "🇺🇸 美國 GDP 數據", type: "GDP" },
   "2025-03-07": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
   "2025-03-13": { time: "20:45", text: "🇪🇺 歐洲央行利率決議 (ECB)", type: "ECB" },
@@ -228,7 +228,7 @@ const EVENTS = {
   "2025-05-15": { time: "09:30", text: "🇺🇸 白宮宣布對華新一輪關稅清單", type: "Geopolitical" },
   "2025-06-06": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
   "2025-06-12": { time: "20:45", text: "🇪🇺 歐洲央行利率決議 (ECB)", type: "ECB" },
-  "2025-06-19": { time: "03:00", text: "�🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
+  "2025-06-19": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
   "2025-07-04": { time: "00:00", text: "🇺🇸 美國獨立紀念日 (美股休市)", type: "Holiday" },
   "2025-07-16": { time: "21:30", text: "🇺🇸 美國消費者物價指數 (CPI)", type: "CPI" },
   "2025-07-22": { time: "22:00", text: "🇺🇸 美國總統發表重要經濟演說", type: "Geopolitical" },
@@ -285,10 +285,12 @@ async function loadData() {
     if (!response.ok) throw new Error('Network response was not ok');
     const text = await response.text();
     state.fullDataset = parseOHLC(text);
+    return true; // 返回成功標誌
   } catch (error) {
     console.error("無法載入或解析 CSV 數據:", error);
     el('game-title').textContent = "錯誤";
     el('game-subtitle').textContent = "無法載入市場數據，請刷新頁面。";
+    return false; // 返回失敗標誌
   }
 }
 
@@ -317,7 +319,6 @@ function startGame() {
       return;
   }
   
-  // 重置狀態
   state.gameData = [];
   state.currentBarIndex = 0;
   state.positions = [];
@@ -328,13 +329,17 @@ function startGame() {
   state.view = { barsInView: 100, offset: 0 };
   state.pan = { isPanning: false, startX: 0, startOffset: 0 };
 
-
   const minStartDate = new Date('2025-01-01T00:00:00');
   const maxStartDate = new Date('2025-07-15T00:00:00');
   
   const minStartIndex = state.fullDataset.findIndex(b => b.date >= minStartDate);
   const maxStartIndex = state.fullDataset.findIndex(b => b.date >= maxStartDate);
   
+  if (minStartIndex === -1 || maxStartIndex === -1) {
+      console.error("在數據集中找不到指定的日期範圍");
+      return;
+  }
+
   const randomStartIndex = Math.floor(Math.random() * (maxStartIndex - minStartIndex + 1)) + minStartIndex;
   
   const startDate = state.fullDataset[randomStartIndex].date;
@@ -553,41 +558,62 @@ function clampOffset() {
 
 // ===== 初始化 =====
 async function init() {
-  await loadData();
+  const dataLoaded = await loadData();
   
-  el('btnBuy').addEventListener('click', () => {
-      pauseGame();
-      el('order-title').textContent = '建立買入訂單';
-      el('confirmOrderBtn').className = 'btn buy';
-      el('confirmOrderBtn').onclick = () => { openOrder('buy'); el('orderModal').classList.remove('visible'); };
-      el('orderModal').classList.add('visible');
-  });
-  el('btnSell').addEventListener('click', () => {
-      pauseGame();
-      el('order-title').textContent = '建立賣出訂單';
-      el('confirmOrderBtn').className = 'btn sell';
-      el('confirmOrderBtn').onclick = () => { openOrder('sell'); el('orderModal').classList.remove('visible'); };
-      el('orderModal').classList.add('visible');
-  });
-  el('btnManage').addEventListener('click', () => {
-      pauseGame();
-      updatePositionsList();
-      el('positionsModal').classList.add('visible');
-  });
-  
-  document.querySelectorAll('.modal-overlay').forEach(modal => {
-      modal.addEventListener('click', (e) => {
-          if (e.target === modal) {
-              modal.classList.remove('visible');
-          }
-      });
-  });
+  if (dataLoaded) {
+    el('btnBuy').addEventListener('click', () => {
+        pauseGame();
+        el('order-title').textContent = '建立買入訂單';
+        el('confirmOrderBtn').className = 'btn buy';
+        el('confirmOrderBtn').onclick = () => { openOrder('buy'); el('orderModal').classList.remove('visible'); };
+        el('orderModal').classList.add('visible');
+    });
+    el('btnSell').addEventListener('click', () => {
+        pauseGame();
+        el('order-title').textContent = '建立賣出訂單';
+        el('confirmOrderBtn').className = 'btn sell';
+        el('confirmOrderBtn').onclick = () => { openOrder('sell'); el('orderModal').classList.remove('visible'); };
+        el('orderModal').classList.add('visible');
+    });
+    el('btnManage').addEventListener('click', () => {
+        pauseGame();
+        updatePositionsList();
+        el('positionsModal').classList.add('visible');
+    });
+    
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('visible');
+            }
+        });
+    });
 
-  setupInteraction();
-  startGame();
+    el('event-continue-btn').addEventListener('click', () => {
+        el('eventModal').classList.remove('visible');
+        resumeGame();
+    });
+
+    el('play-pause-btn').addEventListener('click', () => {
+        state.isPaused ? resumeGame() : pauseGame();
+    });
+    el('speed-controls').addEventListener('click', (e) => {
+        if (e.target.classList.contains('speed-btn')) {
+            document.querySelector('.speed-btn.active').classList.remove('active');
+            e.target.classList.add('active');
+            state.animationSpeed = parseInt(e.target.dataset.speed);
+            if (!state.isPaused) {
+                resumeGame();
+            }
+        }
+    });
+
+    setupInteraction();
+    startGame();
+  }
 }
 
-init();
+document.addEventListener('DOMContentLoaded', init);
 
 </script>
 </body>
