@@ -50,6 +50,7 @@ html, body {
 #chartWrap {
   flex-grow: 1; position: relative; background: var(--panel-soft);
   min-height: 0; cursor: grab;
+  background: radial-gradient(ellipse at center, #f9fafc 0%, #f4f7fc 100%);
 }
 #chartWrap:active { cursor: grabbing; }
 #chart { width: 100%; height: 100%; display: block; }
@@ -68,6 +69,7 @@ html, body {
     color: white;
     border-radius: 4px;
     transform: translateY(-50%);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 #current-price-line .price-line-label { background-color: var(--accent); }
 .time-axis-label {
@@ -218,8 +220,9 @@ html, body {
         <button class="btn" id="play-pause-btn">▶</button>
         <button class="btn" id="step-btn">逐K →</button>
         <div id="speed-controls">
+            <button class="btn speed-btn active" data-speed="400">0.25x</button>
             <button class="btn speed-btn" data-speed="200">0.5x</button>
-            <button class="btn speed-btn active" data-speed="100">1x</button>
+            <button class="btn speed-btn" data-speed="100">1x</button>
             <button class="btn speed-btn" data-speed="50">2x</button>
             <button class="btn speed-btn" data-speed="10">5x</button>
         </div>
@@ -242,8 +245,8 @@ html, body {
 const EVENTS = {
   "2025-01-03": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "俗稱「非農」的美國就業數據是市場最關注的指標之一。數據好壞將劇烈影響黃金價格，市場屏息以待！" },
   "2025-01-20": { time: "12:00", title: "🇺🇸 美國總統就職典禮", desc: "新任美國總統將於華盛頓特區宣誓就職。就職演說通常會概述新政府的施政藍圖，內容可能涉及國內外政策、經濟方向等，這些都可能成為市場關注的焦點。" },
-  "2025-01-30": { time: "20:45", title: "�🇺 歐洲央行 (ECB) 利率決策會議", desc: "歐洲央行管理委員會將召開貨幣政策會議並發布利率決策聲明。市場將關注其對歐元區經濟前景和通膨路徑的最新評估。" },
-  "2025-02-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "本月非農數據公布，將再次考驗市場對美國經濟復甦力度的信心。" },
+  "2025-01-30": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "歐洲央行管理委員會將召開貨幣政策會議並發布利率決策聲明。市場將關注其對歐元區經濟前景和通膨路徑的最新評估。" },
+  "2025-02-07": { time: "21:30", title: "�🇸 美國非農就業數據 (NFP)", desc: "本月非農數據公布，將再次考驗市場對美國經濟復甦力度的信心。" },
   "2025-03-05": { time: "10:00", title: "🇨🇳 中國全國人民代表大會年會開幕", desc: "中國將公布當年度的GDP增長目標、財政預算等主要經濟指標，並闡述相關政策方向。" },
   "2025-03-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "連續第三個月的非農數據，市場將尋找勞動力市場是否持續穩定的線索。" },
   "2025-03-19": { time: "03:00", title: "🇺🇸 聯準會利率決策 (FOMC)", desc: "聯準會將發布利率決策，會議將包含最新的經濟預測摘要 (SEP) 和「點陣圖」，揭示未來利率路徑預期。" },
@@ -320,9 +323,13 @@ function startGame() {
   state.account = { balance: CONFIG.initialBalance, equity: CONFIG.initialBalance };
   state.isPaused = true;
   clearInterval(state.gameTimer);
-  state.animationSpeed = 100;
+  state.animationSpeed = 400; // 預設 0.25x 速度
+  document.querySelector('.speed-btn.active').classList.remove('active');
+  document.querySelector('.speed-btn[data-speed="400"]').classList.add('active');
+
   state.view = { barsInView: 100, offset: 0 };
   state.pan = { isPanning: false, startX: 0, startOffset: 0 };
+  state.barAnimation = { progress: 1, isAnimating: false };
 
   const minStartDate = new Date('2025-01-01T00:00:00');
   const maxStartDate = new Date('2025-07-15T00:00:00');
@@ -354,7 +361,7 @@ function startGame() {
 }
 
 function gameLoop() {
-    if (state.isPaused) return;
+    if (state.isPaused || state.barAnimation.isAnimating) return;
     
     const bar = state.gameData[state.currentBarIndex];
     if (bar) {
@@ -376,13 +383,36 @@ function gameLoop() {
         alert(`挑戰結束！最終淨值: $${state.account.equity.toFixed(2)}`);
         return;
     }
-    updatePositions();
-    updateHUD();
-    if (state.view.offset + state.view.barsInView < state.currentBarIndex + 5) {
-        state.view.offset++;
-    }
-    draw();
+    
+    animateBar();
 }
+
+function animateBar() {
+    state.barAnimation.isAnimating = true;
+    let startTime = performance.now();
+
+    function frame(currentTime) {
+        const elapsedTime = currentTime - startTime;
+        let progress = elapsedTime / state.animationSpeed;
+        if (progress >= 1) {
+            progress = 1;
+            state.barAnimation.isAnimating = false;
+        }
+        
+        updatePositions();
+        updateHUD();
+        if (state.view.offset + state.view.barsInView < state.currentBarIndex + 10) {
+            state.view.offset = state.currentBarIndex - state.view.barsInView + 10;
+        }
+        draw(progress);
+
+        if (progress < 1) {
+            requestAnimationFrame(frame);
+        }
+    }
+    requestAnimationFrame(frame);
+}
+
 
 function stepForward() {
     pauseGame();
@@ -390,8 +420,8 @@ function stepForward() {
         state.currentBarIndex++;
         updatePositions();
         updateHUD();
-        if (state.view.offset + state.view.barsInView < state.currentBarIndex + 5) {
-            state.view.offset++;
+        if (state.view.offset + state.view.barsInView < state.currentBarIndex + 10) {
+            state.view.offset = state.currentBarIndex - state.view.barsInView + 10;
         }
         draw();
     }
@@ -501,7 +531,7 @@ function updateUpcomingEvent() {
 }
 
 // ===== 繪圖 =====
-function draw() {
+function draw(animationProgress = 1) {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
   canvas.width = rect.width * dpr;
@@ -520,6 +550,8 @@ function draw() {
   const yMax = hi + pad, yMin = lo - pad;
   const barWidth = W / state.view.barsInView;
   const y = v => H - ((v - yMin) / (yMax - yMin) * H);
+  
+  // 繪製日期分隔線
   let lastDateStr = '';
   for (let i = startIdx; i < endIdx; i++) {
     if (i < 0 || i >= state.currentBarIndex + 1) continue;
@@ -535,18 +567,47 @@ function draw() {
     }
     lastDateStr = currentDateStr;
   }
+
+  // 繪製 K 棒
   for (let i = 0; i < dataInView.length; i++) {
+    const barIndex = startIdx + i;
     const b = dataInView[i];
-    const x = (startIdx + i - state.view.offset) * barWidth + barWidth / 2;
+    const x = (barIndex - state.view.offset) * barWidth + barWidth / 2;
+    const isLastBar = barIndex === state.currentBarIndex;
+    
+    // 動畫邏輯
+    const progress = isLastBar ? animationProgress : 1;
     const up = b.c >= b.o;
+    const openY = y(b.o);
+    let lowY = y(b.l);
+    let highY = y(b.h);
+    let closeY = y(b.c);
+
+    if (isLastBar) {
+        const wick1Target = up ? lowY : highY;
+        const wick2Target = up ? highY : lowY;
+        const wick1Progress = Math.max(0, Math.min(1, progress / 0.4));
+        const wick2Progress = Math.max(0, Math.min(1, (progress - 0.4) / 0.4));
+        const bodyProgress = Math.max(0, Math.min(1, (progress - 0.8) / 0.2));
+        
+        const currentWick1Y = openY + (wick1Target - openY) * wick1Progress;
+        const currentWick2Y = openY + (wick2Target - openY) * wick2Progress;
+        const currentCloseY = openY + (closeY - openY) * bodyProgress;
+
+        lowY = Math.min(openY, currentWick1Y, currentWick2Y);
+        highY = Math.max(openY, currentWick1Y, currentWick2Y);
+        closeY = currentCloseY;
+    }
+
     ctx.strokeStyle = up ? 'var(--good)' : 'var(--danger)';
     ctx.fillStyle = up ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)';
     ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(x, y(b.h)); ctx.lineTo(x, y(b.l)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, highY); ctx.lineTo(x, lowY); ctx.stroke();
     const w = Math.max(2, barWidth * 0.7);
-    const y1 = y(b.o), y2 = y(b.c);
-    ctx.fillRect(x - w / 2, Math.min(y1, y2), w, Math.max(1, Math.abs(y1 - y2)));
+    ctx.fillRect(x - w / 2, Math.min(openY, closeY), w, Math.max(1, Math.abs(openY - closeY)));
   }
+  
+  // 繪製持倉線
   state.positions.forEach(p => {
     const entryY = y(p.entryPrice);
     ctx.strokeStyle = p.side === 'buy' ? 'var(--good)' : 'var(--danger)';
