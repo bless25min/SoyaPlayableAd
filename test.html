@@ -72,6 +72,23 @@ html, body {
     border-radius: 8px; font-size: 20px; cursor: pointer;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
+#upcoming-event {
+    position: absolute; bottom: 10px; left: 10px;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(4px);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+#upcoming-event.visible {
+    opacity: 1;
+}
 
 /* --- 底部操作區 --- */
 .actions-panel {
@@ -94,12 +111,13 @@ html, body {
 
 .playback-controls {
     display: flex; justify-content: center; align-items: center;
-    gap: 12px; margin-top: 12px;
+    gap: 8px; margin-top: 12px;
 }
 .playback-controls .btn {
     background: var(--panel-soft); color: var(--text);
     border: 1px solid var(--border-color);
-    padding: 8px 12px;
+    padding: 8px 10px;
+    font-size: 12px;
 }
 .playback-controls .btn.active {
     background: var(--accent); color: white; border-color: var(--accent);
@@ -109,26 +127,23 @@ html, body {
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.5);
   backdrop-filter: blur(4px); z-index: 9997;
-  display: flex; justify-content: center; align-items: flex-end;
+  display: flex; justify-content: center; align-items: center;
   opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
 }
 .modal-overlay.visible { opacity: 1; pointer-events: auto; }
 .modal-content {
-  width: 100%;
-  max-width: 420px;
-  background: var(--panel);
-  border-top-left-radius: 16px;
-  border-top-right-radius: 16px;
-  padding: 16px;
-  transform: translateY(100%);
-  transition: transform 0.3s ease;
+  width: min(90vw, 380px); background: var(--panel);
+  border: 1px solid var(--border-color); border-radius: 16px;
+  padding: 24px; text-align: center;
+  transform: scale(0.9); transition: transform 0.3s ease;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
 }
-.modal-overlay.visible .modal-content { transform: translateY(0); }
-.modal-header { font-weight: bold; margin-bottom: 16px; font-size: 18px; }
+.modal-overlay.visible .modal-content { transform: scale(1); }
+.modal-header { font-weight: bold; margin-bottom: 8px; font-size: 20px; }
 .modal-body .input-group { margin-bottom: 12px; text-align: left; }
 .input-group label { font-size: 12px; color: var(--muted); margin-bottom: 4px; display: block; }
 .input-group input { width: 100%; background: var(--bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; color: var(--text); font-size: 16px; }
-.modal-footer .btn { width: 100%; }
+.modal-footer .btn { width: 100%; margin-top: 8px; }
 
 #positions-list { max-height: 40vh; overflow-y: auto; }
 .position-item { background: var(--panel-soft); padding: 10px; border-radius: 8px; margin-bottom: 8px; display: grid; grid-template-columns: 40px 1fr 1fr 70px; align-items: center; gap: 8px; }
@@ -139,7 +154,7 @@ html, body {
 .position-item .close-btn { padding: 6px; font-size: 12px; background: var(--border-color); }
 
 .event-modal-icon { font-size: 48px; margin-bottom: 12px; }
-.event-modal-desc { color: var(--muted); margin-bottom: 20px; }
+.event-modal-desc { color: var(--muted); margin-bottom: 20px; text-align: left; line-height: 1.6; }
 
 </style>
 </head>
@@ -156,6 +171,7 @@ html, body {
   </div>
   <div id="chartWrap">
     <canvas id="chart"></canvas>
+    <div id="upcoming-event"></div>
     <div class="zoom-controls">
         <button id="zoom-in" class="zoom-btn">+</button>
         <button id="zoom-out" class="zoom-btn">-</button>
@@ -169,9 +185,11 @@ html, body {
     </div>
     <div class="playback-controls">
         <button class="btn" id="play-pause-btn">▶</button>
+        <button class="btn" id="step-btn">逐K →</button>
         <div id="speed-controls">
-            <button class="btn speed-btn" data-speed="50">1x</button>
-            <button class="btn speed-btn active" data-speed="25">2x</button>
+            <button class="btn speed-btn" data-speed="200">0.5x</button>
+            <button class="btn speed-btn active" data-speed="100">1x</button>
+            <button class="btn speed-btn" data-speed="50">2x</button>
             <button class="btn speed-btn" data-speed="10">5x</button>
         </div>
     </div>
@@ -210,44 +228,25 @@ html, body {
 <script>
 // ===== 財經事件數據 =====
 const EVENTS = {
-  "2025-01-03": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
-  "2025-01-15": { time: "21:30", text: "🇺🇸 美國消費者物價指數 (CPI)", type: "CPI" },
-  "2025-01-23": { time: "20:45", text: "🇪🇺 歐洲央行利率決議 (ECB)", type: "ECB" },
-  "2025-01-29": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
-  "2025-02-07": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
-  "2025-02-14": { time: "21:30", text: "🇺� 美國零售銷售數據", type: "Retail" },
-  "2025-02-27": { time: "21:30", text: "🇺🇸 美國 GDP 數據", type: "GDP" },
-  "2025-03-07": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
-  "2025-03-13": { time: "20:45", text: "🇪🇺 歐洲央行利率決議 (ECB)", type: "ECB" },
-  "2025-03-19": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
-  "2025-04-04": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
-  "2025-04-16": { time: "21:30", text: "🇺🇸 美國消費者物價指數 (CPI)", type: "CPI" },
-  "2025-04-20": { time: "10:00", text: "🌏 G7 財長會議", type: "Geopolitical" },
-  "2025-05-01": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
-  "2025-05-02": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
-  "2025-05-15": { time: "09:30", text: "🇺🇸 白宮宣布對華新一輪關稅清單", type: "Geopolitical" },
-  "2025-06-06": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
-  "2025-06-12": { time: "20:45", text: "🇪🇺 歐洲央行利率決議 (ECB)", type: "ECB" },
-  "2025-06-19": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
-  "2025-07-04": { time: "00:00", text: "🇺🇸 美國獨立紀念日 (美股休市)", type: "Holiday" },
-  "2025-07-16": { time: "21:30", text: "🇺🇸 美國消費者物價指數 (CPI)", type: "CPI" },
-  "2025-07-22": { time: "22:00", text: "🇺🇸 美國總統發表重要經濟演說", type: "Geopolitical" },
-  "2025-07-31": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
-  "2025-08-01": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
-  "2025-08-15": { time: "21:30", text: "🇺🇸 美國零售銷售數據", type: "Retail" },
-  "2025-08-28": { time: "22:00", text: "🌏 傑克森霍爾全球央行年會", type: "Geopolitical" },
-};
-
-const EVENT_DESCRIPTIONS = {
-    "NFP": "今晚將公布俗稱「非農」的美國就業數據，這是市場最關注的指標之一。數據好壞將劇烈影響黃金價格，市場屏息以待！",
-    "CPI": "通膨數據 CPI 即將出爐！這個數字將決定聯準會的下一步棋。高於預期可能導致金價下跌，反之則可能上漲。",
-    "FOMC": "凌晨三點，聯準會將宣布最新的利率決策。主席鮑威爾的發言更是焦點中的焦點，任何鷹派或鴿派的暗示都可能引發市場巨震。",
-    "Retail": "零售銷售數據是觀察消費支出的重要窗口，強勁的數據可能提振美元，對金價造成壓力。",
-    "GDP": "美國 GDP 數據公布在即，這是衡量經濟健康狀況的終極指標。結果將影響市場對未來利率路徑的預期。",
-    "ECB": "歐洲央行將舉行利率決策會議。其對歐元區的通膨和經濟展望，將間接影響美元強弱，從而牽動黃金。",
-    "Geopolitical": "地緣政治風險升溫！市場避險情緒高漲，黃金作為傳統避險資產，其價格可能出現劇烈波動。",
-    "Holiday": "今日因市場假日休市，交易量可能較為清淡，但需留意流動性不足可能引發的突發波動。",
-    "DEFAULT": "市場正處於關鍵時刻，多空雙方激烈交戰。請根據眼前的線索，做出你的判斷！"
+  "2025-01-03": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "俗稱「非農」的美國就業數據是市場最關注的指標之一。數據好壞將劇烈影響黃金價格，市場屏息以待！" },
+  "2025-01-20": { time: "12:00", title: "🇺🇸 美國總統就職典禮", desc: "新任美國總統將於華盛頓特區宣誓就職。就職演說通常會概述新政府的施政藍圖，內容可能涉及國內外政策、經濟方向等，這些都可能成為市場關注的焦點。" },
+  "2025-01-30": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "歐洲央行管理委員會將召開貨幣政策會議並發布利率決策聲明。市場將關注其對歐元區經濟前景和通膨路徑的最新評估。" },
+  "2025-02-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "本月非農數據公布，將再次考驗市場對美國經濟復甦力度的信心。" },
+  "2025-03-05": { time: "10:00", title: "🇨🇳 中國全國人民代表大會年會開幕", desc: "中國將公布當年度的GDP增長目標、財政預算等主要經濟指標，並闡述相關政策方向。" },
+  "2025-03-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "連續第三個月的非農數據，市場將尋找勞動力市場是否持續穩定的線索。" },
+  "2025-03-19": { time: "03:00", title: "🇺🇸 聯準會利率決策 (FOMC)", desc: "聯準會將發布利率決策，會議將包含最新的經濟預測摘要 (SEP) 和「點陣圖」，揭示未來利率路徑預期。" },
+  "2025-04-04": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "第二季度的首次非農報告，將為市場對上半年的經濟預測定下基調。" },
+  "2025-04-10": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "在第一季經濟數據公布之後，市場將關注歐洲央行是否會根據最新數據調整其貨幣政策立場。" },
+  "2025-04-21": { time: "09:00", title: "IMF 《世界經濟展望》報告", desc: "國際貨幣基金組織將更新對全球主要經濟體的增長預測，並分析全球面臨的潛在風險。" },
+  "2025-05-02": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "春季的就業市場表現如何？本次非農數據將提供關鍵答案。" },
+  "2025-05-09": { time: "15:00", title: "🇷🇺 俄羅斯勝利日閱兵", desc: "俄羅斯總統通常會發表演說，市場會關注其發言是否包含任何新的地緣政治信號。" },
+  "2025-06-06": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "夏季前的最後一次重要就業報告，可能影響聯準會下半年的政策預期。" },
+  "2025-06-13": { time: "14:00", title: "G7 領袖峰會開幕", desc: "七國集團峰會在加拿大舉行，會議議程涵蓋全球經濟、氣候變遷、地緣政治等多項議題。" },
+  "2025-07-01": { time: "10:00", title: "🇨🇳 中國共產黨成立週年紀念日", desc: "相關活動和聲明可能會傳達關於中國未來發展方向的信號。" },
+  "2025-07-03": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "因7月4日為美國獨立日假期，本月非農數據提前至週四公布。" },
+  "2025-07-30": { time: "21:30", title: "🇺🇸 美國第二季GDP初值", desc: "該數據是衡量美國經濟健康狀況的重要指標，將提供對第二季度經濟活動的初步評估。" },
+  "2025-08-01": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "八月的非農報告，將為夏末的市場情緒定調。" },
+  "2025-08-15": { time: "12:00", title: "🇮🇳 印度獨立紀念日", desc: "印度總理將發表演說，闡述未來政府的施政重點，尤其是在經濟發展和外交政策方面。" }
 };
 
 // ===== 遊戲設定 =====
@@ -259,24 +258,15 @@ const CONFIG = {
 };
 
 // ===== 遊戲狀態與 DOM 元素 =====
-let state = {
-    fullDataset: [],
-    gameData: [],
-    currentBarIndex: 0,
-    positions: [],
-    account: { balance: CONFIG.initialBalance, equity: CONFIG.initialBalance },
-    isPaused: true,
-    gameTimer: null,
-    animationSpeed: 25,
-    view: { barsInView: 100, offset: 0 },
-    pan: { isPanning: false, startX: 0, startOffset: 0 }
-};
+let state = {};
 const el = id => document.getElementById(id);
 const canvas = el('chart'), ctx = canvas.getContext('2d');
 const chartWrap = el('chartWrap');
 const btnBuy = el('btnBuy'), btnSell = el('btnSell'), btnManage = el('btnManage');
 const orderModal = el('orderModal'), orderTitle = el('order-title'), confirmOrderBtn = el('confirmOrderBtn');
 const positionsModal = el('positionsModal');
+const eventModal = el('eventModal'), eventTitle = el('event-title'), eventDesc = el('event-desc');
+const upcomingEventEl = el('upcoming-event');
 
 // ===== 數據處理 =====
 async function loadData() {
@@ -285,12 +275,12 @@ async function loadData() {
     if (!response.ok) throw new Error('Network response was not ok');
     const text = await response.text();
     state.fullDataset = parseOHLC(text);
-    return true; // 返回成功標誌
+    return true;
   } catch (error) {
     console.error("無法載入或解析 CSV 數據:", error);
     el('game-title').textContent = "錯誤";
     el('game-subtitle').textContent = "無法載入市場數據，請刷新頁面。";
-    return false; // 返回失敗標誌
+    return false;
   }
 }
 
@@ -315,7 +305,6 @@ function startGame() {
   if (!state.fullDataset || state.fullDataset.length < 200) {
       el('game-title').textContent = "數據錯誤";
       el('game-subtitle').textContent = "市場數據不足或載入失敗，無法開始遊戲。";
-      console.error("數據不足，無法開始遊戲");
       return;
   }
   
@@ -325,7 +314,7 @@ function startGame() {
   state.account = { balance: CONFIG.initialBalance, equity: CONFIG.initialBalance };
   state.isPaused = true;
   clearInterval(state.gameTimer);
-  state.animationSpeed = 25;
+  state.animationSpeed = 100; // 預設 1x 速度
   state.view = { barsInView: 100, offset: 0 };
   state.pan = { isPanning: false, startX: 0, startOffset: 0 };
 
@@ -351,7 +340,7 @@ function startGame() {
   
   state.gameData = state.fullDataset.slice(randomStartIndex, endIndex);
   state.currentBarIndex = 0;
-  state.view.offset = -20;
+  state.view.offset = state.currentBarIndex - state.view.barsInView; // 讓最新 K 棒在最右邊
 
   updateHUD();
   draw();
@@ -383,8 +372,23 @@ function gameLoop() {
     }
     updatePositions();
     updateHUD();
-    state.view.offset++;
+    if (state.view.offset + state.view.barsInView < state.currentBarIndex + 5) {
+        state.view.offset++; // 自動滾動
+    }
     draw();
+}
+
+function stepForward() {
+    pauseGame();
+    if (state.currentBarIndex < state.gameData.length - 1) {
+        state.currentBarIndex++;
+        updatePositions();
+        updateHUD();
+        if (state.view.offset + state.view.barsInView < state.currentBarIndex + 5) {
+            state.view.offset++;
+        }
+        draw();
+    }
 }
 
 function pauseGame() {
@@ -451,6 +455,7 @@ function updateHUD() {
     pnlEl.className = `value ${totalPnl >= 0 ? 'pnl-up' : 'pnl-down'}`;
     const progress = state.currentBarIndex / state.gameData.length * 100;
     el('progress-bar-inner').style.width = `${progress}%`;
+    updateUpcomingEvent();
 }
 function updatePositionsList() {
     const listEl = el('positions-list');
@@ -464,9 +469,28 @@ function updatePositionsList() {
     }).join('');
 }
 function showEventModal(event) {
-    el('event-title').textContent = event.text;
-    el('event-desc').textContent = EVENT_DESCRIPTIONS[event.type] || "";
-    el('eventModal').classList.add('visible');
+    eventTitle.textContent = event.title;
+    eventDesc.textContent = event.desc;
+    eventModal.classList.add('visible');
+}
+function updateUpcomingEvent() {
+    let nextEvent = null;
+    let nextEventDate = null;
+    for (let i = state.currentBarIndex; i < state.gameData.length; i++) {
+        const bar = state.gameData[i];
+        const dateStr = bar.date.toISOString().slice(0, 10);
+        if (EVENTS[dateStr]) {
+            nextEvent = EVENTS[dateStr];
+            nextEventDate = dateStr;
+            break;
+        }
+    }
+    if (nextEvent) {
+        upcomingEventEl.textContent = `即將發生: ${nextEventDate} ${nextEvent.title}`;
+        upcomingEventEl.classList.add('visible');
+    } else {
+        upcomingEventEl.classList.remove('visible');
+    }
 }
 
 // ===== 繪圖 =====
@@ -563,22 +587,22 @@ async function init() {
   if (dataLoaded) {
     el('btnBuy').addEventListener('click', () => {
         pauseGame();
-        el('order-title').textContent = '建立買入訂單';
-        el('confirmOrderBtn').className = 'btn buy';
-        el('confirmOrderBtn').onclick = () => { openOrder('buy'); el('orderModal').classList.remove('visible'); };
-        el('orderModal').classList.add('visible');
+        orderTitle.textContent = '建立買入訂單';
+        confirmOrderBtn.className = 'btn buy';
+        confirmOrderBtn.onclick = () => { openOrder('buy'); orderModal.classList.remove('visible'); };
+        orderModal.classList.add('visible');
     });
     el('btnSell').addEventListener('click', () => {
         pauseGame();
-        el('order-title').textContent = '建立賣出訂單';
-        el('confirmOrderBtn').className = 'btn sell';
-        el('confirmOrderBtn').onclick = () => { openOrder('sell'); el('orderModal').classList.remove('visible'); };
-        el('orderModal').classList.add('visible');
+        orderTitle.textContent = '建立賣出訂單';
+        confirmOrderBtn.className = 'btn sell';
+        confirmOrderBtn.onclick = () => { openOrder('sell'); orderModal.classList.remove('visible'); };
+        orderModal.classList.add('visible');
     });
     el('btnManage').addEventListener('click', () => {
         pauseGame();
         updatePositionsList();
-        el('positionsModal').classList.add('visible');
+        positionsModal.classList.add('visible');
     });
     
     document.querySelectorAll('.modal-overlay').forEach(modal => {
@@ -597,6 +621,7 @@ async function init() {
     el('play-pause-btn').addEventListener('click', () => {
         state.isPaused ? resumeGame() : pauseGame();
     });
+    el('step-btn').addEventListener('click', stepForward);
     el('speed-controls').addEventListener('click', (e) => {
         if (e.target.classList.contains('speed-btn')) {
             document.querySelector('.speed-btn.active').classList.remove('active');
@@ -618,4 +643,3 @@ document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
-�
