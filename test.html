@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>漲跌預測挑戰</title>
+    <style>
+        :root {
+            --bg-color: #1a1e2b;
+            --panel-color: #2a2f42;
+            --text-color: #eef3ff;
+            --green-color: #28c782;
+            --red-color: #ff5f6d;
+            --green-glow: rgba(40, 199, 130, 0.4);
+            --red-glow: rgba(255, 95, 109, 0.4);
+            --border-color: #4b5169;
+            --font-family: 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: var(--bg-color);
+            font-family: var(--font-family);
+            color: var(--text-color);
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 400px;
+            height: 100%;
+            max-height: 700px;
+            background-color: var(--panel-color);
+            border-radius: 24px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            transform: scale(1);
+            transition: transform 0.3s ease;
+        }
+        
+        @media (max-height: 700px) {
+            #game-container {
+                border-radius: 0;
+                border: none;
+            }
+        }
+
+
+        #header {
+            text-align: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        #header h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        #header p {
+            margin: 4px 0 0;
+            font-size: 14px;
+            color: #9fa8da;
+        }
+
+        #chart-container {
+            flex-grow: 1;
+            position: relative;
+            padding: 10px 0;
+        }
+
+        #chart {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .price-line {
+            position: absolute;
+            left: 0;
+            right: 50px; /* 留給價格標籤的空間 */
+            height: 1px;
+            border-top: 1px dashed var(--border-color);
+            pointer-events: none;
+        }
+        
+        .price-label {
+            position: absolute;
+            right: 8px;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background-color: rgba(0,0,0,0.2);
+            transform: translateY(-50%);
+        }
+
+        #controls {
+            padding: 20px;
+            display: flex;
+            gap: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .control-btn {
+            flex-grow: 1;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .control-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        #buy-btn {
+            background: linear-gradient(180deg, #28c782, #1fa869);
+            box-shadow: 0 4px 0 #167a4c, 0 6px 12px var(--green-glow);
+        }
+
+        #buy-btn:hover {
+            background: linear-gradient(180deg, #32de91, #28c782);
+        }
+        
+        #buy-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #167a4c;
+        }
+
+        #sell-btn {
+            background: linear-gradient(180deg, #ff5f6d, #e64a57);
+            box-shadow: 0 4px 0 #b33a44, 0 6px 12px var(--red-glow);
+        }
+        
+        #sell-btn:hover {
+            background: linear-gradient(180deg, #ff7985, #ff5f6d);
+        }
+
+        #sell-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #b33a44;
+        }
+        
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: translateY(0);
+            box-shadow: 0 4px 0 #666;
+        }
+
+        #result-panel {
+            position: absolute;
+            inset: 0;
+            background-color: rgba(26, 30, 43, 0.85);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+            z-index: 10;
+        }
+
+        #result-panel.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        #result-title {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 0;
+            transform: scale(0.8);
+            opacity: 0;
+            transition: transform 0.5s ease, opacity 0.5s ease;
+        }
+        
+        #result-panel.visible #result-title {
+            transform: scale(1);
+            opacity: 1;
+            transition-delay: 0.2s;
+        }
+
+        #result-subtitle {
+            font-size: 18px;
+            margin: 10px 0 24px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: transform 0.5s ease, opacity 0.5s ease;
+        }
+
+        #result-panel.visible #result-subtitle {
+            opacity: 1;
+            transform: translateY(0);
+            transition-delay: 0.4s;
+        }
+
+        #cta-btn {
+            padding: 16px 32px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            background: linear-gradient(180deg, #4a72ff, #2a52e2);
+            color: white;
+            box-shadow: 0 4px 0 #1e3ca6, 0 6px 12px rgba(74, 114, 255, 0.3);
+            transition: all 0.2s ease;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        
+        #result-panel.visible #cta-btn {
+            opacity: 1;
+            transform: translateY(0);
+            transition-delay: 0.6s;
+        }
+
+        #cta-btn:hover {
+            background: linear-gradient(180deg, #6085ff, #4a72ff);
+        }
+        
+        #cta-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #1e3ca6;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="header">
+            <h1>15 秒後... 漲或跌？</h1>
+            <p>XAUUSD / 15分鐘線</p>
+        </div>
+        <div id="chart-container">
+            <canvas id="chart"></canvas>
+        </div>
+        <div id="controls">
+            <button id="buy-btn" class="control-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4L4 12H8V20H16V12H20L12 4Z"></path></svg>
+                買入 (漲)
+            </button>
+            <button id="sell-btn" class="control-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20L20 12H16V4H8V12H4L12 20Z"></path></svg>
+                賣出 (跌)
+            </button>
+        </div>
+        <div id="result-panel">
+            <h2 id="result-title">你贏了！</h2>
+            <p id="result-subtitle">獲利 +$1,250</p>
+            <button id="cta-btn">立即開始交易</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM 元素 ---
+        const canvas = document.getElementById('chart');
+        const ctx = canvas.getContext('2d');
+        const chartContainer = document.getElementById('chart-container');
+        const buyBtn = document.getElementById('buy-btn');
+        const sellBtn = document.getElementById('sell-btn');
+        const resultPanel = document.getElementById('result-panel');
+        const resultTitle = document.getElementById('result-title');
+        const resultSubtitle = document.getElementById('result-subtitle');
+        const ctaBtn = document.getElementById('cta-btn');
+
+        // --- 遊戲設定 ---
+        const config = {
+            totalCandles: 50,      // 圖表上總共的 K 棒數量
+            revealPoint: 35,       // 在第幾根 K 棒時讓玩家猜
+            revealDuration: 15,    // 揭示結果的 K 棒數量
+            candleWidthRatio: 0.6, // K 棒寬度佔可用空間的比例
+            animationSpeed: 120,   // 揭示動畫的速度 (ms)
+        };
+
+        // --- 遊戲狀態 ---
+        let gameState = {
+            data: [],
+            minPrice: 0,
+            maxPrice: 0,
+            isRevealing: false,
+            currentCandle: 0,
+        };
+
+        // --- 核心邏輯 ---
+
+        /**
+         * 生成模擬的 K 線數據
+         * @returns {Array} 包含 {o, h, l, c} 物件的陣列
+         */
+        function generateCandleData() {
+            const data = [];
+            let price = 1800 + Math.random() * 100; // 初始價格
+            for (let i = 0; i < config.totalCandles; i++) {
+                const direction = Math.random() > 0.5 ? 1 : -1;
+                const volatility = Math.random() * 5 + 1;
+                const open = price;
+                const close = open + (Math.random() * volatility * direction);
+                const high = Math.max(open, close) + Math.random() * 2;
+                const low = Math.min(open, close) - Math.random() * 2;
+                data.push({ o: open, h: high, l: low, c: close });
+                price = close;
+            }
+            return data;
+        }
+
+        /**
+         * 繪製整個圖表
+         */
+        function drawChart() {
+            const { clientWidth: w, clientHeight: h } = canvas;
+            canvas.width = w * devicePixelRatio;
+            canvas.height = h * devicePixelRatio;
+            ctx.scale(devicePixelRatio, devicePixelRatio);
+
+            ctx.clearRect(0, 0, w, h);
+
+            const dataSlice = gameState.data.slice(0, gameState.currentCandle);
+            if (dataSlice.length === 0) return;
+
+            // 計算可視範圍內的最大最小值
+            const visibleData = gameState.data.slice(0, config.totalCandles);
+            const min = Math.min(...visibleData.map(d => d.l));
+            const max = Math.max(...visibleData.map(d => d.h));
+            const priceRange = max - min;
+            const yPadding = priceRange * 0.1;
+            gameState.minPrice = min - yPadding;
+            gameState.maxPrice = max + yPadding;
+            const effectiveRange = gameState.maxPrice - gameState.minPrice;
+
+            const candleSpacing = w / config.totalCandles;
+            const candleWidth = candleSpacing * config.candleWidthRatio;
+
+            // 繪製 K 棒
+            dataSlice.forEach((d, i) => {
+                const x = i * candleSpacing + candleSpacing / 2;
+                const yOpen = h - ((d.o - gameState.minPrice) / effectiveRange * h);
+                const yClose = h - ((d.c - gameState.minPrice) / effectiveRange * h);
+                const yHigh = h - ((d.h - gameState.minPrice) / effectiveRange * h);
+                const yLow = h - ((d.l - gameState.minPrice) / effectiveRange * h);
+
+                const isUp = d.c >= d.o;
+                ctx.strokeStyle = isUp ? 'var(--green-color)' : 'var(--red-color)';
+                
+                // 影線
+                ctx.beginPath();
+                ctx.moveTo(x, yHigh);
+                ctx.lineTo(x, yLow);
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // 實體
+                ctx.fillStyle = isUp ? 'var(--green-color)' : 'var(--red-color)';
+                ctx.fillRect(x - candleWidth / 2, Math.min(yOpen, yClose), candleWidth, Math.max(1, Math.abs(yOpen - yClose)));
+            });
+            
+            // 繪製當前價格線
+            drawCurrentPriceLine(dataSlice[dataSlice.length - 1].c, w, h, effectiveRange);
+        }
+        
+        /**
+         * 繪製當前價格線和標籤
+         */
+        function drawCurrentPriceLine(price, w, h, effectiveRange) {
+             // 清除舊的價格線和標籤
+            const oldLines = chartContainer.querySelectorAll('.price-line, .price-label');
+            oldLines.forEach(el => el.remove());
+
+            const y = h - ((price - gameState.minPrice) / effectiveRange * h);
+            const isUp = price >= gameState.data[0].o;
+
+            // 價格線
+            const line = document.createElement('div');
+            line.className = 'price-line';
+            line.style.top = `${y}px`;
+            line.style.borderColor = isUp ? 'var(--green-color)' : 'var(--red-color)';
+            chartContainer.appendChild(line);
+
+            // 價格標籤
+            const label = document.createElement('div');
+            label.className = 'price-label';
+            label.textContent = price.toFixed(2);
+            label.style.top = `${y}px`;
+            label.style.backgroundColor = isUp ? 'var(--green-color)' : 'var(--red-color)';
+            label.style.color = '#fff';
+            chartContainer.appendChild(label);
+        }
+
+        /**
+         * 處理玩家選擇
+         * @param {string} choice - 'buy' 或 'sell'
+         */
+        function handleChoice(choice) {
+            if (gameState.isRevealing) return;
+
+            gameState.isRevealing = true;
+            buyBtn.disabled = true;
+            sellBtn.disabled = true;
+
+            const startPrice = gameState.data[config.revealPoint - 1].c;
+            const endPrice = gameState.data[config.totalCandles - 1].c;
+
+            const isWin = (choice === 'buy' && endPrice >= startPrice) || (choice === 'sell' && endPrice < startPrice);
+            
+            // 開始揭示動畫
+            const revealInterval = setInterval(() => {
+                if (gameState.currentCandle >= config.totalCandles) {
+                    clearInterval(revealInterval);
+                    showResult(isWin, startPrice, endPrice);
+                } else {
+                    gameState.currentCandle++;
+                    drawChart();
+                }
+            }, config.animationSpeed);
+        }
+
+        /**
+         * 顯示結果面板
+         */
+        function showResult(isWin, startPrice, endPrice) {
+            const profit = Math.abs(endPrice - startPrice) * 100 * (Math.random() * 0.5 + 0.8);
+            
+            if (isWin) {
+                resultTitle.textContent = '預測成功！';
+                resultTitle.style.color = 'var(--green-color)';
+                resultSubtitle.textContent = `獲利 +$${profit.toFixed(2)}`;
+            } else {
+                resultTitle.textContent = '預測失敗';
+                resultTitle.style.color = 'var(--red-color)';
+                resultSubtitle.textContent = `虧損 -$${profit.toFixed(2)}`;
+            }
+            resultPanel.classList.add('visible');
+        }
+
+        /**
+         * 重置遊戲
+         */
+        function resetGame() {
+            gameState.data = generateCandleData();
+            gameState.isRevealing = false;
+            gameState.currentCandle = config.revealPoint;
+            
+            resultPanel.classList.remove('visible');
+            buyBtn.disabled = false;
+            sellBtn.disabled = false;
+            
+            drawChart();
+        }
+        
+        /**
+         * 初始化遊戲
+         */
+        function init() {
+            // 綁定事件
+            buyBtn.addEventListener('click', () => handleChoice('buy'));
+            sellBtn.addEventListener('click', () => handleChoice('sell'));
+            ctaBtn.addEventListener('click', () => {
+                // 在這裡可以換成真實的連結
+                console.log('CTA Clicked!');
+                window.open('https://example.com', '_blank');
+                resetGame();
+            });
+            
+            // 監聽視窗大小變化以重繪圖表
+            new ResizeObserver(drawChart).observe(chartContainer);
+
+            resetGame();
+        }
+
+        // 啟動遊戲
+        init();
+    </script>
+</body>
+</html>
