@@ -336,6 +336,31 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    // [FIXED] 創建一個只重置遊戲狀態的函數，保留已載入的數據
+    function resetGame() {
+        state.gameData = [];
+        state.currentBarIndex = 0;
+        state.account = { balance: 10000, equity: 10000 };
+        state.positions = [];
+        state.journal = [];
+        if (state.gameLoopInterval) clearInterval(state.gameLoopInterval);
+        state.gameLoopInterval = null;
+        state.isPaused = true;
+        state.view = {
+            firstBarIndex: 0,
+            barsOnScreen: 100,
+            priceMin: 0,
+            priceMax: 0,
+            isDragging: false,
+            lastMouseX: 0,
+            lastMouseY: 0,
+            zoom: 1,
+        };
+        state.animation.isAnimating = false;
+        state.needsRedraw = true;
+        playPauseBtn.innerHTML = ICONS.PLAY;
+    }
+
     // --- 財經事件系統 ---
     const financialEvents = [
         { day: 3, title: "美國非農就業數據公布", body: "數據遠超預期，市場波動性可能急劇增加，請謹慎操作。" },
@@ -352,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
         
-        initState();
+        initState(); // 全局狀態只在最開始初始化一次
         bindPermanentEventListeners();
         
         playPauseBtn.innerHTML = ICONS.PLAY;
@@ -419,20 +444,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     const o = parseFloat(parts[2]);
                     if (isNaN(o)) continue;
                     
-                    // [FIXED] 更強健的日期解析邏輯
                     const dateParts = parts[0].split('.');
                     const timeParts = parts[1].split(':');
                     if (dateParts.length < 3 || timeParts.length < 3) continue;
                     
                     const year = parseInt(dateParts[0], 10);
-                    const month = parseInt(dateParts[1], 10) - 1; // JavaScript 的月份是 0-11
+                    const month = parseInt(dateParts[1], 10) - 1;
                     const day = parseInt(dateParts[2], 10);
                     const hour = parseInt(timeParts[0], 10);
                     const minute = parseInt(timeParts[1], 10);
                     const second = parseInt(timeParts[2], 10);
 
                     const time = new Date(year, month, day, hour, minute, second).getTime();
-                    if (isNaN(time)) continue; // 如果日期無效，跳過此行
+                    if (isNaN(time)) continue;
 
                     data.push({
                         time: time,
@@ -454,7 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * 3. 遊戲流程模組
      */
     function startGame() {
-        initState();
+        resetGame(); // [FIXED] 使用 resetGame 而不是 initState，以保留 fullDataset
         
         const dataPointsPerMonth = 30 * 24 * 4;
         if (state.fullDataset.length <= dataPointsPerMonth) {
