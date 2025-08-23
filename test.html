@@ -57,7 +57,9 @@ html, body {
   position: relative;
   background: var(--panel-soft);
   min-height: 0;
+  cursor: grab;
 }
+#chartWrap:active { cursor: grabbing; }
 #chart { width: 100%; height: 100%; display: block; }
 .decision-line {
   position: absolute;
@@ -83,6 +85,25 @@ html, body {
     color: var(--muted);
     font-size: 12px;
     transform: translateX(-50%);
+}
+.zoom-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 10;
+}
+.zoom-btn {
+    width: 32px;
+    height: 32px;
+    background: rgba(42, 47, 66, 0.8);
+    border: 1px solid var(--border-color);
+    color: var(--text);
+    border-radius: 8px;
+    font-size: 20px;
+    cursor: pointer;
 }
 
 /* --- 底部操作區 --- */
@@ -145,6 +166,10 @@ html, body {
   </div>
   <div id="chartWrap">
     <canvas id="chart"></canvas>
+    <div class="zoom-controls">
+        <button id="zoom-in" class="zoom-btn">+</button>
+        <button id="zoom-out" class="zoom-btn">-</button>
+    </div>
   </div>
   <div class="actions-panel">
     <div class="main-actions">
@@ -168,13 +193,13 @@ html, body {
 const EVENTS = {
   "2025-01-03": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
   "2025-01-15": { time: "21:30", text: "🇺🇸 美國消費者物價指數 (CPI)", type: "CPI" },
-  "2025-01-29": { time: "03:00", text: "�🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
+  "2025-01-29": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
   "2025-02-07": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
   "2025-03-07": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
   "2025-03-19": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
   "2025-04-04": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
   "2025-05-01": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
-  "2025-05-02": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
+  "2025-05-02": { time: "21:30", text: "�🇸 美國非農就業數據 (NFP)", type: "NFP" },
   "2025-06-06": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
   "2025-06-19": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
   "2025-07-31": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
@@ -188,31 +213,44 @@ const EVENT_DESCRIPTIONS = {
     "DEFAULT": "市場正處於關鍵時刻，多空雙方激烈交戰。請根據眼前的線索，做出你的判斷！"
 };
 
-
 // ===== 遊戲設定 =====
 const CONFIG = {
-  historyBars: 150,   // 顯示約 1.5 天的歷史 K 棒
-  futureBars: 30,    // 預測未來 30 根 K 棒
+  futureBars: 30,
   animationSpeed: 60,
+  minBarsInView: 20,  // 放大時最少顯示幾根 K 棒
+  maxBarsInView: 200, // 縮小時最多顯示幾根 K 棒
 };
 
-// ===== 遊戲狀態與 DOM 元素 (與前版類似) =====
-const state = { fullDataset: [], currentGameData: [], isRevealing: false };
+// ===== 遊戲狀態與 DOM 元素 =====
+const state = { 
+    fullDataset: [], 
+    currentGameData: [], 
+    isRevealing: false,
+    view: {
+        barsInView: 100, // 預設顯示 100 根
+        offset: 0, // 視圖偏移量 (以 K 棒為單位)
+    },
+    pan: {
+        isPanning: false,
+        startX: 0,
+        startOffset: 0,
+    }
+};
 const el = id => document.getElementById(id);
 const canvas = el('chart'), ctx = canvas.getContext('2d');
 const buyBtn = el('btnBuy'), sellBtn = el('btnSell');
 const resultModal = el('resultModal'), resultTitle = el('result-title'), resultSubtitle = el('result-subtitle');
 const btnCta = el('btnCta'), btnRetry = el('btnRetry');
 const gameTitle = el('game-title'), gameSubtitle = el('game-subtitle');
+const chartWrap = el('chartWrap');
 
-// ===== 數據處理 (重大修改) =====
+// ===== 數據處理 =====
 async function loadData() {
   try {
     const response = await fetch('XAUUSD_M15.csv');
     if (!response.ok) throw new Error('Network response was not ok');
     const text = await response.text();
     state.fullDataset = parseOHLC(text);
-    console.log(`成功載入 ${state.fullDataset.length} 筆數據`);
   } catch (error) {
     console.error("無法載入或解析 CSV 數據:", error);
     gameTitle.textContent = "錯誤";
@@ -221,10 +259,8 @@ async function loadData() {
 }
 
 function parseOHLC(text) {
-  if (!text) return [];
   const lines = text.split(/\r?\n/).filter(l => l && !/^\s*$/.test(l));
   if (lines.length < 2) return [];
-  
   return lines.slice(1).map(line => {
     const parts = line.split('\t');
     if (parts.length < 6) return null;
@@ -232,33 +268,46 @@ function parseOHLC(text) {
     const timeStr = parts[1];
     return {
       date: new Date(`${dateStr}T${timeStr}`),
-      o: parseFloat(parts[2]),
-      h: parseFloat(parts[3]),
-      l: parseFloat(parts[4]),
-      c: parseFloat(parts[5]),
+      o: parseFloat(parts[2]), h: parseFloat(parts[3]),
+      l: parseFloat(parts[4]), c: parseFloat(parts[5]),
     };
   }).filter(Boolean);
 }
 
-// ===== 遊戲流程 (重大修改) =====
+// ===== 遊戲流程 =====
 function startGame() {
-  if (state.fullDataset.length < CONFIG.historyBars + CONFIG.futureBars) return;
+  if (state.fullDataset.length < 200) return; // 確保有足夠數據
 
   state.isRevealing = false;
   buyBtn.disabled = false;
   sellBtn.disabled = false;
   resultModal.classList.remove('visible');
   
-  const totalGameBars = CONFIG.historyBars + CONFIG.futureBars;
-  const startIndex = Math.floor(Math.random() * (state.fullDataset.length - totalGameBars));
-  state.currentGameData = state.fullDataset.slice(startIndex, startIndex + totalGameBars);
+  // 隨機選取一個決策點 (至少離數據結尾有 futureBars 的距離)
+  const decisionIndex = Math.floor(Math.random() * (state.fullDataset.length - CONFIG.futureBars - 100)) + 100;
+  const decisionDate = state.fullDataset[decisionIndex].date;
+  
+  // 找到昨天 00:00 的索引
+  let yesterday = new Date(decisionDate);
+  yesterday.setDate(yesterday.getDate() - 1);
+  yesterday.setHours(0, 0, 0, 0);
+  
+  let startIndex = state.fullDataset.findIndex(bar => bar.date >= yesterday);
+  if (startIndex === -1) startIndex = 0;
 
-  // 檢查並設置事件情境
+  state.currentGameData = state.fullDataset.slice(startIndex, decisionIndex + CONFIG.futureBars);
+  state.historyBars = decisionIndex - startIndex;
+
+  // 重置視圖
+  state.view.barsInView = 100;
+  state.view.offset = state.historyBars - state.view.barsInView; // 讓決策線在最右邊
+
+  // 設置事件情境
   let eventFound = false;
-  for (let i = CONFIG.historyBars; i < state.currentGameData.length; i++) {
+  for (let i = state.historyBars; i < state.currentGameData.length; i++) {
       const bar = state.currentGameData[i];
       const dateStr = bar.date.toISOString().slice(0, 10);
-      if (EVENTS[dateStr] && bar.date.getUTCHours() * 60 + bar.date.getUTCMinutes() >= parseInt(EVENTS[dateStr].time.split(':')[0]) * 60) {
+      if (EVENTS[dateStr]) {
           gameTitle.textContent = EVENTS[dateStr].text;
           gameSubtitle.textContent = EVENT_DESCRIPTIONS[EVENTS[dateStr].type] || EVENT_DESCRIPTIONS.DEFAULT;
           eventFound = true;
@@ -270,7 +319,7 @@ function startGame() {
       gameSubtitle.textContent = EVENT_DESCRIPTIONS.DEFAULT;
   }
 
-  draw(false);
+  draw();
 }
 
 function handleChoice(choice) {
@@ -280,38 +329,33 @@ function handleChoice(choice) {
   sellBtn.disabled = true;
   gameTitle.textContent = "揭曉結果...";
 
-  const startPrice = state.currentGameData[CONFIG.historyBars - 1].c;
+  const startPrice = state.currentGameData[state.historyBars - 1].c;
   const endPrice = state.currentGameData[state.currentGameData.length - 1].c;
   const isWin = (choice === 'buy' && endPrice >= startPrice) || (choice === 'sell' && endPrice < startPrice);
 
-  let currentBar = CONFIG.historyBars;
+  let currentBar = state.historyBars;
   const revealInterval = setInterval(() => {
     currentBar++;
     if (currentBar > state.currentGameData.length) {
       clearInterval(revealInterval);
       showResult(isWin, startPrice, endPrice);
     } else {
-      draw(false, currentBar);
+      state.view.offset = currentBar - state.view.barsInView; // 讓動畫跟隨
+      draw(currentBar);
     }
   }, CONFIG.animationSpeed);
 }
 
 function showResult(isWin, startPrice, endPrice) {
   const profit = Math.abs(endPrice - startPrice) * 10 * (Math.random() * 0.5 + 0.8);
-  if (isWin) {
-    resultTitle.textContent = '預測成功！';
-    resultTitle.className = 'modal-title win';
-    resultSubtitle.textContent = `獲利 +$${profit.toFixed(2)}`;
-  } else {
-    resultTitle.textContent = '再接再厲';
-    resultTitle.className = 'modal-title loss';
-    resultSubtitle.textContent = `虧損 -$${profit.toFixed(2)}`;
-  }
+  resultTitle.textContent = isWin ? '預測成功！' : '再接再厲';
+  resultTitle.className = `modal-title ${isWin ? 'win' : 'loss'}`;
+  resultSubtitle.textContent = `${isWin ? '獲利' : '虧損'} ${isWin ? '+' : '-'}$${profit.toFixed(2)}`;
   resultModal.classList.add('visible');
 }
 
-// ===== 繪圖 (重大修改) =====
-function draw(isFinal, visibleBars = CONFIG.historyBars) {
+// ===== 繪圖 =====
+function draw(visibleBars = state.historyBars) {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
   canvas.width = rect.width * dpr;
@@ -321,85 +365,148 @@ function draw(isFinal, visibleBars = CONFIG.historyBars) {
 
   ctx.clearRect(0, 0, W, H);
   
-  const dataToDraw = state.currentGameData.slice(0, visibleBars);
-  if (dataToDraw.length === 0) return;
+  const startIdx = Math.floor(state.view.offset);
+  const endIdx = startIdx + Math.floor(state.view.barsInView);
+  const dataInView = state.currentGameData.slice(Math.max(0, startIdx), Math.min(state.currentGameData.length, endIdx));
+  if (dataInView.length === 0) return;
 
-  const hi = Math.max(...state.currentGameData.map(b => b.h));
-  const lo = Math.min(...state.currentGameData.map(b => b.l));
+  const hi = Math.max(...dataInView.map(b => b.h));
+  const lo = Math.min(...dataInView.map(b => b.l));
   const pad = (hi - lo) * 0.15 || 5;
   const yMax = hi + pad, yMin = lo - pad;
-  const xStep = W / (state.currentGameData.length - 1);
+  const barWidth = W / state.view.barsInView;
   const y = v => H - ((v - yMin) / (yMax - yMin) * H);
 
   // 繪製日期分隔線和時間標籤
   document.querySelectorAll('.time-axis-label').forEach(el => el.remove());
   let lastDateStr = '';
-  dataToDraw.forEach((b, i) => {
-    const currentDateStr = b.date.toISOString().slice(0, 10);
+  for (let i = startIdx; i < endIdx; i++) {
+    if (i < 0 || i >= state.currentGameData.length) continue;
+    const bar = state.currentGameData[i];
+    const currentDateStr = bar.date.toISOString().slice(0, 10);
     if (i > 0 && currentDateStr !== lastDateStr) {
+      const x = (i - startIdx) * barWidth;
       ctx.strokeStyle = 'rgba(138, 147, 176, 0.3)';
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(i * xStep, 0);
-      ctx.lineTo(i * xStep, H);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
       ctx.setLineDash([]);
       
       const label = document.createElement('div');
       label.className = 'time-axis-label';
       label.textContent = currentDateStr.slice(5);
-      label.style.left = `${i * xStep}px`;
+      label.style.left = `${x}px`;
       el('chartWrap').appendChild(label);
     }
     lastDateStr = currentDateStr;
-  });
+  }
 
   // 繪製 K 棒
-  dataToDraw.forEach((b, i) => {
-    const x = i * xStep;
+  for (let i = 0; i < dataInView.length; i++) {
+    const b = dataInView[i];
+    const x = i * barWidth + barWidth / 2;
     const up = b.c >= b.o;
-    ctx.strokeStyle = up ? 'var(--k-up-stroke)' : 'var(--k-down-stroke)';
-    ctx.fillStyle = up ? 'var(--k-up-fill)' : 'var(--k-down-fill)';
+    ctx.strokeStyle = up ? 'var(--good)' : 'var(--danger)';
+    ctx.fillStyle = up ? 'rgba(40, 199, 130, 0.3)' : 'rgba(255, 95, 109, 0.3)';
     ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(x, y(b.h));
-    ctx.lineTo(x, y(b.l));
-    ctx.stroke();
-    const w = Math.max(2, xStep * 0.7);
+    ctx.beginPath(); ctx.moveTo(x, y(b.h)); ctx.lineTo(x, y(b.l)); ctx.stroke();
+    const w = Math.max(2, barWidth * 0.7);
     const y1 = y(b.o), y2 = y(b.c);
     ctx.fillRect(x - w / 2, Math.min(y1, y2), w, Math.max(1, Math.abs(y1 - y2)));
-  });
+  }
 
   // 繪製決策線和價格標籤
   document.querySelectorAll('.decision-line, .price-tag').forEach(el => el.remove());
-  const decisionBarIndex = CONFIG.historyBars - 1;
-  const decisionLineX = decisionBarIndex * xStep;
-  
-  const line = document.createElement('div');
-  line.className = 'decision-line';
-  line.style.left = `${decisionLineX}px`;
-  el('chartWrap').appendChild(line);
-
-  const startPrice = state.currentGameData[decisionBarIndex].c;
-  const startTag = document.createElement('div');
-  startTag.className = 'price-tag';
-  startTag.textContent = startPrice.toFixed(2);
-  startTag.style.left = `${decisionLineX + 5}px`;
-  startTag.style.top = `${y(startPrice)}px`;
-  startTag.style.background = 'var(--accent)';
-  el('chartWrap').appendChild(startTag);
-
-  if (visibleBars > CONFIG.historyBars) {
-      const endPrice = dataToDraw[dataToDraw.length - 1].c;
-      const endTag = document.createElement('div');
-      endTag.className = 'price-tag';
-      endTag.textContent = endPrice.toFixed(2);
-      endTag.style.left = `${(visibleBars - 1) * xStep + 5}px`;
-      endTag.style.top = `${y(endPrice)}px`;
-      endTag.style.background = endPrice >= startPrice ? 'var(--good)' : 'var(--danger)';
-      el('chartWrap').appendChild(endTag);
+  const decisionBarIndex = state.historyBars - 1;
+  if (decisionBarIndex >= startIdx && decisionBarIndex < endIdx) {
+      const decisionLineX = (decisionBarIndex - startIdx) * barWidth;
+      const line = document.createElement('div');
+      line.className = 'decision-line';
+      line.style.left = `${decisionLineX}px`;
+      chartWrap.appendChild(line);
+      
+      const startPrice = state.currentGameData[decisionBarIndex].c;
+      const startTag = document.createElement('div');
+      startTag.className = 'price-tag';
+      startTag.textContent = startPrice.toFixed(2);
+      startTag.style.left = `${decisionLineX + 5}px`;
+      startTag.style.top = `${y(startPrice)}px`;
+      startTag.style.background = 'var(--accent)';
+      chartWrap.appendChild(startTag);
   }
+  
+  if (visibleBars > state.historyBars) {
+      const lastBarIndex = visibleBars - 1;
+      if (lastBarIndex >= startIdx && lastBarIndex < endIdx) {
+          const endPrice = state.currentGameData[lastBarIndex].c;
+          const endTag = document.createElement('div');
+          endTag.className = 'price-tag';
+          endTag.textContent = endPrice.toFixed(2);
+          endTag.style.left = `${(lastBarIndex - startIdx) * barWidth + 5}px`;
+          endTag.style.top = `${y(endPrice)}px`;
+          endTag.style.background = endPrice >= state.currentGameData[decisionBarIndex].c ? 'var(--good)' : 'var(--danger)';
+          chartWrap.appendChild(endTag);
+      }
+  }
+}
+
+// ===== 互動控制 =====
+function handleZoom(direction) {
+    const oldBarsInView = state.view.barsInView;
+    const newBarsInView = direction > 0 
+        ? Math.max(CONFIG.minBarsInView, oldBarsInView / 1.5)
+        : Math.min(CONFIG.maxBarsInView, oldBarsInView * 1.5);
+    
+    const centerBar = state.view.offset + oldBarsInView / 2;
+    state.view.offset = centerBar - newBarsInView / 2;
+    state.view.barsInView = newBarsInView;
+    
+    clampOffset();
+    draw();
+}
+
+function clampOffset() {
+    state.view.offset = Math.max(0, Math.min(state.view.offset, state.currentGameData.length - state.view.barsInView));
+}
+
+function setupInteraction() {
+    // Zoom buttons
+    el('zoom-in').onclick = () => handleZoom(1);
+    el('zoom-out').onclick = () => handleZoom(-1);
+
+    // Mouse wheel zoom
+    chartWrap.addEventListener('wheel', e => {
+        e.preventDefault();
+        handleZoom(e.deltaY < 0 ? 1 : -1);
+    }, { passive: false });
+
+    // Panning
+    const startPan = (x) => {
+        if (state.isRevealing) return;
+        state.pan.isPanning = true;
+        state.pan.startX = x;
+        state.pan.startOffset = state.view.offset;
+    };
+    const movePan = (x) => {
+        if (!state.pan.isPanning) return;
+        const dx = x - state.pan.startX;
+        const barWidth = chartWrap.clientWidth / state.view.barsInView;
+        state.view.offset = state.pan.startOffset - dx / barWidth;
+        clampOffset();
+        draw();
+    };
+    const endPan = () => {
+        state.pan.isPanning = false;
+    };
+
+    chartWrap.addEventListener('mousedown', e => startPan(e.clientX));
+    chartWrap.addEventListener('mousemove', e => movePan(e.clientX));
+    chartWrap.addEventListener('mouseup', endPan);
+    chartWrap.addEventListener('mouseleave', endPan);
+
+    chartWrap.addEventListener('touchstart', e => startPan(e.touches[0].clientX), { passive: true });
+    chartWrap.addEventListener('touchmove', e => movePan(e.touches[0].clientX), { passive: true });
+    chartWrap.addEventListener('touchend', endPan);
 }
 
 // ===== 初始化 =====
@@ -409,11 +516,10 @@ async function init() {
   buyBtn.addEventListener('click', () => handleChoice('buy'));
   sellBtn.addEventListener('click', () => handleChoice('sell'));
   btnRetry.addEventListener('click', startGame);
-  btnCta.addEventListener('click', () => {
-      window.open('https://example.com', '_blank');
-  });
+  btnCta.addEventListener('click', () => window.open('https://example.com', '_blank'));
 
-  new ResizeObserver(() => draw(state.isRevealing, state.isRevealing ? state.currentGameData.length : CONFIG.historyBars)).observe(el('chartWrap'));
+  setupInteraction();
+  new ResizeObserver(() => draw()).observe(chartWrap);
 
   startGame();
 }
