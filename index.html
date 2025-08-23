@@ -11,6 +11,11 @@
   --accent:#2bb673; --accent2:#2aa3ff;
   --danger:#ff5f6d; --good:#21cf7a; --warn:#ffcc57;
   --grid:#1f2a4414;
+  /* 新增 K 線色彩：更高對比度提升可讀性 */
+  --k-up-stroke: rgba(52,211,153,0.9);
+  --k-up-fill:   rgba(52,211,153,0.3);
+  --k-down-stroke: rgba(248,113,113,0.9);
+  --k-down-fill:   rgba(248,113,113,0.3);
 }
 *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
 body{margin:0;background:linear-gradient(180deg,#f9fbff,#eef3ff 50%);color:var(--text)}
@@ -75,6 +80,20 @@ body{margin:0;background:linear-gradient(180deg,#f9fbff,#eef3ff 50%);color:var(-
 }
 .tour-tip .next{ margin-top:8px; display:inline-block; background:var(--accent); color:#0e1930; border:0; padding:6px 10px; border-radius:10px; }
 .tour-hi{ position:relative; z-index:9999; box-shadow:0 0 0 4px var(--accent2); }
+
+/* Mobile 優化：小螢幕下增大操作區域與排版 */
+@media (max-width: 768px) {
+  .layout { grid-template-columns: 1fr; }
+  .layout aside.market { order: 2; margin-top: 10px; }
+  #chartWrap { min-height: 360px; }
+  .orderDock { flex-wrap: wrap; justify-content: center; }
+  .orderDock label,
+  .orderDock .tag { flex: 1 1 calc(50% - 10px); margin-bottom: 8px; }
+  .orderDock .btn { flex: 1 1 calc(50% - 10px); margin-bottom: 8px; }
+  .panel table { font-size: 11px; }
+  .toolbar { flex-wrap: wrap; gap: 6px; }
+  .toolbar .seg button { flex: 1 1 auto; }
+}
 
 </style>
 </head>
@@ -287,34 +306,16 @@ function guideNext(){
   if(!state.tour.enabled){ m.style.display=t.style.display='none'; document.querySelectorAll('.tour-disabled').forEach(e=>e.disabled=false); document.querySelectorAll('.tour-hi').forEach(e=>e.classList.remove('tour-hi')); return; }
   const s = steps[state.tour.step];
   if(!s){ m.style.display=t.style.display='none'; state.tour.enabled=false; document.querySelectorAll('.tour-disabled').forEach(e=>e.disabled=false); document.querySelectorAll('.tour-hi').forEach(e=>e.classList.remove('tour-hi')); return; }
-  document.querySelectorAll('.wrap button, .wrap input').forEach(e=>{ e.disabled=true; e.classList.add('tour-disabled'); });
+  document.querySelectorAll('button,input').forEach(e=>{ e.disabled=true; e.classList.add('tour-disabled'); });
   if(s.enable){ s.enable.forEach(sel=>{ document.querySelectorAll(sel).forEach(e=>e.disabled=false); }); }
   document.querySelectorAll('.tour-hi').forEach(e=>e.classList.remove('tour-hi'));
-  const target=document.querySelector(s.el);
-  if(target){ target.classList.add('tour-hi');
-    const r = target.getBoundingClientRect();
-    m.style.display=t.style.display='block';
-    t.style.left=`${r.left}px`; t.style.top=`${r.bottom+8}px`;
-    t.innerHTML = `<div>${s.tip}</div><div style="margin-top:8px;display:flex;gap:6px"><button class="next btn">下一步</button><button class="btn" id="tourSkip">跳過</button></div>`;
-    t.querySelector('.next').onclick=()=>{ state.tour.step++; guideNext(); };
-    t.querySelector('#tourSkip').onclick=()=> tourOff();
-  } else {
-    // 目標不存在，自動跳下一步避免卡死
-    state.tour.step++;
-    return guideNext();
-  }
+  const target=document.querySelector(s.el); target?.classList.add('tour-hi');
+  const r = target.getBoundingClientRect();
+  m.style.display=t.style.display='block';
+  t.style.left=`${r.left}px`; t.style.top=`${r.bottom+8}px`;
+  t.innerHTML = `<div>${s.tip}</div><button class="next btn">下一步</button>`;
+  t.querySelector('.next').onclick=()=>{ state.tour.step++; guideNext(); };
 }
-
-function tourOff(){
-  state.tour.enabled = false;
-  const m = document.getElementById('tourMask');
-  const t = document.getElementById('tourTip');
-  if(m) m.style.display='none';
-  if(t) t.style.display='none';
-  document.querySelectorAll('.tour-disabled').forEach(e=>{ e.disabled=false; e.classList.remove('tour-disabled'); });
-  document.querySelectorAll('.tour-hi').forEach(e=>e.classList.remove('tour-hi'));
-}
-window.addEventListener('keydown', e=>{ if(e.key === 'Escape') tourOff(); });
 el('btnGuide').onclick=guideStart;
 
 function showCTA(p){
@@ -462,9 +463,17 @@ function draw(){
   const yMax = hi + pad, yMin = lo - pad;
   const xStep = W / Math.max(48, data.length + 2);
   const y = v => H - (v - yMin) / (yMax - yMin) * H;
+  // 讀取主題色彩：網格與 K 線色
+  const style = getComputedStyle(document.documentElement);
+  const gridColor = style.getPropertyValue('--grid').trim() || 'rgba(31,42,68,0.08)';
+  const upStroke = style.getPropertyValue('--k-up-stroke').trim()   || 'rgba(52,211,153,0.9)';
+  const upFill   = style.getPropertyValue('--k-up-fill').trim()     || 'rgba(52,211,153,0.3)';
+  const dnStroke = style.getPropertyValue('--k-down-stroke').trim() || 'rgba(248,113,113,0.9)';
+  const dnFill   = style.getPropertyValue('--k-down-fill').trim()   || 'rgba(248,113,113,0.3)';
+
   // grid
   const step = state.timeframe === 'M15'? 4 : 12;
-  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid').trim() || 'rgba(31,42,68,.08)';
+  ctx.strokeStyle = gridColor;
   for (let i = 0; i < 6; i++) {
     const yv = H * i / 5;
     ctx.beginPath(); ctx.moveTo(0, yv); ctx.lineTo(W, yv); ctx.stroke();
@@ -495,17 +504,26 @@ function draw(){
   }
   ctx.restore();
 
-// candles
-  for(let i=0;i<data.length;i++){const b=data[i], x=24+i*xStep, up=b.c>=b.o; ctx.strokeStyle=up?'rgba(140,220,180,.9)':'rgba(255,130,130,.9)'; ctx.fillStyle=up?'rgba(140,220,180,.25)':'rgba(255,130,130,.25)'; ctx.beginPath(); ctx.moveTo(x,y(b.h)); ctx.lineTo(x,y(b.l)); ctx.stroke(); const w=Math.max(3,xStep*0.6), y1=y(b.o), y2=y(b.c); ctx.fillRect(x-w/2, Math.min(y1,y2), w, Math.max(2,Math.abs(y1-y2))); }
+  // candles
+  for(let i=0;i<data.length;i++){
+    const b = data[i], x = 24 + i * xStep, up = b.c >= b.o;
+    ctx.strokeStyle = up ? upStroke : dnStroke;
+    ctx.fillStyle   = up ? upFill   : dnFill;
+    ctx.beginPath(); ctx.moveTo(x,y(b.h)); ctx.lineTo(x,y(b.l)); ctx.stroke();
+    const w = Math.max(3, xStep * 0.6), y1 = y(b.o), y2 = y(b.c);
+    ctx.fillRect(x - w/2, Math.min(y1, y2), w, Math.max(2, Math.abs(y1 - y2)));
+  }
   // manual positions
   state.positions.forEach((p,idx)=>{
-    const color=p.side==='LONG'?'#79e0ab':'#ff9b9b';
-    ctx.strokeStyle=color; ctx.setLineDash([5,4]);
-    ctx.beginPath(); ctx.moveTo(0,y(p.entry)); ctx.lineTo(W,y(p.entry)); ctx.stroke();
-    ctx.setLineDash([]); ctx.fillStyle=color; ctx.font='12px system-ui';
+    const color = p.side === 'LONG' ? '#79e0ab' : '#ff9b9b';
+    ctx.strokeStyle = color;
+    ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.moveTo(0, y(p.entry)); ctx.lineTo(W, y(p.entry)); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = color; ctx.font = '12px system-ui';
     const rTxt = Number.isFinite(p.pnlR)   ? p.pnlR.toFixed(2)   : '0.00';
     const uTxt = Number.isFinite(p.pnlUsd) ? p.pnlUsd.toFixed(2) : '0.00';
-    ctx.fillText(`${p.side} @ ${p.entry.toFixed(2)} | ${rTxt}R / $${uTxt}`, 20, 28+14*idx);
+    ctx.fillText(`${p.side} @ ${p.entry.toFixed(2)} | ${rTxt}R / $${uTxt}`, 20, 28 + 14 * idx);
   });
   // axes
   pxAxis.innerHTML=''; const ticks=6; for(let i=0;i<=ticks;i++){const v=yMin+(yMax-yMin)*i/ticks; const d=document.createElement('div'); d.className='tick'; d.style.top=`${H-(H*i/ticks)}px`; d.textContent=v.toFixed(2); pxAxis.appendChild(d);} tmAxis.innerHTML=''; const tStep=state.timeframe==='M15'?4:12; for(let i=0;i<data.length;i+=tStep){const d=document.createElement('div'); d.className='tick'; d.style.left=`${(24+i*xStep)}px`; d.textContent=data[i].t; tmAxis.appendChild(d);} 
@@ -578,7 +596,8 @@ function renderPositions(){
   box.innerHTML = state.positions.map((p,i)=>{
     const sl = Number.isFinite(p.sl)?p.sl.toFixed(2):'';
     const tp = Number.isFinite(p.tp)?p.tp.toFixed(2):'';
-    return `<tr><td>${p.side==='LONG'?'多':'空'}</td><td>${p.entry.toFixed(2)}</td><td>${sl}</td><td>${tp}</td><td>${p.size}</td><td>${Number.isFinite(p.pnlUsd)?p.pnlUsd.toFixed(2):'0.00'}</td><td><button data-i="${i}" class="btn">×</button></td></tr>`;
+    const pnlTxt = Number.isFinite(p.pnlUsd) ? p.pnlUsd.toFixed(2) : '0.00';
+    return `<tr><td>${p.side==='LONG'?'多':'空'}</td><td>${p.entry.toFixed(2)}</td><td>${sl}</td><td>${tp}</td><td>${p.size}</td><td>${pnlTxt}</td><td><button data-i="${i}" class="btn">×</button></td></tr>`;
   }).join('');
   box.querySelectorAll('button').forEach(btn=>{
     btn.onclick=()=>{ closePosition(parseInt(btn.dataset.i,10)); };
@@ -587,7 +606,9 @@ function renderPositions(){
 
 function recalcAccount(){
   let unreal = 0;
-  for(const p of state.positions){ if(Number.isFinite(p.pnlUsd)) unreal += p.pnlUsd; }
+  for (const p of state.positions) {
+    if (Number.isFinite(p.pnlUsd)) unreal += p.pnlUsd;
+  }
   account.equity = account.balance + unreal;
 }
 
@@ -616,7 +637,7 @@ function openMarket(side){
     id: Date.now()+Math.random(), side, entry, sl, tp,
     size: p.lots,
     R0: sl!=null ? Math.abs(entry-sl) : 1,
-    pnlUsd:0, pnlR:0, status:'open', openTime: state.bars[state.visible-1]?.t || ''
+    pnlUsd: 0, pnlR: 0, status:'open', openTime: state.bars[state.visible-1]?.t || ''
   });
 
   logEvent('開倉',{side,price:entry,size:p.lots});
@@ -666,32 +687,32 @@ function closePosition(idx, exit, reason='手動'){
   const fill = exit ?? (p.side==='LONG'?lastQuote().bid:lastQuote().ask);
   const sign = p.side==='LONG'?1:-1;
   const pnlUsd = (fill - p.entry) * sign * p.size;
-  const pnlR = (fill - p.entry) * sign / (p.R0||1);
+  const pnlR  = (fill - p.entry) * sign / (p.R0||1);
   p.realizedUsd = pnlUsd; p.realizedR = pnlR;
   account.balance += pnlUsd; account.equity = account.balance;
   state.positions.splice(idx,1);
   logEvent('平倉',{side:p.side,price:fill,size:p.size,note:reason});
 
   navigator.vibrate?.(10);
-  if(pnlUsd>0) completeNode('profit');
+  if(pnlUsd > 0) completeNode('profit');
 
   if(p.realizedUsd >= 0){
-    document.querySelector('.orderDock')?.classList.add('profitPulse');
-    setTimeout(()=>document.querySelector('.orderDock')?.classList.remove('profitPulse'), 900);
+    const od = document.querySelector('.orderDock');
+    if(od) od.classList.add('profitPulse');
+    setTimeout(()=>{ if(od) od.classList.remove('profitPulse'); }, 900);
     makeConfetti(50); sfx(1200,150);
     toast(`獲利平倉 +$${p.realizedUsd.toFixed(2)} / +${p.realizedR.toFixed(2)}R`);
-  }else{
-    document.getElementById('chartWrap')?.classList.add('lossShake');
-    setTimeout(()=>document.getElementById('chartWrap')?.classList.remove('lossShake'), 600);
+  } else {
+    const cw = document.getElementById('chartWrap');
+    if(cw) cw.classList.add('lossShake');
+    setTimeout(()=>{ if(cw) cw.classList.remove('lossShake'); }, 600);
     sfx(200,200,.18);
     toast(`虧損平倉 -$${Math.abs(p.realizedUsd).toFixed(2)} / -${Math.abs(p.realizedR).toFixed(2)}R`);
   }
 
   recalcAccount(); renderPositions(); refreshHUD();
   if(state.tour.enabled && state.tour.step===3){ state.tour.step++; guideNext(); }
-  if(state.positions.length===0 && (reason==='SL' || reason==='TP' || reason==='手動')){
-    showCTA(p);
-  }
+  if(state.positions.length===0) showCTA(p);
 }
 
 function closeAll(){
@@ -714,7 +735,7 @@ function updateOrders(){
         id:Date.now()+Math.random(), side:o.side, entry,
         sl:o.sl, tp:o.tp, size:o.size,
         R0:o.sl!=null?Math.abs(entry-o.sl):1,
-        pnlUsd:0, pnlR:0, status:'open', openTime: state.bars[state.visible-1]?.t || ''
+        pnl$:0, pnlR:0, status:'open', openTime: state.bars[state.visible-1]?.t || ''
       });
       logEvent('掛單觸發',{side:o.side,price:entry,size:o.size});
       completeNode('pend');
@@ -730,8 +751,8 @@ function updatePositions(){
     const p=state.positions[i];
     const sign = p.side==='LONG'?1:-1;
     const exitPx = p.side==='LONG'?bid:ask;
-    p.pnlUsd = (exitPx - p.entry)*sign*p.size;
-    p.pnlR = (mid - p.entry)*sign / (p.R0||1);
+    p.pnlUsd = (exitPx - p.entry) * sign * p.size;
+    p.pnlR = (mid - p.entry) * sign / (p.R0 || 1);
     const slP = (p.sl == null ? NaN : Number(p.sl));
     const tpP = (p.tp == null ? NaN : Number(p.tp));
     const hitSL = Number.isFinite(slP) && ((p.side==='LONG' && bid<=slP) || (p.side==='SHORT' && ask>=slP));
@@ -766,8 +787,7 @@ function stepOnce(){
 // ===== Boot / Reset =====
 async function boot(){ state.dataset = await loadFirstCSV(); if(state.dataset.length===0){ console.error('無法載入CSV'); }
   reset(); }
-function reset(){ try{ if(typeof tourOff==='function') tourOff(); }catch(_){ }
-  clearInterval(state.timer); state.timer=null; state.visible=0; state.positions=[]; state.orders=[]; state.trades=[]; state.journal=[];
+function reset(){ clearInterval(state.timer); state.timer=null; state.visible=0; state.positions=[]; state.orders=[]; state.trades=[]; state.journal=[];
   state.view.offsetBar = 0;
   state.view.userPanned = false;
   state.view.followTail = true;
