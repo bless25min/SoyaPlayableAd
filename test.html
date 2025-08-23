@@ -16,6 +16,11 @@
   --good: #10b981;
   --danger: #ef4444;
   --grid: rgba(0, 0, 0, 0.05);
+  /* Dark Theme for Chart */
+  --chart-bg: #131722;
+  --chart-text: #D1D4DC;
+  --chart-up: #26a69a;
+  --chart-down: #ef5350;
 }
 
 * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -48,9 +53,8 @@ html, body {
 
 /* --- 圖表區 --- */
 #chartWrap {
-  flex-grow: 1; position: relative; background: var(--panel-soft);
+  flex-grow: 1; position: relative; background: var(--chart-bg);
   min-height: 0; cursor: grab;
-  background: radial-gradient(ellipse at center, #f9fafc 0%, #f4f7fc 100%);
 }
 #chartWrap:active { cursor: grabbing; }
 #chart { width: 100%; height: 100%; display: block; }
@@ -62,14 +66,14 @@ html, body {
     bottom: 0;
     width: 60px;
     pointer-events: none;
-    border-left: 1px solid var(--border-color);
+    border-left: 1px solid #363a45;
 }
 .price-axis-tick {
     position: absolute;
     width: 100%;
     padding-right: 5px;
     font-size: 12px;
-    color: var(--muted);
+    color: var(--chart-text);
     transform: translateY(-50%);
     text-align: right;
 }
@@ -79,24 +83,17 @@ html, body {
     right: 60px;
     height: 1px;
     pointer-events: none;
-    border-top-style: dashed;
+    border-top: 1px dashed #787b86;
 }
 .price-line-label {
     position: absolute;
-    right: 65px;
+    right: 60px;
     padding: 2px 6px;
     font-size: 12px;
-    color: white;
+    color: #ffffff;
     border-radius: 4px;
-    transform: translateY(-50%);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-.pnl-tag {
-    position: absolute;
-    font-size: 12px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    transform: translateY(-50%);
+    transform: translate(100%, -50%);
+    border: 1px solid #787b86;
 }
 
 /* --- 底部操作區 --- */
@@ -115,10 +112,24 @@ html, body {
 .tab-content { display: none; padding: 12px; }
 .tab-content.active { display: block; }
 
-#trade-panel-content { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.btn { padding: 12px; font-size: 16px; font-weight: bold; border-radius: 12px; border: none; cursor: pointer; transition: transform 0.1s ease; }
-.btn.buy { background: var(--good); color: white; }
-.btn.sell { background: var(--danger); color: white; }
+#trade-panel-content {
+    display: grid;
+    grid-template-areas:
+        "sl lots tp"
+        "sell close buy";
+    gap: 8px;
+    align-items: center;
+}
+#trade-sl-group { grid-area: sl; }
+#trade-lots-group { grid-area: lots; }
+#trade-tp-group { grid-area: tp; }
+#btnSell { grid-area: sell; }
+#btnCloseAll { grid-area: close; background-color: var(--muted); color: white; }
+#btnBuy { grid-area: buy; }
+
+.btn { padding: 12px; font-size: 16px; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; transition: transform 0.1s ease; }
+.btn.buy { background: var(--chart-up); color: white; }
+.btn.sell { background: var(--chart-down); color: white; }
 .btn:active { transform: scale(0.97); }
 
 .playback-controls {
@@ -132,9 +143,61 @@ html, body {
 }
 .playback-controls .btn.active { background: var(--accent); color: white; border-color: var(--accent); }
 
-.input-group { display: flex; flex-direction: column; }
+.input-group { display: flex; flex-direction: column; text-align: center;}
 .input-group label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-.input-group input { width: 100%; background: var(--bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px; color: var(--text); font-size: 14px; }
+.input-group input { text-align: center; width: 100%; background: var(--bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px; color: var(--text); font-size: 14px; }
+
+/* Input Stepper Styles */
+.input-stepper {
+    display: flex;
+    align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.input-stepper input {
+    border: none;
+    background: transparent;
+    flex-grow: 1;
+    padding: 8px;
+    width: 50px; /* Give it a base width */
+}
+.stepper-btns {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+}
+.stepper-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0 8px;
+    color: var(--muted);
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-left: 1px solid var(--border-color);
+}
+.stepper-btn:first-child {
+    border-bottom: 1px solid var(--border-color);
+}
+.stepper-btn:hover {
+    background: #e5e7eb;
+}
+
+
+/* Hides the default arrows for number input */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
 
 #positions-list { max-height: 25vh; overflow-y: auto; }
 .position-item { background: var(--panel-soft); padding: 10px; border-radius: 8px; margin-bottom: 8px; display: grid; grid-template-columns: 40px 1fr 1fr 70px; align-items: center; gap: 8px; }
@@ -161,11 +224,6 @@ html, body {
 }
 .modal-overlay.visible .modal-content { transform: scale(1); }
 .modal-header { font-weight: bold; margin-bottom: 16px; font-size: 20px; }
-.modal-body .input-group { margin-bottom: 12px; text-align: left; }
-.modal-footer { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;}
-.modal-footer .btn { width: 100%; }
-.btn.cancel { background-color: var(--border-color); color: var(--muted); }
-
 .event-modal-icon { font-size: 48px; margin-bottom: 12px; }
 .event-modal-desc { color: var(--muted); margin-bottom: 20px; text-align: left; line-height: 1.6; }
 
@@ -195,8 +253,39 @@ html, body {
     </div>
     <div id="trade-panel" class="tab-content active">
         <div id="trade-panel-content">
-            <button class="btn sell" id="btnSell">市價賣出</button>
-            <button class="btn buy" id="btnBuy">市價買入</button>
+            <div id="trade-sl-group" class="input-group">
+                <label for="trade-sl">停損 SL</label>
+                <div class="input-stepper">
+                    <input id="trade-sl" type="number" placeholder="價格" data-step="0.5">
+                    <div class="stepper-btns">
+                        <button class="stepper-btn" data-target="trade-sl" data-direction="up">▲</button>
+                        <button class="stepper-btn" data-target="trade-sl" data-direction="down">▼</button>
+                    </div>
+                </div>
+            </div>
+            <div id="trade-lots-group" class="input-group">
+                <label for="trade-lots">手數</label>
+                <div class="input-stepper">
+                    <input id="trade-lots" type="number" value="0.1" step="0.01" min="0.01">
+                    <div class="stepper-btns">
+                        <button class="stepper-btn" data-target="trade-lots" data-direction="up">▲</button>
+                        <button class="stepper-btn" data-target="trade-lots" data-direction="down">▼</button>
+                    </div>
+                </div>
+            </div>
+            <div id="trade-tp-group" class="input-group">
+                <label for="trade-tp">停利 TP</label>
+                <div class="input-stepper">
+                     <input id="trade-tp" type="number" placeholder="價格" data-step="0.5">
+                     <div class="stepper-btns">
+                        <button class="stepper-btn" data-target="trade-tp" data-direction="up">▲</button>
+                        <button class="stepper-btn" data-target="trade-tp" data-direction="down">▼</button>
+                    </div>
+                </div>
+            </div>
+            <button class="btn sell" id="btnSell">Sell</button>
+            <button class="btn" id="btnCloseAll">平倉</button>
+            <button class="btn buy" id="btnBuy">Buy</button>
         </div>
     </div>
     <div id="positions-panel" class="tab-content">
@@ -221,32 +310,6 @@ html, body {
   </div>
 </div>
 
-<!-- 下單 Modal -->
-<div id="orderModal" class="modal-overlay">
-    <div class="modal-content">
-      <h2 class="modal-header" id="order-title">建立訂單</h2>
-      <div class="modal-body">
-        <div class="input-group">
-            <label for="order-lots">手數</label>
-            <input id="order-lots" type="number" value="0.1" step="0.01" min="0.01">
-        </div>
-        <div class="input-group">
-            <label for="order-sl">停損價 (可選)</label>
-            <input id="order-sl" type="number" placeholder="例如: 2300.50">
-        </div>
-        <div class="input-group">
-            <label for="order-tp">停利價 (可選)</label>
-            <input id="order-tp" type="number" placeholder="例如: 2350.50">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn cancel" id="cancelOrderBtn">取消</button>
-        <button class="btn" id="confirmOrderBtn">確認</button>
-      </div>
-    </div>
-</div>
-
-
 <!-- 事件 Modal -->
 <div id="eventModal" class="modal-overlay">
     <div class="modal-content event-modal-content">
@@ -260,7 +323,7 @@ html, body {
 <script>
 // ===== 財經事件數據 (省略) =====
 const EVENTS = {
-  "2025-01-03": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "俗稱「非農」的美國就業數據是市場最關注的指標之一。數據好壞將劇烈影響黃金價格，市場屏息以待！" },
+  "2025-01-03": { time: "21:30", title: "🇺� 美國非農就業數據 (NFP)", desc: "俗稱「非農」的美國就業數據是市場最關注的指標之一。數據好壞將劇烈影響黃金價格，市場屏息以待！" },
   "2025-01-20": { time: "12:00", title: "🇺🇸 美國總統就職典禮", desc: "新任美國總統將於華盛頓特區宣誓就職。就職演說通常會概述新政府的施政藍圖，內容可能涉及國內外政策、經濟方向等，這些都可能成為市場關注的焦點。" },
   "2025-01-30": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "歐洲央行管理委員會將召開貨幣政策會議並發布利率決策聲明。市場將關注其對歐元区經濟前景和通膨路徑的最新評估。" },
   "2025-02-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "本月非農數據公布，將再次考驗市場對美國經濟復甦力度的信心。" },
@@ -287,6 +350,7 @@ const CONFIG = {
   minBarsInView: 20,
   maxBarsInView: 200,
   initialBalance: 10000,
+  timeAxisHeight: 25, // px
 };
 
 // ===== 遊戲狀態與 DOM 元素 =====
@@ -298,7 +362,6 @@ let canvas, ctx, chartWrap;
 function loadData() {
   return new Promise(async (resolve) => {
     try {
-      // ******** FIX: Changed file path to be relative ********
       const response = await fetch('XAUUSD_M15.csv');
       if (!response.ok) throw new Error('Network response was not ok');
       const text = await response.text();
@@ -331,7 +394,6 @@ function parseOHLC(text) {
 // ===== 遊戲流程 =====
 function startGame() {
   if (!state.fullDataset || state.fullDataset.length < 200) {
-      // Do not use alert, as it might be blocked. Log to console instead.
       console.error("市場數據不足或載入失敗，無法開始遊戲。");
       el('current-date').textContent = "數據錯誤";
       return;
@@ -402,7 +464,6 @@ function gameLoop() {
     state.currentBarIndex++;
     if (state.currentBarIndex >= state.gameData.length) {
         pauseGame();
-        // Do not use alert. Maybe show a final modal. For now, just log.
         console.log(`挑戰結束！最終淨值: $${state.account.equity.toFixed(2)}`);
         el('play-pause-btn').disabled = true;
         el('step-btn').disabled = true;
@@ -467,11 +528,11 @@ function resumeGame() {
 
 // ===== 交易邏輯 =====
 function openOrder(side) {
-    const lots = parseFloat(el('order-lots').value);
-    const sl = parseFloat(el('order-sl').value) || null;
-    const tp = parseFloat(el('order-tp').value) || null;
+    const lots = parseFloat(el('trade-lots').value);
+    const sl = parseFloat(el('trade-sl').value) || null;
+    const tp = parseFloat(el('trade-tp').value) || null;
+
     if (!lots || lots <= 0) {
-        // Simple validation, no alert
         console.error("請輸入有效的手數");
         return;
     }
@@ -481,6 +542,7 @@ function openOrder(side) {
     updatePositionsList();
     draw();
 }
+
 function closePosition(positionId) {
     const index = state.positions.findIndex(p => p.id === positionId);
     if (index === -1) return;
@@ -491,6 +553,19 @@ function closePosition(positionId) {
     updateHUD();
     draw();
 }
+
+function closeAllPositions() {
+    if (state.positions.length === 0) return;
+    for (let i = state.positions.length - 1; i >= 0; i--) {
+        const position = state.positions[i];
+        state.account.balance += position.pnl;
+    }
+    state.positions = [];
+    updatePositionsList();
+    updateHUD();
+    draw();
+}
+
 function updatePositions() {
     if (!state.gameData || state.currentBarIndex >= state.gameData.length) return;
     const currentBar = state.gameData[state.currentBarIndex];
@@ -543,6 +618,74 @@ function showEventModal(event) {
     el('eventModal').classList.add('visible');
 }
 
+// ===== 繪圖輔助函式 =====
+function drawPriceAxis(yMin, yMax, chartH) {
+    const priceAxisEl = el('price-axis');
+    priceAxisEl.innerHTML = '';
+    const numTicks = Math.max(2, Math.floor(chartH / 60));
+
+    for (let i = 0; i <= numTicks; i++) {
+        const price = yMin + (i / numTicks) * (yMax - yMin);
+        const yPos = chartH - (i / numTicks) * chartH;
+        const tick = document.createElement('div');
+        tick.className = 'price-axis-tick';
+        tick.style.top = `${yPos}px`;
+        tick.textContent = price.toFixed(2);
+        priceAxisEl.appendChild(tick);
+    }
+}
+
+function drawCurrentPriceLine(y) {
+    const priceLinesContainer = el('price-lines-container');
+    priceLinesContainer.innerHTML = '';
+
+    if (!state.gameData || state.currentBarIndex >= state.gameData.length) return;
+
+    const currentPrice = state.gameData[state.currentBarIndex].c;
+    const yPos = y(currentPrice);
+    
+    const rect = canvas.getBoundingClientRect();
+    if (yPos < 0 || yPos > rect.height - CONFIG.timeAxisHeight) return;
+
+    const isUp = state.currentBarIndex > 0 && currentPrice >= state.gameData[state.currentBarIndex - 1].c;
+    const color = isUp ? 'var(--chart-up)' : 'var(--chart-down)';
+
+    const line = document.createElement('div');
+    line.className = 'price-line';
+    line.style.top = `${yPos}px`;
+    
+    const label = document.createElement('div');
+    label.className = 'price-line-label';
+    label.style.top = `${yPos}px`;
+    label.style.backgroundColor = color;
+    label.style.borderColor = color;
+    label.textContent = currentPrice.toFixed(2);
+
+    priceLinesContainer.appendChild(line);
+    priceLinesContainer.appendChild(label);
+}
+
+function drawTimeAxis(ctx, W, H, startIdx, endIdx, barWidth, offset) {
+    ctx.fillStyle = 'var(--chart-text)';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+
+    const labelMod = Math.ceil(state.view.barsInView / (W / 100)); // Approx one label every 100px
+    for (let i = Math.floor(startIdx); i < endIdx; i++) {
+        if (i < 0 || i >= state.gameData.length || i % labelMod !== 0) continue;
+        
+        const bar = state.gameData[i];
+        const x = (i - offset) * barWidth + barWidth / 2;
+
+        const date = bar.date;
+        const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        
+        ctx.fillText(timeStr, x, H - CONFIG.timeAxisHeight + 5);
+    }
+}
+
+
 // ===== 繪圖 =====
 function draw(animationProgress = 1) {
   const dpr = window.devicePixelRatio || 1;
@@ -550,37 +693,30 @@ function draw(animationProgress = 1) {
   canvas.width = rect.width * dpr;
   canvas.height = rect.height * dpr;
   ctx.scale(dpr, dpr);
-  const W = rect.width, H = rect.height;
-  ctx.clearRect(0, 0, W, H);
+  const W = rect.width;
+  const H = rect.height;
+  const chartH = H - CONFIG.timeAxisHeight;
+  
+  // 繪製背景
+  ctx.fillStyle = 'var(--chart-bg)';
+  ctx.fillRect(0, 0, W, H);
+
   if (!state.gameData || state.gameData.length === 0) return;
   const startIdx = Math.floor(state.view.offset);
   const endIdx = startIdx + Math.floor(state.view.barsInView);
   const dataInView = state.gameData.slice(Math.max(0, startIdx), Math.min(state.currentBarIndex + 1, endIdx));
   if (dataInView.length === 0) return;
+  
   const hi = Math.max(...dataInView.map(b => b.h));
   const lo = Math.min(...dataInView.map(b => b.l));
-  const pad = (hi - lo) * 0.15 || 5;
+  const pad = (hi - lo) * 0.1 || 1;
   const yMax = hi + pad, yMin = lo - pad;
   const barWidth = W / state.view.barsInView;
-  const y = v => H - ((v - yMin) / (yMax - yMin) * H);
+  const y = v => chartH - ((v - yMin) / (yMax - yMin) * chartH);
   
-  // 繪製日期分隔線
-  let lastDateStr = '';
-  for (let i = startIdx; i < endIdx; i++) {
-    if (i < 0 || i >= state.currentBarIndex + 1) continue;
-    const bar = state.gameData[i];
-    if (!bar) continue;
-    const currentDateStr = bar.date.toISOString().slice(0, 10);
-    if (i > 0 && currentDateStr !== lastDateStr) {
-      const x = (i - state.view.offset) * barWidth;
-      ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-      ctx.setLineDash([]);
-    }
-    lastDateStr = currentDateStr;
-  }
+  drawPriceAxis(yMin, yMax, chartH);
+  drawCurrentPriceLine(y);
+  drawTimeAxis(ctx, W, H, startIdx, endIdx, barWidth, state.view.offset);
 
   // 繪製 K 棒
   for (let i = 0; i < dataInView.length; i++) {
@@ -612,10 +748,15 @@ function draw(animationProgress = 1) {
         closeY = currentCloseY;
     }
 
-    ctx.strokeStyle = up ? 'var(--good)' : 'var(--danger)';
-    ctx.fillStyle = up ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)';
+    const color = up ? 'var(--chart-up)' : 'var(--chart-down)';
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
     ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(x, highY); ctx.lineTo(x, lowY); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x, highY);
+    ctx.lineTo(x, lowY);
+    ctx.stroke();
+    
     const w = Math.max(2, barWidth * 0.7);
     ctx.fillRect(x - w / 2, Math.min(openY, closeY), w, Math.max(1, Math.abs(openY - closeY)));
   }
@@ -623,11 +764,13 @@ function draw(animationProgress = 1) {
   // 繪製持倉線
   state.positions.forEach(p => {
     const entryY = y(p.entryPrice);
+    if (entryY > chartH || entryY < 0) return;
     ctx.strokeStyle = p.side === 'buy' ? 'var(--good)' : 'var(--danger)';
     ctx.setLineDash([5, 5]);
-    ctx.beginPath(); ctx.moveTo(0, entryY); ctx.lineTo(W, entryY); ctx.stroke();
-    if (p.sl) { ctx.strokeStyle = 'var(--danger)'; const slY = y(p.sl); ctx.beginPath(); ctx.moveTo(0, slY); ctx.lineTo(W, slY); ctx.stroke(); }
-    if (p.tp) { ctx.strokeStyle = 'var(--good)'; const tpY = y(p.tp); ctx.beginPath(); ctx.moveTo(0, tpY); ctx.lineTo(W, tpY); ctx.stroke(); }
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, entryY); ctx.lineTo(W - 60, entryY); ctx.stroke();
+    if (p.sl) { const slY = y(p.sl); ctx.strokeStyle = 'var(--danger)'; ctx.beginPath(); ctx.moveTo(0, slY); ctx.lineTo(W - 60, slY); ctx.stroke(); }
+    if (p.tp) { const tpY = y(p.tp); ctx.strokeStyle = 'var(--good)'; ctx.beginPath(); ctx.moveTo(0, tpY); ctx.lineTo(W - 60, tpY); ctx.stroke(); }
     ctx.setLineDash([]);
   });
 }
@@ -662,6 +805,48 @@ function clampOffset(isUserAction = false) {
     state.view.offset = Math.max(0, Math.min(state.view.offset, maxOffset));
 }
 
+// ===== NEW: Input Stepper Logic =====
+function setupSteppers() {
+    el('trade-panel-content').addEventListener('click', e => {
+        const button = e.target.closest('.stepper-btn');
+        if (!button) return;
+
+        const targetInputId = button.dataset.target;
+        const direction = button.dataset.direction;
+        const input = el(targetInputId);
+
+        if (!input) return;
+
+        let currentValue = parseFloat(input.value);
+        const step = parseFloat(input.step || input.dataset.step || 1);
+        
+        // Special logic for SL/TP: if empty, set to current price
+        if (['trade-sl', 'trade-tp'].includes(targetInputId) && isNaN(currentValue)) {
+            if (state.gameData && state.gameData[state.currentBarIndex]) {
+                const currentPrice = state.gameData[state.currentBarIndex].c;
+                input.value = currentPrice.toFixed(2);
+                return; // Stop after setting the initial price
+            }
+        }
+
+        if (isNaN(currentValue)) currentValue = 0;
+
+        let newValue = direction === 'up' ? currentValue + step : currentValue - step;
+        
+        // Enforce min for lots
+        if (targetInputId === 'trade-lots') {
+            const min = parseFloat(input.min);
+            if (!isNaN(min) && newValue < min) {
+                newValue = min;
+            }
+        }
+        
+        // Format to appropriate decimal places
+        const decimals = (String(step).split('.')[1] || '').length;
+        input.value = newValue.toFixed(decimals);
+    });
+}
+
 
 // ===== 初始化 =====
 async function init() {
@@ -672,27 +857,9 @@ async function init() {
   const dataLoaded = await loadData();
   
   if (dataLoaded) {
-    const orderModal = el('orderModal');
-    const orderTitle = el('order-title');
-    const confirmOrderBtn = el('confirmOrderBtn');
-    const cancelOrderBtn = el('cancelOrderBtn');
-
-    const showOrderModal = (side) => {
-        pauseGame();
-        orderTitle.textContent = side === 'buy' ? '建立買入訂單' : '建立賣出訂單';
-        confirmOrderBtn.className = `btn ${side}`;
-        confirmOrderBtn.textContent = side === 'buy' ? '確認買入' : '確認賣出';
-        // 重新綁定 onclick 事件，避免重複觸發
-        confirmOrderBtn.onclick = () => { 
-            openOrder(side); 
-            orderModal.classList.remove('visible'); 
-        };
-        orderModal.classList.add('visible');
-    };
-
-    el('btnBuy').addEventListener('click', () => showOrderModal('buy'));
-    el('btnSell').addEventListener('click', () => showOrderModal('sell'));
-    cancelOrderBtn.addEventListener('click', () => orderModal.classList.remove('visible'));
+    el('btnBuy').addEventListener('click', () => openOrder('buy'));
+    el('btnSell').addEventListener('click', () => openOrder('sell'));
+    el('btnCloseAll').addEventListener('click', closeAllPositions);
     
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -730,12 +897,13 @@ async function init() {
             e.target.classList.add('active');
             state.animationSpeed = parseInt(e.target.dataset.speed);
             if (!state.isPaused) {
-                resumeGame(); // 立即套用新速度
+                resumeGame();
             }
         }
     });
 
     setupInteraction();
+    setupSteppers(); // Add this line
     startGame();
   }
 }
@@ -745,3 +913,4 @@ document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
+�
