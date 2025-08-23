@@ -2,1254 +2,2442 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>交易獲利挑戰賽</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>XAUUSD 交易模擬挑戰 (Playable Ad Rework)</title>
     <style>
+        /* 1. Reset & Variables */
         :root {
-            --bg-main: #131722;
-            --bg-panel: #1e222d;
-            --text-primary: #d1d4dc;
-            --text-secondary: #787b86;
-            --border-color: #2a2e39;
-            --green: #26a69a;
-            --red: #ef5350;
-            --blue: #2962ff;
-            --yellow: #ffeb3b;
-            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            --color-bg: #f5f7fa;
+            --color-panel-bg: #ffffff;
+            --color-border: #e0e3eb;
+            --color-text-primary: #333333;
+            --color-text-secondary: #7f8c8d;
+            --color-primary: #3498db;
+            --color-primary-dark: #2980b9;
+            --color-success: #2ecc71;
+            --color-danger: #e74c3c;
+            --font-main: 'Helvetica Neue', Arial, sans-serif;
+            --shadow-main: 0 4px 12px rgba(0, 0, 0, 0.05);
+            --radius-main: 8px;
+
+            /* Chart Specific */
+            --chart-bg: #ffffff;
+            --chart-grid: #f0f0f0;
+            --chart-crosshair: #999999;
+            --color-bull: #26a69a; /* Green for Up */
+            --color-bear: #ef5350; /* Red for Down */
+            --color-buy: #3498db;
+            --color-sell: #e91e63;
         }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background-color: var(--bg-main);
-            color: var(--text-primary);
-            font-family: var(--font-family);
-            overflow: hidden;
+            font-family: var(--font-main);
+            background-color: var(--color-bg);
+            color: var(--color-text-primary);
             display: flex;
-            justify-content: center;
-            align-items: center;
+            flex-direction: column;
             height: 100vh;
-            touch-action: none; /* 防止移動端瀏覽器默認的觸控行為 */
+            overflow: hidden;
         }
+
+        /* 2. Layout Structure */
+        .header {
+            background-color: var(--color-panel-bg);
+            padding: 10px 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .chart-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 300px;
+            background-color: var(--color-panel-bg);
+            border-left: 1px solid var(--color-border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: 40%;
+                border-left: none;
+                border-top: 1px solid var(--color-border);
+            }
+            .chart-container {
+                height: 60%;
+                padding: 10px;
+            }
+        }
+
+        /* 3. Header (HUD) Components */
+        .hud {
+            display: flex;
+            gap: 20px;
+        }
+
         .hud-item {
-            background-color: var(--bg-panel);
-            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
         }
-        .tab-button {
-            border-bottom: 2px solid transparent;
+
+        .hud-label {
+            font-size: 12px;
+            color: var(--color-text-secondary);
         }
-        .tab-button.active {
-            color: var(--yellow);
-            border-bottom-color: var(--yellow);
+
+        .hud-value {
+            font-size: 16px;
+            font-weight: bold;
         }
+
+        #hud-pl.positive { color: var(--color-success); }
+        #hud-pl.negative { color: var(--color-danger); }
+
+        .progress-container {
+            width: 150px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background-color: var(--color-border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background-color: var(--color-primary);
+            transition: width 0.3s ease;
+        }
+
+        /* 4. Chart Components */
+        .chart-wrap {
+            position: relative;
+            flex: 1;
+            background-color: var(--chart-bg);
+            border-radius: var(--radius-main);
+            box-shadow: var(--shadow-main);
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        #chartCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .chart-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        /* DOM Overlays for Position Lines */
+        .position-line {
+            position: absolute;
+            left: 0;
+            /* Assuming 60px Y-axis width, defined in JS CONFIG.CHART_PADDING.right */
+            width: calc(100% - 60px); 
+            display: flex;
+            align-items: center;
+            pointer-events: none; /* Allow interaction with chart below */
+            transition: opacity 0.2s;
+        }
+
+        .position-line-dash {
+            flex: 1;
+            height: 1px;
+            border-top-style: dashed;
+            border-top-width: 1px;
+        }
+
+        .position-label {
+            padding: 3px 6px;
+            font-size: 12px;
+            border-radius: 3px;
+            color: white;
+            font-weight: bold;
+            margin-left: 5px;
+            white-space: nowrap;
+        }
+
+        .position-pl {
+            padding: 3px 6px;
+            font-size: 12px;
+            border-radius: 3px;
+            background-color: rgba(255, 255, 255, 0.9);
+            margin-right: 5px;
+            font-weight: bold;
+            box-shadow: var(--shadow-main);
+        }
+
+        /* 5. Controls & Toolbar */
+        .controls {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+
         .btn {
-            transition: all 0.2s ease;
-            transform: translateZ(0); /* 啟用 GPU 加速 */
+            padding: 8px 12px;
+            border: none;
+            border-radius: var(--radius-main);
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.1s, background-color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            user-select: none;
         }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
         .btn:active {
-            transform: scale(0.95) translateZ(0);
+            transform: scale(0.98);
         }
-        .btn-buy { background-color: var(--green); }
-        .btn-buy:hover { background-color: #2bb7a9; }
-        .btn-sell { background-color: var(--red); }
-        .btn-sell:hover { background-color: #fa6a67; }
-        .btn-close { background-color: var(--blue); }
-        .btn-close:hover { background-color: #4275ff; }
-        .input-number {
-            background-color: var(--border-color);
-            border: 1px solid var(--text-secondary);
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: default;
+            transform: scale(1);
         }
-        .input-number::-webkit-inner-spin-button,
-        .input-number::-webkit-outer-spin-button {
+
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: white;
+        }
+
+        .btn-secondary {
+            background-color: var(--color-border);
+            color: var(--color-text-primary);
+        }
+
+        .speed-selector {
+            display: flex;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-main);
+            overflow: hidden;
+        }
+
+        .speed-btn {
+            padding: 8px 10px;
+            background-color: var(--color-panel-bg);
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .speed-btn.active {
+            background-color: var(--color-primary);
+            color: white;
+        }
+
+        .speed-btn:not(:last-child) {
+            border-right: 1px solid var(--color-border);
+        }
+
+        /* 6. Sidebar (Trading Panel) */
+        .panel-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            background-color: var(--color-bg);
+            border: none;
+            font-weight: bold;
+        }
+
+        .tab-btn.active {
+            background-color: var(--color-panel-bg);
+            color: var(--color-primary);
+            border-bottom: 2px solid var(--color-primary);
+        }
+
+        .tab-content {
+            padding: 15px;
+            display: none;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        /* 6.1 Order Panel */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .input-label {
+            font-size: 14px;
+            color: var(--color-text-secondary);
+        }
+
+        .input-stepper {
+            display: flex;
+            align-items: center;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-main);
+            font-size: 16px;
+            text-align: center;
+             -moz-appearance: textfield;
+        }
+        .input-field::-webkit-outer-spin-button,
+        .input-field::-webkit-inner-spin-button {
             -webkit-appearance: none;
             margin: 0;
         }
+
+
         .stepper-btn {
-            background-color: var(--text-secondary);
-            color: var(--bg-main);
+            width: 40px;
+            height: 42px;
+            background-color: var(--color-border);
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .progress-bar-inner {
-            background: linear-gradient(90deg, var(--blue) 0%, var(--yellow) 100%);
+        .stepper-btn:active {
+            background-color: var(--color-primary);
+            color: white;
         }
+
+        .stepper-btn:first-child {
+            border-top-left-radius: var(--radius-main);
+            border-bottom-left-radius: var(--radius-main);
+        }
+
+        .stepper-btn:last-child {
+            border-top-right-radius: var(--radius-main);
+            border-bottom-right-radius: var(--radius-main);
+        }
+
+        .input-stepper .input-field {
+            border-radius: 0;
+            border-left: none;
+            border-right: none;
+        }
+
+
+        .trade-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-buy {
+            background-color: var(--color-bull);
+            color: white;
+            flex: 1;
+            padding: 12px;
+            font-size: 18px;
+        }
+
+        .btn-sell {
+            background-color: var(--color-bear);
+            color: white;
+            flex: 1;
+            padding: 12px;
+            font-size: 18px;
+        }
+
+        /* 6.2 Positions & History */
+        .positions-list, .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .trade-item {
+            background-color: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-main);
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        .trade-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .trade-type.BUY { color: var(--color-bull); }
+        .trade-type.SELL { color: var(--color-bear); }
+
+        .trade-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+        }
+
+        .trade-detail-label {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        .trade-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        /* 7. Modals & Overlays (Tutorial, Events, End Screen) */
         .modal-overlay {
-            background-color: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(4px);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            /* Animation: Fade-in */
+            transition: opacity 0.3s ease, visibility 0.3s ease;
         }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background-color: var(--color-panel-bg);
+            padding: 30px;
+            border-radius: var(--radius-main);
+            box-shadow: var(--shadow-main);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            /* Animation: Slight zoom-in */
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            font-size: 24px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .modal-body {
+            font-size: 16px;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        .cta-button {
+            background-color: var(--color-success);
+            color: white;
+            padding: 15px 30px;
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-decoration: none; /* For <a> tag implementation */
+        }
+
+        /* 7.1 Tutorial Specific */
         .tutorial-highlight {
             position: absolute;
-            border: 3px solid var(--yellow);
-            border-radius: 8px;
-            box-shadow: 0 0 20px var(--yellow);
-            transition: all 0.3s ease-in-out;
+            border: 3px dashed var(--color-primary);
+            border-radius: var(--radius-main);
+            /* Overlay effect using large box-shadow */
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+            z-index: 1001;
             pointer-events: none;
+            /* Smooth transition between steps */
+            transition: top 0.3s, left 0.3s, width 0.3s, height 0.3s;
         }
-        .tutorial-tooltip {
+
+        .tutorial-message {
             position: absolute;
-            background-color: var(--bg-panel);
-            border: 1px solid var(--yellow);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            transition: all 0.3s ease-in-out;
-            opacity: 0;
-            transform: translateY(10px);
+            background-color: var(--color-primary);
+            color: white;
+            padding: 15px;
+            border-radius: var(--radius-main);
+            max-width: 300px;
+            z-index: 1002;
+            box-shadow: var(--shadow-main);
+            transition: top 0.3s, left 0.3s;
         }
-        .tutorial-tooltip.visible {
-            opacity: 1;
-            transform: translateY(0);
+
+        /* 8. Utilities */
+        .hidden {
+            display: none !important;
         }
-        .glowing-border {
-            animation: glowing 1.5s infinite;
+
+        .loader-wrap {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--color-bg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            gap: 20px;
         }
-        @keyframes glowing {
-            0% { box-shadow: 0 0 5px var(--yellow); }
-            50% { box-shadow: 0 0 20px var(--yellow); }
-            100% { box-shadow: 0 0 5px var(--yellow); }
+
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: var(--color-primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
-
-<div id="app-container" class="w-full max-w-md h-full sm:h-[90vh] sm:max-h-[800px] bg-black sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-    
-    <!-- 1. 頂部 HUD -->
-    <div id="hud" class="p-2 grid grid-cols-3 gap-2 text-xs text-center">
-        <div class="hud-item p-1 rounded-md">
-            <div class="text-text-secondary">日期</div>
-            <div id="hud-date" class="font-bold text-sm">-</div>
-        </div>
-        <div class="hud-item p-1 rounded-md">
-            <div class="text-text-secondary">帳戶淨值</div>
-            <div id="hud-equity" class="font-bold text-sm">10000.00</div>
-        </div>
-        <div class="hud-item p-1 rounded-md">
-            <div class="text-text-secondary">總浮動損益</div>
-            <div id="hud-pl" class="font-bold text-sm">0.00</div>
-        </div>
-        <div class="col-span-3 mt-1">
-            <div class="w-full bg-gray-700 rounded-full h-2.5">
-                <div id="progress-bar" class="progress-bar-inner h-2.5 rounded-full" style="width: 0%"></div>
-            </div>
-        </div>
+    <!-- Loader -->
+    <div class="loader-wrap" id="loader">
+        <div class="loading-spinner"></div>
+        <p>正在載入數據與初始化圖表...</p>
     </div>
 
-    <!-- 2. 圖表區域 -->
-    <div class="flex-grow relative bg-black">
-        <canvas id="chart-canvas" class="w-full h-full"></canvas>
-    </div>
-
-    <!-- 3. 底部面板 -->
-    <div id="bottom-panel" class="bg-bg-panel flex flex-col">
-        <!-- 播放控制 -->
-        <div id="playback-controls" class="p-2 flex items-center justify-between border-b border-border-color">
-            <button id="play-pause-btn" class="p-2 rounded-md hover:bg-border-color">
-                <!-- Play/Pause icon will be injected by JS -->
-            </button>
-            <button id="step-forward-btn" class="p-2 rounded-md hover:bg-border-color">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M15.5 3.5a.5.5 0 0 0-1 0V7.248l-6.267-3.636C7.692 3.29 7 3.67 7 4.304v7.384c0 .63.692 1.01 1.233.697L14.5 8.752V12a.5.5 0 0 0 1 0V4a.5.5 0 0 0-.5-.5z"/></svg>
-            </button>
-            <div class="flex items-center space-x-2 text-sm">
-                <label for="speed-control">速度:</label>
-                <select id="speed-control" class="bg-border-color rounded-md p-1">
-                    <option value="0.25">0.25x</option>
-                    <option value="0.5">0.5x</option>
-                    <option value="1" selected>1x</option>
-                    <option value="2">2x</option>
-                    <option value="5">5x</option>
-                </select>
+    <!-- Header (HUD) -->
+    <header class="header">
+        <div class="hud">
+            <div class="hud-item">
+                <span class="hud-label">模擬日期</span>
+                <span class="hud-value" id="hud-date">--/--/-- --:--</span>
+            </div>
+            <div class="hud-item">
+                <span class="hud-label">帳戶淨值 (Equity)</span>
+                <span class="hud-value" id="hud-equity">$10000.00</span>
+            </div>
+            <div class="hud-item">
+                <span class="hud-label">浮動損益 (P/L)</span>
+                <span class="hud-value" id="hud-pl">$0.00</span>
             </div>
         </div>
-
-        <!-- 頁籤 -->
-        <div class="flex">
-            <button data-tab="trade" class="tab-button flex-1 py-2 text-center font-bold active">交易</button>
-            <button data-tab="positions" class="tab-button flex-1 py-2 text-center font-bold">持倉 (<span id="positions-count">0</span>)</button>
-            <button data-tab="journal" class="tab-button flex-1 py-2 text-center font-bold">紀錄</button>
+        <div class="hud-item progress-container">
+            <span class="hud-label">挑戰進度</span>
+            <div class="progress-bar">
+                <div class="progress-fill" id="hud-progress"></div>
+            </div>
         </div>
+    </header>
 
-        <!-- 頁籤內容 -->
-        <div class="p-2">
-            <!-- A. 交易面板 -->
-            <div id="tab-content-trade" class="tab-content">
-                <div class="grid grid-cols-3 gap-2 text-sm mb-2">
-                    <div>
-                        <label class="text-text-secondary">手數</label>
-                        <div class="flex items-center mt-1">
-                            <button data-input="lots" data-step="-0.01" class="stepper-btn p-1 rounded-l-md">-</button>
-                            <input id="input-lots" type="number" value="0.1" step="0.01" min="0.01" class="input-number w-full text-center p-1">
-                            <button data-input="lots" data-step="0.01" class="stepper-btn p-1 rounded-r-md">+</button>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="text-text-secondary">停損 (SL)</label>
-                        <div class="flex items-center mt-1">
-                            <button data-input="sl" data-step="-1" class="stepper-btn p-1 rounded-l-md">-</button>
-                            <input id="input-sl" type="number" placeholder="價格" class="input-number w-full text-center p-1">
-                            <button data-input="sl" data-step="1" class="stepper-btn p-1 rounded-r-md">+</button>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="text-text-secondary">停利 (TP)</label>
-                        <div class="flex items-center mt-1">
-                            <button data-input="tp" data-step="-1" class="stepper-btn p-1 rounded-l-md">-</button>
-                            <input id="input-tp" type="number" placeholder="價格" class="input-number w-full text-center p-1">
-                            <button data-input="tp" data-step="1" class="stepper-btn p-1 rounded-r-md">+</button>
-                        </div>
-                    </div>
+    <!-- Main Content -->
+    <div class="main-content">
+        
+        <!-- Chart Area -->
+        <div class="chart-container">
+            <div class="controls">
+                <button class="btn btn-primary" id="btnPlayPause">▶️ 播放</button>
+                <button class="btn btn-secondary" id="btnStepForward">➡️ 逐K前進</button>
+                <div class="speed-selector" id="speedSelector">
+                    <button class="speed-btn active" data-speed="1">1x</button>
+                    <button class="speed-btn" data-speed="5">5x</button>
+                    <button class="speed-btn" data-speed="20">20x</button>
                 </div>
-                <div class="grid grid-cols-2 gap-2 mt-2">
-                    <button id="btn-sell" class="btn btn-sell w-full p-3 rounded-md font-bold">賣出</button>
-                    <button id="btn-buy" class="btn btn-buy w-full p-3 rounded-md font-bold">買入</button>
+                <button class="btn btn-secondary" id="btnZoomIn">🔍+</button>
+                <button class="btn btn-secondary" id="btnZoomOut">🔍-</button>
+            </div>
+
+            <div class="chart-wrap" id="chartWrap">
+                <canvas id="chartCanvas"></canvas>
+                <div class="chart-overlay" id="chartOverlay">
+                    <!-- Position lines (DOM Overlays) will be dynamically generated here -->
                 </div>
             </div>
-            <!-- B. 持倉面板 -->
-            <div id="tab-content-positions" class="tab-content hidden h-32 overflow-y-auto">
-                <!-- Position items will be injected here -->
-                <div id="positions-list"></div>
-                 <button id="btn-close-all" class="btn btn-close w-full p-2 mt-2 rounded-md font-bold text-sm hidden">一鍵平倉</button>
+        </div>
+
+        <!-- Sidebar (Trading Panel) -->
+        <aside class="sidebar">
+            <div class="panel-tabs">
+                <button class="tab-btn active" data-target="tabOrder">下單</button>
+                <button class="tab-btn" data-target="tabPositions">持倉 (<span id="positionsCount">0</span>)</button>
+                <button class="tab-btn" data-target="tabHistory">紀錄</button>
             </div>
-            <!-- C. 紀錄面板 -->
-            <div id="tab-content-journal" class="tab-content hidden h-32 overflow-y-auto">
-                <!-- Journal items will be injected here -->
+
+            <div class="tab-content active" id="tabOrder">
+                <div class="input-group">
+                    <label class="input-label">手數 (Lots)</label>
+                    <div class="input-stepper">
+                        <button class="stepper-btn" id="lotsDown">−</button>
+                        <input type="number" class="input-field" id="inputLots" value="0.10" step="0.01" min="0.01">
+                        <button class="stepper-btn" id="lotsUp">+</button>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">停損價格 (SL)</label>
+                    <div class="input-stepper">
+                        <button class="stepper-btn" id="slDown">−</button>
+                        <input type="number" class="input-field" id="inputSL" placeholder="選填" step="0.1">
+                        <button class="stepper-btn" id="slUp">+</button>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">停利價格 (TP)</label>
+                    <div class="input-stepper">
+                        <button class="stepper-btn" id="tpDown">−</button>
+                        <input type="number" class="input-field" id="inputTP" placeholder="選填" step="0.1">
+                        <button class="stepper-btn" id="tpUp">+</button>
+                    </div>
+                    
+                </div>
+
+                <div class="trade-buttons">
+                    <button class="btn btn-buy" id="btnBuy">買入 (BUY)</button>
+                    <button class="btn btn-sell" id="btnSell">賣出 (SELL)</button>
+                </div>
             </div>
+
+            <div class="tab-content" id="tabPositions">
+                <div class="positions-list" id="positionsList">
+                    <!-- Positions will be dynamically added here -->
+                </div>
+                <button class="btn btn-danger" id="btnCloseAll" style="margin-top: 15px; display: none;">全部平倉</button>
+            </div>
+
+            <div class="tab-content" id="tabHistory">
+                <div class="history-list" id="historyList">
+                    <!-- History will be dynamically added here -->
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="eventModal">
+        <div class="modal-content">
+            <h2 class="modal-title" id="eventTitle">⚠️ 重大財經事件</h2>
+            <div class="modal-body" id="eventBody" style="text-align: left;">
+                <!-- Event details here -->
+            </div>
+            <button class="btn btn-primary" id="eventContinueBtn">繼續模擬</button>
         </div>
     </div>
-</div>
 
-
-<!-- 彈出式視窗 (通用) -->
-<div id="modal-container" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-bg-panel rounded-lg shadow-xl w-full max-w-sm text-center p-6">
-        <h3 id="modal-title" class="text-xl font-bold mb-2"></h3>
-        <p id="modal-body" class="text-text-secondary mb-6"></p>
-        <div id="modal-actions" class="flex justify-center gap-4">
-            <!-- Modal buttons will be injected here -->
+    <div class="modal-overlay" id="endGameModal">
+        <div class="modal-content">
+            <h2 class="modal-title">🎉 挑戰結束！</h2>
+            <div class="modal-body" style="text-align: center;">
+                <p>您的最終成績：</p>
+                <h1 id="finalScore" style="font-size: 36px; margin: 10px 0;">$10000.00</h1>
+                <p id="finalRoR" style="font-size: 20px;"></p>
+                <div id="endGameStats" style="text-align: left; margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--color-border);"></div>
+            </div>
+            <a href="https://www.example.com/register" target="_blank" class="btn cta-button" id="ctaButton">立即開設真實帳戶</a>
+            <button class="btn btn-secondary" id="restartButton" style="margin-top: 15px;">重新挑戰</button>
         </div>
     </div>
-</div>
 
-<!-- 新手導引 -->
-<div id="tutorial-container" class="fixed inset-0 z-40 hidden">
-    <div class="tutorial-highlight"></div>
-    <div class="tutorial-tooltip p-4 rounded-lg max-w-xs w-full">
-        <p id="tutorial-text" class="mb-4"></p>
-        <div class="flex justify-between items-center">
-            <span id="tutorial-step" class="text-sm text-text-secondary"></span>
-            <button id="tutorial-next-btn" class="btn bg-yellow-500 text-black px-4 py-2 rounded-md font-bold">下一步</button>
-        </div>
+    <!-- Tutorial Elements (Hidden by default, managed by JS) -->
+    <div class="tutorial-highlight hidden" id="tutorialHighlight"></div>
+    <div class="tutorial-message hidden" id="tutorialMessage">
+        <p id="tutorialText"></p>
+        <button class="btn btn-small" id="tutorialNextBtn" style="margin-top: 10px; background-color: white; color: var(--color-primary);">下一步</button>
     </div>
-</div>
 
+    <script>
+        // ============================================================================
+        // 專案：XAUUSD 交易模擬 Playable Ad (Rework)
+        // 架構：狀態驅動 (State-Driven Architecture)
+        // 渲染：HTML5 Canvas + DOM Overlays
+        // ============================================================================
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    // --- DOM 元素獲取 ---
-    const canvas = document.getElementById('chart-canvas');
-    const ctx = canvas.getContext('2d');
-    const appContainer = document.getElementById('app-container');
+        // ----------------------------------------------------------------------------
+        // 1. 狀態管理與常數 (State Management & Constants)
+        // ----------------------------------------------------------------------------
 
-    // HUD
-    const hudDate = document.getElementById('hud-date');
-    const hudEquity = document.getElementById('hud-equity');
-    const hudPl = document.getElementById('hud-pl');
-    const progressBar = document.getElementById('progress-bar');
-    
-    // Playback
-    const playPauseBtn = document.getElementById('play-pause-btn');
-    const stepForwardBtn = document.getElementById('step-forward-btn');
-    const speedControl = document.getElementById('speed-control');
+        const CONFIG = {
+            DATA_URL: 'XAUUSD_M15.csv',
+            TICK_INTERVAL: 500, // Base time (ms) for one K bar animation (at 1x speed)
+            CHART_PADDING: { top: 20, right: 60, bottom: 30, left: 10 },
+            CANDLE_WIDTH_DEFAULT: 8,
+            CANDLE_SPACING: 3,
+            CONTRACT_SIZE: 100, // XAUUSD specific
+            INITIAL_BALANCE: 10000,
+            SIMULATION_DURATION_DAYS: 30,
+        };
 
-    // Tabs
-    const tabButtons = document.querySelectorAll('.tab-button');
-    const tabContents = document.querySelectorAll('.tab-content');
-    const positionsCount = document.getElementById('positions-count');
-
-    // Trade Panel
-    const inputLots = document.getElementById('input-lots');
-    const inputSl = document.getElementById('input-sl');
-    const inputTp = document.getElementById('input-tp');
-    const btnBuy = document.getElementById('btn-buy');
-    const btnSell = document.getElementById('btn-sell');
-    const stepperBtns = document.querySelectorAll('.stepper-btn');
-
-    // Positions Panel
-    const positionsList = document.getElementById('positions-list');
-    const btnCloseAll = document.getElementById('btn-close-all');
-
-    // Journal Panel
-    const journalList = document.getElementById('tab-content-journal');
-
-    // Modals & Tutorial
-    const modalContainer = document.getElementById('modal-container');
-    const modalTitle = document.getElementById('modal-title');
-    const modalBody = document.getElementById('modal-body');
-    const modalActions = document.getElementById('modal-actions');
-    const tutorialContainer = document.getElementById('tutorial-container');
-    const tutorialHighlight = tutorialContainer.querySelector('.tutorial-highlight');
-    const tutorialTooltip = tutorialContainer.querySelector('.tutorial-tooltip');
-    const tutorialText = document.getElementById('tutorial-text');
-    const tutorialStep = document.getElementById('tutorial-step');
-    const tutorialNextBtn = document.getElementById('tutorial-next-btn');
-
-    const ICONS = {
-        PLAY: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16"><path d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>`,
-        PAUSE: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg>`
-    };
-    
-    // --- 全域狀態管理 (State Object) ---
-    let state = {};
-
-    function initState() {
-        state = {
-            fullDataset: [], // 完整數據集
-            gameData: [], // 本局遊戲使用的數據
-            currentBarIndex: 0, // 當前 K 棒索引
+        // Global State Object - The single source of truth
+        const state = {
+            // Data
+            rawData: [],
+            gameData: [],
             
-            account: {
-                balance: 10000,
-                equity: 10000,
-            },
+            // Game Status
+            isLoading: true,
+            isPlaying: false,
+            isEnded: false,
+            speedMultiplier: 1,
+            currentIndex: 0,
             
-            positions: [], // 當前持倉
-            journal: [], // 歷史紀錄
-            
-            gameLoopInterval: null,
-            isPaused: true,
-            gameSpeed: 1000, // ms per bar
-            
-            view: { // 圖表視圖狀態
-                firstBarIndex: 0,
-                barsOnScreen: 100,
-                priceMin: 0,
-                priceMax: 0,
+            // K-Bar Animation
+            barAnimationProgress: 0, // 0 (Open) to 1 (Close)
+
+            // Account & Trading
+            balance: CONFIG.INITIAL_BALANCE,
+            equity: CONFIG.INITIAL_BALANCE,
+            floatingPL: 0,
+            openPositions: [],
+            tradeHistory: [],
+            orderIdCounter: 1,
+
+            // Chart Viewport
+            chart: {
+                canvas: null,
+                ctx: null,
+                width: 0,
+                height: 0,
+                // Viewport indices define what data is currently visible
+                viewStartIndex: 0, 
+                viewEndIndex: 0,
+                minPrice: 0,
+                maxPrice: 0,
+                candleWidth: CONFIG.CANDLE_WIDTH_DEFAULT,
+                candleSpacing: CONFIG.CANDLE_SPACING,
                 isDragging: false,
-                lastMouseX: 0,
-                lastMouseY: 0,
-                zoom: 1,
+                dragStartX: 0,
+                // scrollOffset represents how many candles are scrolled off the right side (0 means viewing the latest)
+                scrollOffset: 0, 
             },
 
-            animation: { // K棒動畫
-                isAnimating: false,
-                targetClose: 0,
-                currentY: 0,
-                startTime: 0,
-                duration: 500, // ms
-            },
+            // UI & Interaction
+            mouse: { x: -1, y: -1, isOverChart: false },
+            tutorialActive: false,
             
-            needsRedraw: true, // 是否需要重繪
+            // Events (Mock data for demonstration)
+            financialEvents: [
+                { triggerDay: 5, title: '美國非農就業數據 (NFP)', description: '非農數據即將公布，市場預期將出現劇烈波動。請注意風險！' },
+                { triggerDay: 15, title: '美國 CPI 公布', description: '消費者物價指數 (CPI) 高於預期，可能引發市場對通膨的擔憂。' },
+                { triggerDay: 25, title: 'FOMC 利率決議', description: '聯準會即將宣布利率決議。市場普遍預期將維持現有利率。' },
+            ],
+            triggeredEvents: new Set(),
         };
-    }
 
-    // --- 財經事件系統 ---
-    const financialEvents = [
-        { day: 3, title: "美國非農就業數據公布", body: "數據遠超預期，市場波動性可能急劇增加，請謹慎操作。" },
-        { day: 10, title: "聯準會利率決議", body: "主席鮑威爾發表鷹派講話，暗示未來可能升息，美元走強。" },
-        { day: 18, title: "歐洲央行會議", body: "維持利率不變，但對經濟前景表示擔憂，歐元承壓。" },
-    ];
+        // DOM Element Caching
+        const DOM = {};
 
-    // --- 核心邏輯分離 ---
+        // ----------------------------------------------------------------------------
+        // 2. 數據處理 (Data Processing)
+        // ----------------------------------------------------------------------------
 
-    /**
-     * 1. 初始化函式 (程式進入點)
-     */
-    function init() {
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-        
-        initState();
-        bindPermanentEventListeners();
-        
-        playPauseBtn.innerHTML = ICONS.PLAY;
-
-        showModal(
-            "歡迎來到交易挑戰賽",
-            "您的目標是在一個月的模擬交易中，盡可能地提高您的帳戶淨值。準備好開始了嗎？",
-            [{ text: "開始挑戰", className: "btn-buy", callback: () => {
-                hideModal();
-                loadData();
-            }}]
-        );
-    }
-
-    /**
-     * 2. 數據處理模組
-     */
-    async function loadData() {
-        showModal("載入中...", "正在從伺服器獲取市場數據，請稍候...", []);
-        try {
-            const dataUrl = 'https://raw.githubusercontent.com/bless25min/SoyaPlayableAd/refs/heads/main/XAUUSD_M15.csv';
-            const response = await fetch(dataUrl);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const text = await response.text();
-            parseData(text);
-            hideModal();
-            
-            const hasSeenTutorial = localStorage.getItem('trading_challenge_tutorial_seen');
-            if (!hasSeenTutorial) {
-                startTutorial();
-            } else {
-                startGame();
-            }
-
-        } catch (error) {
-            console.error('Data loading failed:', error);
-            showModal("錯誤", "數據載入失敗，請檢查您的網路連線或檔案路徑是否正確。", [{text: "重試", className: "btn-buy", callback: loadData}]);
-        }
-    }
-
-    function parseData(text) {
-        const lines = text.trim().split('\n');
-        const data = [];
-        for (let i = 1; i < lines.length; i++) { // Skip header
+        async function loadData() {
             try {
-                let parts;
-                // 自動偵測分隔符
-                if (lines[i].includes(',')) {
-                    parts = lines[i].split(','); // 格式1: 時間戳,開,高,低,收
-                    if (parts.length < 5) continue;
-                    const o = parseFloat(parts[1]);
-                    if (isNaN(o)) continue; // 數據驗證
-                    data.push({
-                        time: parseInt(parts[0], 10) * 1000,
-                        o: o,
-                        h: parseFloat(parts[2]),
-                        l: parseFloat(parts[3]),
-                        c: parseFloat(parts[4]),
-                    });
-                } else {
-                    parts = lines[i].trim().split(/\s+/); // 格式2: 年.月.日 時:分:秒 開 高 低 收
-                    if (parts.length < 6) continue;
-                    const o = parseFloat(parts[2]);
-                    if (isNaN(o)) continue; // 數據驗證
-                    const dateTimeString = `${parts[0]} ${parts[1]}`;
-                    const time = new Date(dateTimeString.replace(/\./g, '-')).getTime();
-                    data.push({
-                        time: time,
-                        o: o,
-                        h: parseFloat(parts[3]),
-                        l: parseFloat(parts[4]),
-                        c: parseFloat(parts[5]),
-                    });
+                const response = await fetch(CONFIG.DATA_URL);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const csvText = await response.text();
+                state.rawData = parseData(csvText);
+                
+                if (state.rawData.length === 0) {
+                    throw new Error("無法解析數據或數據為空。請檢查 CSV 檔案格式。");
                 }
-            } catch (e) {
-                console.warn(`Skipping invalid line ${i}: ${lines[i]}`);
+                
+                console.log(`成功載入 ${state.rawData.length} 筆數據。`);
+                startGame();
+            } catch (error) {
+                console.error("載入數據失敗:", error);
+                document.getElementById('loader').innerHTML = `<p style="color: red;">錯誤：${error.message}</p><p>請確保 XAUUSD_M15.csv 與 index.html 位於同一個目錄，並且伺服器配置正確（或瀏覽器允許本地檔案存取）。</p>`;
             }
         }
-        state.fullDataset = data.filter(d => !isNaN(d.time) && !isNaN(d.o));
-        console.log(`成功解析 ${state.fullDataset.length} 筆數據`);
-    }
 
-    /**
-     * 3. 遊戲流程模組
-     */
-    function startGame() {
-        initState();
-        
-        // [REVISED LOGIC] 重寫遊戲數據取樣和起始點計算，使其更強健
-        const dataPointsPerMonth = 30 * 24 * 4; // 約一個月的 M15 K棒數量
-        if (state.fullDataset.length <= dataPointsPerMonth) {
-            // 如果總數據不足一個月，則使用全部數據
-            state.gameData = state.fullDataset;
-        } else {
-            // 如果數據充足，隨機抽取一個月的區間
-            const startIndex = Math.floor(Math.random() * (state.fullDataset.length - dataPointsPerMonth));
-            state.gameData = state.fullDataset.slice(startIndex, startIndex + dataPointsPerMonth);
-        }
+        // 自動偵測並解析 CSV 數據
+        function parseData(csvText) {
+            const lines = csvText.trim().split('\n');
+            if (lines.length < 2) return [];
 
-        if (state.gameData.length === 0) {
-            showModal("錯誤", "沒有有效的市場數據可供模擬。", []);
-            return;
-        }
+            // 1. 偵測分隔符和時間格式
+            const firstLine = lines.find(line => line.trim() !== '' && !line.toLowerCase().includes('time') && !line.toLowerCase().includes('date') && !line.toLowerCase().includes('open'));
+            if (!firstLine) return [];
 
-        // 動態設定一個安全的起始點，在遊戲數據的前 1/4 處，確保前後都有足夠數據
-        const historyRatio = 0.25;
-        const potentialStartPoint = Math.floor(state.gameData.length * historyRatio);
-        const minRequiredHistory = 50; // 至少需要50根歷史K棒
-
-        state.currentBarIndex = Math.max(minRequiredHistory, potentialStartPoint);
-        
-        // 確保起始點不會超出範圍
-        if (state.currentBarIndex >= state.gameData.length) {
-            state.currentBarIndex = Math.max(0, state.gameData.length - 20); // 至少留20根K棒來玩
-        }
-
-        state.view.firstBarIndex = Math.max(0, state.currentBarIndex - state.view.barsOnScreen);
-        
-        updateAllUI();
-        requestRedraw();
-    }
-
-    function gameLoop() {
-        if (state.isPaused) return;
-
-        if (state.currentBarIndex < state.gameData.length - 1) {
-            state.currentBarIndex++;
-            updatePositionsPL();
-            checkSLTP();
-            checkFinancialEvent();
-            updateAllUI();
-            startCandleAnimation();
-        } else {
-            endGame();
-        }
-    }
-
-    function togglePlayPause() {
-        state.isPaused = !state.isPaused;
-        if (state.isPaused) {
-            clearInterval(state.gameLoopInterval);
-            playPauseBtn.innerHTML = ICONS.PLAY;
-        } else {
-            state.gameLoopInterval = setInterval(gameLoop, state.gameSpeed);
-            playPauseBtn.innerHTML = ICONS.PAUSE;
-            gameLoop();
-        }
-    }
-    
-    function stepForward() {
-        if (!state.isPaused) togglePlayPause();
-        if (state.currentBarIndex < state.gameData.length - 1) {
-            state.currentBarIndex++;
-            updatePositionsPL();
-            checkSLTP();
-            checkFinancialEvent();
-            updateAllUI();
-            startCandleAnimation();
-        } else {
-            endGame();
-        }
-    }
-
-    function changeSpeed(speedMultiplier) {
-        state.gameSpeed = 1000 / speedMultiplier;
-        if (!state.isPaused) {
-            clearInterval(state.gameLoopInterval);
-            state.gameLoopInterval = setInterval(gameLoop, state.gameSpeed);
-        }
-    }
-
-    function checkFinancialEvent() {
-        if (!state.gameData[state.currentBarIndex]) return;
-        const currentDate = new Date(state.gameData[state.currentBarIndex].time);
-        const dayOfMonth = currentDate.getDate();
-        const event = financialEvents.find(e => e.day === dayOfMonth);
-        
-        if (event && !event.triggered) {
-            if (!state.isPaused) togglePlayPause();
-            event.triggered = true;
-            showModal(event.title, event.body, [{text: "繼續", className: "btn-buy", callback: hideModal}]);
-        }
-    }
-
-    function endGame() {
-        if (!state.isPaused) togglePlayPause();
-        closeAllPositions();
-        showModal(
-            "挑戰結束！",
-            `恭喜您完成本次交易挑戰！<br>您的最終淨值為：<strong class="text-yellow-400 text-lg">$${state.account.equity.toFixed(2)}</strong>`,
-            [
-                {text: "再次挑戰", className: "btn-close", callback: () => { hideModal(); startGame(); }},
-                {text: "前往官網", className: "btn-buy glowing-border", callback: () => { window.open('https://www.google.com', '_blank'); }}
-            ]
-        );
-    }
-    
-    /**
-     * 4. 交易與帳戶系統
-     */
-    function executeTrade(type) {
-        if (!state.gameData[state.currentBarIndex]) return;
-        const lots = parseFloat(inputLots.value);
-        const sl = parseFloat(inputSl.value);
-        const tp = parseFloat(inputTp.value);
-        const currentPrice = state.gameData[state.currentBarIndex].c;
-
-        if (isNaN(lots) || lots <= 0) {
-            showModal("輸入無效", "請輸入有效的手數。", [{text: "好的", className: "btn-buy", callback: hideModal}]);
-            return;
-        }
-
-        const position = {
-            id: Date.now(),
-            type: type,
-            lots: lots,
-            entryPrice: currentPrice,
-            entryTime: state.gameData[state.currentBarIndex].time,
-            sl: isNaN(sl) || sl === 0 ? null : sl,
-            tp: isNaN(tp) || tp === 0 ? null : tp,
-            pl: 0,
-        };
-        state.positions.push(position);
-        updateAllUI();
-        requestRedraw();
-    }
-    
-    function closePosition(positionId) {
-        const index = state.positions.findIndex(p => p.id === positionId);
-        if (index === -1 || !state.gameData[state.currentBarIndex]) return;
-        
-        const position = state.positions[index];
-        const closePrice = state.gameData[state.currentBarIndex].c;
-        const closeTime = state.gameData[state.currentBarIndex].time;
-        
-        const finalPL = calculatePL(position, closePrice);
-        state.account.balance += finalPL;
-        
-        state.journal.push({
-            ...position,
-            closePrice: closePrice,
-            closeTime: closeTime,
-            pl: finalPL,
-        });
-        
-        state.positions.splice(index, 1);
-        updateAllUI();
-        requestRedraw();
-    }
-
-    function closeAllPositions() {
-        while(state.positions.length > 0) {
-            closePosition(state.positions[0].id);
-        }
-    }
-
-    function modifyPosition(positionId, newSl, newTp) {
-        const position = state.positions.find(p => p.id === positionId);
-        if (position) {
-            position.sl = isNaN(newSl) || newSl === 0 ? null : newSl;
-            position.tp = isNaN(newTp) || newTp === 0 ? null : newTp;
-            updatePositionsList();
-            requestRedraw();
-        }
-    }
-
-    function calculatePL(position, currentPrice) {
-        const priceDiff = currentPrice - position.entryPrice;
-        const multiplier = position.type === 'buy' ? 1 : -1;
-        return priceDiff * multiplier * position.lots * 100;
-    }
-
-    function updatePositionsPL() {
-        if (!state.gameData[state.currentBarIndex]) return;
-        const currentPrice = state.gameData[state.currentBarIndex].c;
-        let totalPL = 0;
-        state.positions.forEach(p => {
-            p.pl = calculatePL(p, currentPrice);
-            totalPL += p.pl;
-        });
-        state.account.equity = state.account.balance + totalPL;
-    }
-    
-    function checkSLTP() {
-        if (!state.gameData[state.currentBarIndex]) return;
-        const currentBar = state.gameData[state.currentBarIndex];
-        const high = currentBar.h;
-        const low = currentBar.l;
-        
-        [...state.positions].forEach(p => {
-            if (p.type === 'buy') {
-                if (p.sl && low <= p.sl) closePosition(p.id);
-                else if (p.tp && high >= p.tp) closePosition(p.id);
-            } else { // sell
-                if (p.sl && high >= p.sl) closePosition(p.id);
-                else if (p.tp && low <= p.tp) closePosition(p.id);
-            }
-        });
-    }
-
-    /**
-     * 5. UI 更新模組 (非 Canvas)
-     */
-    function updateAllUI() {
-        const currentBar = state.gameData[state.currentBarIndex];
-        if (currentBar) {
-            hudDate.textContent = new Date(currentBar.time).toLocaleDateString();
-        }
-        hudEquity.textContent = state.account.equity.toFixed(2);
-        const totalPL = state.positions.reduce((sum, p) => sum + p.pl, 0);
-        hudPl.textContent = totalPL.toFixed(2);
-        hudPl.style.color = totalPL >= 0 ? 'var(--green)' : 'var(--red)';
-        
-        if (state.gameData.length > 1) {
-            const progress = (state.currentBarIndex / (state.gameData.length - 1)) * 100;
-            progressBar.style.width = `${progress}%`;
-        }
-        
-        updatePositionsList();
-        updateJournalList();
-    }
-    
-    function updatePositionsList() {
-        positionsCount.textContent = state.positions.length;
-        if (state.positions.length === 0) {
-            positionsList.innerHTML = `<p class="text-center text-text-secondary py-4">暫無持倉</p>`;
-            btnCloseAll.classList.add('hidden');
-            return;
-        }
-        
-        btnCloseAll.classList.remove('hidden');
-        positionsList.innerHTML = state.positions.map(p => `
-            <div class="grid grid-cols-5 gap-2 items-center text-xs mb-2 p-2 bg-border-color rounded-md">
-                <div>
-                    <span class="font-bold ${p.type === 'buy' ? 'text-green-400' : 'text-red-400'}">${p.type.toUpperCase()}</span>
-                    <span class="text-text-secondary">${p.lots}</span>
-                </div>
-                <div class="text-center">${p.entryPrice.toFixed(2)}</div>
-                <div class="text-center">
-                    <input type="number" value="${p.sl || ''}" placeholder="-" data-id="${p.id}" data-type="sl" class="input-number w-full text-center p-1 text-xs modify-input">
-                </div>
-                <div class="text-center">
-                    <input type="number" value="${p.tp || ''}" placeholder="-" data-id="${p.id}" data-type="tp" class="input-number w-full text-center p-1 text-xs modify-input">
-                </div>
-                <div class="text-right">
-                    <span class="font-bold ${p.pl >= 0 ? 'text-green-400' : 'text-red-400'}">${p.pl.toFixed(2)}</span>
-                    <button data-id="${p.id}" class="close-pos-btn ml-2 text-red-500">✕</button>
-                </div>
-            </div>
-        `).join('');
-    }
-    
-    function updateJournalList() {
-        if (state.journal.length === 0) {
-            journalList.innerHTML = `<p class="text-center text-text-secondary py-4">暫無交易紀錄</p>`;
-            return;
-        }
-        journalList.innerHTML = `
-            <div class="grid grid-cols-5 gap-2 text-xs font-bold text-text-secondary mb-2 px-2">
-                <span>類型</span>
-                <span class="text-center">開倉</span>
-                <span class="text-center">平倉</span>
-                <span class="text-center">手數</span>
-                <span class="text-right">損益</span>
-            </div>
-            ${state.journal.slice().reverse().map(j => `
-                <div class="grid grid-cols-5 gap-2 text-xs mb-1 px-2 py-1 rounded-md hover:bg-border-color">
-                    <span class="font-bold ${j.type === 'buy' ? 'text-green-400' : 'text-red-400'}">${j.type.toUpperCase()}</span>
-                    <span class="text-center">${j.entryPrice.toFixed(2)}</span>
-                    <span class="text-center">${j.closePrice.toFixed(2)}</span>
-                    <span class="text-center">${j.lots}</span>
-                    <span class="text-right font-bold ${j.pl >= 0 ? 'text-green-400' : 'text-red-400'}">${j.pl.toFixed(2)}</span>
-                </div>
-            `).join('')}
-        `;
-    }
-
-    /**
-     * 6. 主渲染迴圈 (requestAnimationFrame)
-     */
-    function draw() {
-        if (state.needsRedraw) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if (state.gameData.length > 0) {
-                calculatePriceRange();
-                drawGrid();
-                drawCandles();
-                drawPositions();
-                drawPriceAxis();
-                drawTimeAxis();
-                drawCurrentPriceLine();
-            }
-            state.needsRedraw = false;
-        }
-
-        if (state.animation.isAnimating) {
-            animateLastCandle();
-        }
-
-        requestAnimationFrame(draw);
-    }
-
-    function requestRedraw() {
-        state.needsRedraw = true;
-    }
-    
-    function resizeCanvas() {
-        const dpr = window.devicePixelRatio || 1;
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        ctx.scale(dpr, dpr);
-        requestRedraw();
-    }
-
-    // --- 圖表繪製引擎 ---
-    
-    function calculatePriceRange() {
-        if (!state.gameData[state.currentBarIndex]) return;
-        const lastBarIndex = Math.min(state.currentBarIndex, state.gameData.length - 1);
-        const firstBarIndex = Math.max(0, lastBarIndex - state.view.barsOnScreen + 1);
-        state.view.firstBarIndex = firstBarIndex;
-
-        let min = Infinity, max = -Infinity;
-        for (let i = firstBarIndex; i <= lastBarIndex; i++) {
-            if (state.gameData[i]) {
-                min = Math.min(min, state.gameData[i].l);
-                max = Math.max(max, state.gameData[i].h);
-            }
-        }
-        
-        if (min === Infinity) return;
-        const padding = (max - min) * 0.1 || 1;
-        state.view.priceMin = min - padding;
-        state.view.priceMax = max + padding;
-    }
-    
-    // 座標轉換
-    function priceToY(price) {
-        const priceRange = state.view.priceMax - state.view.priceMin;
-        if (priceRange <= 0) return canvas.clientHeight / 2;
-        return (1 - (price - state.view.priceMin) / priceRange) * canvas.clientHeight;
-    }
-
-    function indexToX(index) {
-        const barWidth = canvas.clientWidth / state.view.barsOnScreen;
-        return (index - state.view.firstBarIndex) * barWidth;
-    }
-
-    function drawGrid() {
-        ctx.strokeStyle = 'var(--border-color)';
-        ctx.lineWidth = 1;
-
-        const priceRange = state.view.priceMax - state.view.priceMin;
-        if (priceRange <= 0) return;
-        const priceStep = Math.pow(10, Math.floor(Math.log10(priceRange)) - 1);
-        
-        for (let p = Math.ceil(state.view.priceMin / priceStep) * priceStep; p < state.view.priceMax; p += priceStep) {
-            const y = priceToY(p);
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(canvas.clientWidth, y);
-            ctx.stroke();
-        }
-
-        const barWidth = canvas.clientWidth / state.view.barsOnScreen;
-        const timeStep = Math.max(1, Math.floor(20 / barWidth));
-        for (let i = state.view.firstBarIndex; i <= state.currentBarIndex; i += timeStep * 5) {
-            const x = indexToX(i) + barWidth / 2;
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, canvas.clientHeight);
-            ctx.stroke();
-        }
-    }
-
-    function drawCandles() {
-        const barWidth = canvas.clientWidth / state.view.barsOnScreen;
-        const lastBarIndex = Math.min(state.currentBarIndex, state.gameData.length - 1);
-
-        for (let i = state.view.firstBarIndex; i < lastBarIndex; i++) {
-            const bar = state.gameData[i];
-            if (!bar) continue;
-
-            const x = indexToX(i);
-            const yO = priceToY(bar.o);
-            const yC = priceToY(bar.c);
-            const yH = priceToY(bar.h);
-            const yL = priceToY(bar.l);
-
-            ctx.strokeStyle = bar.c >= bar.o ? 'var(--green)' : 'var(--red)';
-            ctx.fillStyle = ctx.strokeStyle;
-            ctx.lineWidth = 1.5;
-
-            ctx.beginPath();
-            ctx.moveTo(x + barWidth / 2, yH);
-            ctx.lineTo(x + barWidth / 2, yL);
-            ctx.stroke();
-
-            ctx.fillRect(x + barWidth * 0.1, Math.min(yO, yC), barWidth * 0.8, Math.abs(yO - yC) || 1);
-        }
-        
-        const lastBar = state.gameData[lastBarIndex];
-        if (lastBar && !state.animation.isAnimating) {
-            const x = indexToX(lastBarIndex);
-            const yO = priceToY(lastBar.o);
-            const yC = priceToY(lastBar.c);
-            const yH = priceToY(lastBar.h);
-            const yL = priceToY(lastBar.l);
-
-            ctx.strokeStyle = lastBar.c >= lastBar.o ? 'var(--green)' : 'var(--red)';
-            ctx.fillStyle = ctx.strokeStyle;
-            ctx.lineWidth = 1.5;
-
-            ctx.beginPath();
-            ctx.moveTo(x + barWidth / 2, yH);
-            ctx.lineTo(x + barWidth / 2, yL);
-            ctx.stroke();
-            ctx.fillRect(x + barWidth * 0.1, Math.min(yO, yC), barWidth * 0.8, Math.abs(yO - yC) || 1);
-        }
-    }
-
-    function startCandleAnimation() {
-        if (!state.gameData[state.currentBarIndex]) return;
-        const lastBar = state.gameData[state.currentBarIndex];
-        state.animation = {
-            isAnimating: true,
-            targetHigh: lastBar.h,
-            targetLow: lastBar.l,
-            targetClose: lastBar.c,
-            open: lastBar.o,
-            startTime: performance.now(),
-            duration: state.gameSpeed * 0.8,
-        };
-        requestAnimationFrame(draw);
-    }
-    
-    function animateLastCandle() {
-        const now = performance.now();
-        const elapsed = now - state.animation.startTime;
-        let progress = Math.min(elapsed / state.animation.duration, 1);
-        
-        requestRedraw();
-
-        const bar = state.animation;
-        const yO = priceToY(bar.open);
-        
-        const currentHigh = bar.open + (bar.targetHigh - bar.open) * progress;
-        const currentLow = bar.open - (bar.open - bar.targetLow) * progress;
-        const yH = priceToY(currentHigh);
-        const yL = priceToY(currentLow);
-        
-        const currentClose = bar.open + (bar.targetClose - bar.open) * progress;
-        const yC = priceToY(currentClose);
-        
-        const x = indexToX(state.currentBarIndex);
-        const barWidth = canvas.clientWidth / state.view.barsOnScreen;
-        
-        ctx.strokeStyle = currentClose >= bar.open ? 'var(--green)' : 'var(--red)';
-        ctx.fillStyle = ctx.strokeStyle;
-        ctx.lineWidth = 1.5;
-
-        ctx.beginPath();
-        ctx.moveTo(x + barWidth / 2, yH);
-        ctx.lineTo(x + barWidth / 2, yL);
-        ctx.stroke();
-
-        ctx.fillRect(x + barWidth * 0.1, Math.min(yO, yC), barWidth * 0.8, Math.abs(yO - yC) || 1);
-
-        if (progress >= 1) {
-            state.animation.isAnimating = false;
-        }
-    }
-
-    function drawPriceAxis() {
-        const width = canvas.clientWidth;
-        const height = canvas.clientHeight;
-        ctx.clearRect(width - 60, 0, 60, height);
-        
-        ctx.fillStyle = 'var(--text-secondary)';
-        ctx.font = '12px ' + getComputedStyle(document.body).fontFamily;
-        ctx.textAlign = 'left';
-
-        const priceRange = state.view.priceMax - state.view.priceMin;
-        if (priceRange <= 0) return;
-        const priceStep = Math.pow(10, Math.floor(Math.log10(priceRange)) - 1);
-        
-        for (let p = Math.ceil(state.view.priceMin / priceStep) * priceStep; p < state.view.priceMax; p += priceStep) {
-            const y = priceToY(p);
-            ctx.fillText(p.toFixed(2), width - 55, y + 4);
-        }
-    }
-
-    function drawTimeAxis() {
-        const width = canvas.clientWidth;
-        const height = canvas.clientHeight;
-        ctx.clearRect(0, height - 20, width, 20);
-
-        ctx.fillStyle = 'var(--text-secondary)';
-        ctx.font = '12px ' + getComputedStyle(document.body).fontFamily;
-        ctx.textAlign = 'center';
-
-        const barWidth = width / state.view.barsOnScreen;
-        const timeStep = Math.max(1, Math.floor(100 / barWidth));
-
-        for (let i = state.view.firstBarIndex; i <= state.currentBarIndex; i += timeStep) {
-            const bar = state.gameData[i];
-            if (!bar) continue;
-            const x = indexToX(i) + barWidth / 2;
-            const date = new Date(bar.time);
-            ctx.fillText(`${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`, x, height - 5);
-        }
-    }
-
-    function drawCurrentPriceLine() {
-        const currentBar = state.gameData[state.currentBarIndex];
-        if (!currentBar) return;
-
-        const price = currentBar.c;
-        const y = priceToY(price);
-        const width = canvas.clientWidth;
-
-        ctx.strokeStyle = 'var(--yellow)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width - 60, y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        ctx.fillStyle = 'var(--yellow)';
-        ctx.fillRect(width - 60, y - 10, 60, 20);
-        ctx.fillStyle = 'var(--bg-main)';
-        ctx.font = 'bold 12px ' + getComputedStyle(document.body).fontFamily;
-        ctx.textAlign = 'center';
-        ctx.fillText(price.toFixed(2), width - 30, y + 4);
-    }
-
-    function drawPositions() {
-        if (!state.gameData[state.currentBarIndex]) return;
-        const currentPrice = state.gameData[state.currentBarIndex].c;
-
-        state.positions.forEach(p => {
-            const yEntry = priceToY(p.entryPrice);
-            ctx.strokeStyle = 'var(--blue)';
-            ctx.lineWidth = 1;
-            ctx.setLineDash([2, 2]);
-            ctx.beginPath();
-            ctx.moveTo(0, yEntry);
-            ctx.lineTo(canvas.clientWidth - 60, yEntry);
-            ctx.stroke();
+            let delimiter = ',';
             
-            if (p.sl) {
-                const ySl = priceToY(p.sl);
-                ctx.strokeStyle = 'var(--red)';
-                ctx.beginPath();
-                ctx.moveTo(0, ySl);
-                ctx.lineTo(canvas.clientWidth - 60, ySl);
-                ctx.stroke();
-                ctx.fillStyle = 'var(--red)';
-                ctx.font = '10px ' + getComputedStyle(document.body).fontFamily;
-                ctx.textAlign = 'left';
-                ctx.fillText('SL', 5, ySl - 2);
+            // 優先判斷是否為空格/Tab分隔 (常見於 MT4/MT5 導出)
+            if (firstLine.includes('\t') || (firstLine.includes(' ') && !firstLine.includes(','))) {
+                delimiter = /\s+/; // 空格或 Tab
+            }
+
+            const testParts = firstLine.split(delimiter);
+
+            if (testParts.length < 5) return [];
+
+            // 偵測時間格式
+            let timeFormat = 'unknown';
+            if (testParts[0].match(/^\d{10,}$/)) {
+                // 看起來像時間戳
+                timeFormat = 'timestamp';
+            } else if (testParts[0].match(/^\d{4}[\.\-]\d{2}[\.\-]\d{2}$/) && testParts[1].match(/^\d{2}:\d{2}/)) {
+                 // 格式為 YYYY.MM.DD HH:MM
+                timeFormat = 'datetime_separate';
+            } else {
+                // 假設為合併的日期時間字串
+                timeFormat = 'datetime_combined';
             }
             
-            if (p.tp) {
-                const yTp = priceToY(p.tp);
-                ctx.strokeStyle = 'var(--green)';
-                ctx.beginPath();
-                ctx.moveTo(0, yTp);
-                ctx.lineTo(canvas.clientWidth - 60, yTp);
-                ctx.stroke();
-                ctx.fillStyle = 'var(--green)';
-                ctx.font = '10px ' + getComputedStyle(document.body).fontFamily;
-                ctx.textAlign = 'left';
-                ctx.fillText('TP', 5, yTp - 2);
-            }
-            
-            ctx.setLineDash([]);
-            
-            const pl = calculatePL(p, currentPrice);
-            const plText = `${pl >= 0 ? '+' : ''}${pl.toFixed(2)}`;
-            ctx.fillStyle = pl >= 0 ? 'var(--green)' : 'var(--red)';
-            ctx.fillRect(5, yEntry - 10, 60, 20);
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 12px ' + getComputedStyle(document.body).fontFamily;
-            ctx.textAlign = 'center';
-            ctx.fillText(plText, 35, yEntry + 4);
-        });
-    }
 
-    // --- 事件監聽器 ---
-    function bindPermanentEventListeners() {
-        // Playback
-        playPauseBtn.addEventListener('click', togglePlayPause);
-        stepForwardBtn.addEventListener('click', stepForward);
-        speedControl.addEventListener('change', (e) => changeSpeed(parseFloat(e.target.value)));
+            const parsedData = [];
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                // 跳過標題列或空行
+                if (line === '' || line.toLowerCase().includes('open') || line.toLowerCase().includes('time')) continue;
 
-        // Tabs
-        tabButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const tab = btn.dataset.tab;
-                tabButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                tabContents.forEach(c => c.classList.add('hidden'));
-                document.getElementById(`tab-content-${tab}`).classList.remove('hidden');
-            });
-        });
+                const values = line.split(delimiter);
+                
+                let timestamp, open, high, low, close;
 
-        // Trade
-        btnBuy.addEventListener('click', () => executeTrade('buy'));
-        btnSell.addEventListener('click', () => executeTrade('sell'));
-        stepperBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const inputId = btn.dataset.input;
-                const step = parseFloat(btn.dataset.step);
-                const input = document.getElementById(`input-${inputId}`);
-                if (input) {
-                    let value = parseFloat(input.value) || 0;
-                    value += step;
-                    if (inputId === 'lots' && value < 0.01) value = 0.01;
-                    input.value = value.toFixed(inputId === 'lots' ? 2 : 2);
-                }
-            });
-        });
-        
-        // Positions
-        btnCloseAll.addEventListener('click', closeAllPositions);
-        positionsList.addEventListener('click', (e) => {
-            if (e.target.classList.contains('close-pos-btn')) {
-                const id = parseInt(e.target.dataset.id, 10);
-                closePosition(id);
-            }
-        });
-        positionsList.addEventListener('change', (e) => {
-            if (e.target.classList.contains('modify-input')) {
-                const id = parseInt(e.target.dataset.id, 10);
-                const position = state.positions.find(p => p.id === id);
-                if (position) {
-                    const slInput = positionsList.querySelector(`input[data-id="${id}"][data-type="sl"]`);
-                    const tpInput = positionsList.querySelector(`input[data-id="${id}"][data-type="tp"]`);
-                    const newSl = parseFloat(slInput.value);
-                    const newTp = parseFloat(tpInput.value);
-                    modifyPosition(id, newSl, newTp);
+                try {
+                    if (timeFormat === 'timestamp') {
+                        if (values.length < 5) continue;
+                        timestamp = parseInt(values[0]);
+                        if (timestamp < 10000000000) timestamp *= 1000; // 秒轉毫秒
+                        open = parseFloat(values[1]);
+                        high = parseFloat(values[2]);
+                        low = parseFloat(values[3]);
+                        close = parseFloat(values[4]);
+                    } else if (timeFormat === 'datetime_separate') {
+                         // 格式: Date Time O H L C
+                        if (values.length < 6) continue;
+                        const dateStr = `${values[0]} ${values[1]}`;
+                        timestamp = new Date(dateStr.replace(/\./g, '-')).getTime();
+                        open = parseFloat(values[2]);
+                        high = parseFloat(values[3]);
+                        low = parseFloat(values[4]);
+                        close = parseFloat(values[5]);
+                    } else if (timeFormat === 'datetime_combined') {
+                        // 格式: DateTime O H L C (適用於某些逗號分隔的檔案)
+                        if (values.length < 5) continue;
+                        timestamp = new Date(values[0].replace(/\./g, '-')).getTime();
+                        open = parseFloat(values[1]);
+                        high = parseFloat(values[2]);
+                        low = parseFloat(values[3]);
+                        close = parseFloat(values[4]);
+                    }
+
+                    if (isNaN(timestamp) || isNaN(open) || isNaN(high) || isNaN(low) || isNaN(close)) {
+                        continue;
+                    }
+
+                    parsedData.push({ time: timestamp, open, high, low, close });
+                } catch (error) {
+                    // console.warn(`Skipping line ${i+1} due to parsing error. Content: ${lines[i]}`);
                 }
             }
-        });
 
-        // Chart Interaction
-        let panStartBarIndex = 0;
-        canvas.addEventListener('mousedown', (e) => {
-            state.view.isDragging = true;
-            state.view.lastMouseX = e.clientX;
-            panStartBarIndex = state.view.firstBarIndex;
-        });
-        canvas.addEventListener('touchstart', (e) => {
-            state.view.isDragging = true;
-            state.view.lastMouseX = e.touches[0].clientX;
-            panStartBarIndex = state.view.firstBarIndex;
-        }, { passive: true });
-
-        window.addEventListener('mousemove', (e) => {
-            if (!state.view.isDragging) return;
-            const dx = e.clientX - state.view.lastMouseX;
-            const barWidth = canvas.clientWidth / state.view.barsOnScreen;
-            const barShift = Math.round(dx / barWidth);
-            
-            const newFirstBarIndex = panStartBarIndex - barShift;
-            state.view.firstBarIndex = Math.max(0, Math.min(newFirstBarIndex, state.currentBarIndex - 10));
-
-            requestRedraw();
-        });
-        window.addEventListener('touchmove', (e) => {
-            if (!state.view.isDragging) return;
-            const dx = e.touches[0].clientX - state.view.lastMouseX;
-            const barWidth = canvas.clientWidth / state.view.barsOnScreen;
-            const barShift = Math.round(dx / barWidth);
-
-            const newFirstBarIndex = panStartBarIndex - barShift;
-            state.view.firstBarIndex = Math.max(0, Math.min(newFirstBarIndex, state.currentBarIndex - 10));
-
-            requestRedraw();
-        }, { passive: true });
-
-        window.addEventListener('mouseup', () => { state.view.isDragging = false; });
-        window.addEventListener('touchend', () => { state.view.isDragging = false; });
-
-        canvas.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            const zoomFactor = e.deltaY < 0 ? 0.9 : 1.1;
-            const newBarsOnScreen = Math.round(state.view.barsOnScreen * zoomFactor);
-            state.view.barsOnScreen = Math.max(20, Math.min(500, newBarsOnScreen));
-            requestRedraw();
-        });
-    }
-
-    // --- 彈出式視窗與新手導引 ---
-    function showModal(title, body, actions) {
-        modalTitle.textContent = title;
-        modalBody.innerHTML = body;
-        modalActions.innerHTML = '';
-        actions.forEach(action => {
-            const button = document.createElement('button');
-            button.textContent = action.text;
-            button.className = `btn ${action.className} w-full sm:w-auto px-6 py-3 rounded-md font-bold`;
-            button.onclick = action.callback;
-            modalActions.appendChild(button);
-        });
-        modalContainer.classList.remove('hidden');
-    }
-
-    function hideModal() {
-        modalContainer.classList.add('hidden');
-    }
-
-    const tutorialSteps = [
-        { selector: '#chart-canvas', text: '這裡是 K 線圖。綠色代表上漲，紅色代表下跌。您可以拖曳來平移，使用滑鼠滾輪來縮放。' },
-        { selector: '#hud', text: '這裡是您的帳戶狀態，顯示當前日期、淨值和總浮動損益。' },
-        { selector: '#tab-content-trade', text: '在「交易」面板，您可以設定手數、停損和停利，然後點擊「買入」或「賣出」來下單。' },
-        { selector: '#bottom-panel .flex', text: '在「持倉」頁籤可以管理您目前的訂單，在「紀錄」頁籤可以查看歷史交易。' },
-        { selector: '#playback-controls', text: '使用這些按鈕來播放、暫停、單步前進或調整模擬速度。' },
-        { selector: null, text: '導引結束！現在開始您的交易挑戰吧！祝您好運！' }
-    ];
-    let currentTutorialStep = 0;
-
-    function startTutorial() {
-        currentTutorialStep = 0;
-        tutorialContainer.classList.remove('hidden');
-        showTutorialStep();
-        tutorialNextBtn.addEventListener('click', nextTutorialStep);
-    }
-    
-    function nextTutorialStep() {
-        currentTutorialStep++;
-        if (currentTutorialStep < tutorialSteps.length) {
-            showTutorialStep();
-        } else {
-            endTutorial();
+            // 確保數據按時間排序
+            return parsedData.sort((a, b) => a.time - b.time);
         }
-    }
 
-    function endTutorial() {
-        tutorialContainer.classList.add('hidden');
-        localStorage.setItem('trading_challenge_tutorial_seen', 'true');
-        startGame();
-    }
+        // ----------------------------------------------------------------------------
+        // 3. 遊戲初始化與流程控制 (Game Initialization & Flow Control)
+        // ----------------------------------------------------------------------------
 
-    function showTutorialStep() {
-        const step = tutorialSteps[currentTutorialStep];
-        tutorialText.textContent = step.text;
-        tutorialStep.textContent = `${currentTutorialStep + 1} / ${tutorialSteps.length}`;
+        function init() {
+            console.log("Initializing application...");
+            cacheDOMElements();
+            setupEventListeners();
+            initChart();
+            loadData();
+        }
 
-        if (step.selector) {
-            const targetElement = document.querySelector(step.selector);
-            if (!targetElement) {
-                console.warn(`Tutorial target not found: ${step.selector}`);
-                nextTutorialStep(); // Skip if element not found
+        // 快取所有必要的 DOM 元素
+        function cacheDOMElements() {
+            // HUD
+            DOM.hudDate = document.getElementById('hud-date');
+            DOM.hudEquity = document.getElementById('hud-equity');
+            DOM.hudPL = document.getElementById('hud-pl');
+            DOM.hudProgress = document.getElementById('hud-progress');
+            // Controls
+            DOM.btnPlayPause = document.getElementById('btnPlayPause');
+            DOM.btnStepForward = document.getElementById('btnStepForward');
+            DOM.speedSelector = document.getElementById('speedSelector');
+            // Chart
+            DOM.chartWrap = document.getElementById('chartWrap');
+            DOM.chartCanvas = document.getElementById('chartCanvas');
+            DOM.chartOverlay = document.getElementById('chartOverlay');
+            // Sidebar
+            DOM.inputLots = document.getElementById('inputLots');
+            DOM.inputSL = document.getElementById('inputSL');
+            DOM.inputTP = document.getElementById('inputTP');
+            DOM.positionsList = document.getElementById('positionsList');
+            DOM.historyList = document.getElementById('historyList');
+            DOM.positionsCount = document.getElementById('positionsCount');
+            DOM.btnCloseAll = document.getElementById('btnCloseAll');
+            // Modals
+            DOM.loader = document.getElementById('loader');
+            DOM.eventModal = document.getElementById('eventModal');
+            DOM.endGameModal = document.getElementById('endGameModal');
+            // Tutorial
+            DOM.tutorialHighlight = document.getElementById('tutorialHighlight');
+            DOM.tutorialMessage = document.getElementById('tutorialMessage');
+            DOM.tutorialText = document.getElementById('tutorialText');
+            DOM.tutorialNextBtn = document.getElementById('tutorialNextBtn');
+        }
+
+        function startGame() {
+            console.log("Starting new game...");
+            resetState();
+            selectRandomDataSegment();
+
+            if (state.gameData.length === 0) {
+                console.error("Game data is empty. Cannot start game.");
                 return;
             }
-            const rect = targetElement.getBoundingClientRect();
             
-            tutorialHighlight.style.display = 'block';
-            tutorialHighlight.style.left = `${rect.left}px`;
-            tutorialHighlight.style.top = `${rect.top}px`;
-            tutorialHighlight.style.width = `${rect.width}px`;
-            tutorialHighlight.style.height = `${rect.height}px`;
+            // Initialize chart view (Show first few candles)
+            const initialVisibleCandles = calculateVisibleCandles();
+            // 初始顯示約 80% 的可視範圍
+            state.currentIndex = Math.min(Math.floor(initialVisibleCandles * 0.8), state.gameData.length - 1);
+            
+            state.isLoading = false;
+            DOM.loader.classList.add('hidden');
+            
+            updateUI();
+            requestAnimationFrame(draw);
 
-            const tooltipRect = tutorialTooltip.getBoundingClientRect();
-            let tooltipTop = rect.bottom + 10;
-            if (tooltipTop + tooltipRect.height > window.innerHeight) {
-                tooltipTop = rect.top - tooltipRect.height - 10;
+            // Start tutorial
+            startTutorial();
+        }
+
+        function resetState() {
+            state.balance = CONFIG.INITIAL_BALANCE;
+            state.equity = CONFIG.INITIAL_BALANCE;
+            state.floatingPL = 0;
+            state.openPositions = [];
+            state.tradeHistory = [];
+            state.orderIdCounter = 1;
+            state.isPlaying = false;
+            state.isEnded = false;
+            state.currentIndex = 0;
+            state.barAnimationProgress = 0;
+            state.triggeredEvents.clear();
+            // Reset chart view settings
+            state.chart.candleWidth = CONFIG.CANDLE_WIDTH_DEFAULT;
+            state.chart.candleSpacing = CONFIG.CANDLE_SPACING;
+            state.chart.scrollOffset = 0;
+            // Clear DOM overlays
+            DOM.chartOverlay.innerHTML = '';
+        }
+
+        // 隨機抽取一個月的數據區間
+        function selectRandomDataSegment() {
+            const totalDurationMs = CONFIG.SIMULATION_DURATION_DAYS * 24 * 60 * 60 * 1000;
+            
+            if (state.rawData.length === 0) return;
+
+            const dataDuration = state.rawData[state.rawData.length - 1].time - state.rawData[0].time;
+
+            if (dataDuration < totalDurationMs) {
+                console.warn("數據總長度不足以滿足模擬期間。使用所有可用數據。");
+                state.gameData = [...state.rawData];
+                return;
             }
-            tutorialTooltip.style.left = `${rect.left + rect.width / 2 - tooltipRect.width / 2}px`;
-            tutorialTooltip.style.top = `${tooltipTop}px`;
+
+            // 尋找隨機起點
+            const latestStartTime = state.rawData[state.rawData.length - 1].time - totalDurationMs;
+            const earliestStartTime = state.rawData[0].time;
+
+            // 在可能的時間範圍內隨機選擇一個開始時間
+            const randomStartTime = earliestStartTime + Math.random() * (latestStartTime - earliestStartTime);
+
+            // 找到對應此時間的索引
+            const startIndex = state.rawData.findIndex(d => d.time >= randomStartTime);
+
+            const startTime = state.rawData[startIndex].time;
+            const endTime = startTime + totalDurationMs;
+
+            // 提取區間
+            state.gameData = state.rawData.filter(d => d.time >= startTime && d.time <= endTime);
             
-        } else {
-            tutorialHighlight.style.display = 'none';
-            tutorialTooltip.style.left = `50%`;
-            tutorialTooltip.style.top = `50%`;
-            tutorialTooltip.style.transform = 'translate(-50%, -50%)';
+            console.log(`選取數據區間: ${state.gameData.length} 根 K 棒。從 ${new Date(startTime).toLocaleDateString()} 開始。`);
         }
-        
-        tutorialTooltip.classList.remove('visible');
-        setTimeout(() => tutorialTooltip.classList.add('visible'), 50);
 
-        if (currentTutorialStep === tutorialSteps.length - 1) {
-            tutorialNextBtn.textContent = "完成";
+        let lastTickTime = 0;
+        let animationFrameId;
+
+        // 主遊戲循環 (由 requestAnimationFrame 驅動)
+        function gameLoop(timestamp) {
+            if (!state.isPlaying || state.isEnded) {
+                cancelAnimationFrame(animationFrameId);
+                return;
+            }
+
+            // 計算時間間隔和進度
+            const effectiveInterval = CONFIG.TICK_INTERVAL / state.speedMultiplier;
+            const deltaTime = timestamp - lastTickTime;
+
+            // 使用 deltaTime 計算動畫進度，確保流暢性
+             if (deltaTime > 0) { 
+                 const progressIncrement = deltaTime / effectiveInterval;
+                 state.barAnimationProgress = Math.min(1, state.barAnimationProgress + progressIncrement);
+                 
+                 // 在動畫期間持續更新持倉和帳戶
+                 updatePositions();
+                 updateAccount();
+                 updateUI(); 
+
+                 if (state.barAnimationProgress >= 1) {
+                    // K 棒動畫完成
+                    finalizeCurrentBar();
+                    if (!advanceSimulation()) {
+                        // 遊戲結束
+                        endGame();
+                        return;
+                    }
+                    // 重置下一根 K 棒的狀態
+                    state.barAnimationProgress = 0;
+                    checkForEvents();
+                    
+                    // 如果用戶正在查看歷史數據（scrollOffset > 0），不要自動滾動到最新
+                    if (state.chart.scrollOffset > 0) {
+                        // 增加滾動偏移量，以匹配新生成的 K 棒，保持視圖不變
+                        state.chart.scrollOffset++;
+                    }
+                 }
+                 lastTickTime = timestamp;
+            }
+            
+            // 繪圖
+            draw();
+            // 繼續循環
+            animationFrameId = requestAnimationFrame(gameLoop);
         }
-    }
 
-    // --- 啟動應用 ---
-    init();
-    draw(); // Start the animation loop
-});
-</script>
+        function finalizeCurrentBar() {
+            // 確保最終更新使用收盤價
+            state.barAnimationProgress = 1;
+            updatePositions();
+            updateAccount();
+        }
+
+        function advanceSimulation() {
+            if (state.currentIndex < state.gameData.length - 1) {
+                state.currentIndex++;
+                return true;
+            }
+            return false;
+        }
+
+        function endGame() {
+            console.log("挑戰結束。");
+            state.isPlaying = false;
+            state.isEnded = true;
+            cancelAnimationFrame(animationFrameId);
+            
+            // 以最後價格平倉所有剩餘訂單
+            while(state.openPositions.length > 0) {
+                const position = state.openPositions[0];
+                const closePrice = state.gameData[state.currentIndex].close;
+                closeOrder(position.id, closePrice);
+            }
+
+            updateAccount();
+            updateUI();
+            showEndGameModal();
+        }
+
+        // ----------------------------------------------------------------------------
+        // 4. 圖表繪製與渲染 (Chart Drawing & Rendering)
+        // ----------------------------------------------------------------------------
+
+        function initChart() {
+            state.chart.canvas = DOM.chartCanvas;
+            state.chart.ctx = state.chart.canvas.getContext('2d');
+            resizeCanvas();
+        }
+
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = DOM.chartWrap.getBoundingClientRect();
+            // 確保寬高為整數
+            const width = Math.floor(rect.width);
+            const height = Math.floor(rect.height);
+
+            state.chart.canvas.width = width * dpr;
+            state.chart.canvas.height = height * dpr;
+            // 設置 CSS 尺寸
+            state.chart.canvas.style.width = `${width}px`;
+            state.chart.canvas.style.height = `${height}px`;
+
+            state.chart.ctx.scale(dpr, dpr);
+            state.chart.width = width;
+            state.chart.height = height;
+
+            // 重新計算滾動位置，防止因縮放導致視圖錯誤
+            validateScrollOffset();
+
+            if (!state.isLoading) {
+                draw();
+            }
+        }
+
+        function draw() {
+            // 使用 requestAnimationFrame 封裝繪圖操作，確保不會過度繪製
+            // 如果遊戲正在運行，gameLoop 已經處理了 rAF。如果暫停，則手動觸發。
+            if (state.isLoading) return;
+
+            const ctx = state.chart.ctx;
+            // 1. 清空畫布
+            ctx.clearRect(0, 0, state.chart.width, state.chart.height);
+
+            // 2. 計算視圖範圍和價格範圍
+            calculateViewport();
+
+            // 3. 繪製圖表元素
+            drawBackground(ctx);
+            drawGrid(ctx);
+            drawCandles(ctx);
+            drawYAxis(ctx);
+            drawXAxis(ctx);
+            drawCrosshair(ctx);
+            drawTradeAnimations(ctx);
+            
+            // 4. 更新 DOM 疊加層 (持倉線)
+            updatePositionOverlays();
+        }
+
+        function calculateVisibleCandles() {
+            const { width, candleWidth, candleSpacing } = state.chart;
+            const { left, right } = CONFIG.CHART_PADDING;
+            const chartAreaWidth = width - left - right;
+            const candleUnitWidth = candleWidth + candleSpacing;
+            if (candleUnitWidth <= 0) return 100; // 避免除以零
+            return Math.floor(chartAreaWidth / candleUnitWidth);
+        }
+
+        function calculateViewport() {
+            const visibleCandles = calculateVisibleCandles();
+
+            // 根據 currentIndex 和 scrollOffset 確定可視範圍
+            // endIndex 是可視範圍最右側的 K 棒索引 (不包含)
+            let endIndex = state.currentIndex + 1 - state.chart.scrollOffset;
+            // startIndex 是可視範圍最左側的 K 棒索引
+            let startIndex = endIndex - visibleCandles;
+
+            // 邊界檢查
+            if (endIndex > state.currentIndex + 1) {
+                endIndex = state.currentIndex + 1;
+                startIndex = Math.max(0, endIndex - visibleCandles);
+            }
+            if (startIndex < 0) {
+                startIndex = 0;
+                // 確保 endIndex 不會超出當前數據範圍
+                endIndex = Math.min(state.currentIndex + 1, visibleCandles);
+            }
+            
+            state.chart.viewStartIndex = startIndex;
+            state.chart.viewEndIndex = endIndex;
+
+            // 計算價格範圍
+            let minPrice = Infinity;
+            let maxPrice = -Infinity;
+
+            for (let i = startIndex; i < endIndex; i++) {
+                // 確保索引在 gameData 範圍內
+                if (i >= state.gameData.length) break; 
+                const bar = state.gameData[i];
+
+                // 對於當前活動的 K 棒，且視圖在最右側時，考慮動畫價格
+                if (i === state.currentIndex && state.chart.scrollOffset === 0) {
+                    const animatedBar = getAnimatedBar(bar);
+                    minPrice = Math.min(minPrice, animatedBar.low);
+                    maxPrice = Math.max(maxPrice, animatedBar.high);
+                } else {
+                    minPrice = Math.min(minPrice, bar.low);
+                    maxPrice = Math.max(maxPrice, bar.high);
+                }
+            }
+
+            // 增加價格範圍的緩衝
+            const priceRange = maxPrice - minPrice;
+            if (priceRange <= 0 || !isFinite(priceRange)) {
+                const padding = 0.5;
+                state.chart.minPrice = (minPrice === Infinity ? 1900 : minPrice) - padding;
+                state.chart.maxPrice = (maxPrice === -Infinity ? 1901 : maxPrice) + padding;
+            } else {
+                const padding = priceRange * 0.1;
+                state.chart.minPrice = minPrice - padding;
+                state.chart.maxPrice = maxPrice + padding;
+            }
+        }
+
+        // 輔助函式：價格轉 Y 座標
+        function priceToY(price) {
+            const { height, minPrice, maxPrice } = state.chart;
+            const { top, bottom } = CONFIG.CHART_PADDING;
+            const chartAreaHeight = height - top - bottom;
+            const priceRange = maxPrice - minPrice;
+            
+            if (priceRange === 0) return top + chartAreaHeight / 2;
+
+            return top + chartAreaHeight * (1 - (price - minPrice) / priceRange);
+        }
+
+        // 輔助函式：索引轉 X 座標
+        function indexToX(index) {
+            const { viewStartIndex, candleWidth, candleSpacing } = state.chart;
+            const { left } = CONFIG.CHART_PADDING;
+            const candleUnitWidth = candleWidth + candleSpacing;
+            // 計算相對於 viewStartIndex 的位置
+            return left + (index - viewStartIndex) * candleUnitWidth + candleWidth / 2;
+        }
+
+        function drawBackground(ctx) {
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-bg');
+            ctx.fillRect(0, 0, state.chart.width, state.chart.height);
+        }
+
+        function drawGrid(ctx) {
+            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-grid');
+            ctx.lineWidth = 1;
+
+            // 水平網格線 (基於 Y 軸刻度)
+            const yTicks = calculateYAxisTicks();
+            yTicks.forEach(tick => {
+                const y = priceToY(tick.price);
+                ctx.beginPath();
+                ctx.moveTo(CONFIG.CHART_PADDING.left, y);
+                ctx.lineTo(state.chart.width - CONFIG.CHART_PADDING.right, y);
+                ctx.stroke();
+            });
+
+            // 垂直網格線 (基於 X 軸刻度)
+            const xTicks = calculateXAxisTicks();
+            xTicks.forEach(tick => {
+                const x = indexToX(tick.index);
+                if (x >= CONFIG.CHART_PADDING.left && x <= state.chart.width - CONFIG.CHART_PADDING.right) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, CONFIG.CHART_PADDING.top);
+                    ctx.lineTo(x, state.chart.height - CONFIG.CHART_PADDING.bottom);
+                    ctx.stroke();
+                }
+            });
+        }
+
+        // 核心功能：K 棒動畫邏輯 (開盤 -> 影線 -> 實體)
+        function getAnimatedBar(bar) {
+            const progress = state.barAnimationProgress;
+            const open = bar.open;
+            
+            // 1. 影線 (Wicks) - 假設影線在動畫的前半段 (50%) 形成
+            const wickProgress = Math.min(1, progress * 2);
+            const high = open + (bar.high - open) * wickProgress;
+            const low = open + (bar.low - open) * wickProgress;
+
+            // 2. 實體 (Body/Close) - 從開盤價線性增長到收盤價
+            const close = open + (bar.close - open) * progress;
+
+            // 確保 High/Low 始終包含當前的 Open 和 Close 價格
+            const finalHigh = Math.max(high, close, open);
+            const finalLow = Math.min(low, close, open);
+
+            return { open, high: finalHigh, low: finalLow, close };
+        }
+
+        function drawCandles(ctx) {
+            const { viewStartIndex, viewEndIndex, candleWidth } = state.chart;
+            const colorBull = getComputedStyle(document.documentElement).getPropertyValue('--color-bull');
+            const colorBear = getComputedStyle(document.documentElement).getPropertyValue('--color-bear');
+
+            for (let i = viewStartIndex; i < viewEndIndex; i++) {
+                 if (i >= state.gameData.length) break;
+                const bar = state.gameData[i];
+                let displayBar = bar;
+
+                // 僅對當前活動的 K 棒且視圖在最右側時應用動畫
+                if (i === state.currentIndex && state.chart.scrollOffset === 0) {
+                    displayBar = getAnimatedBar(bar);
+                }
+
+                const x = indexToX(i);
+                const openY = priceToY(displayBar.open);
+                const highY = priceToY(displayBar.high);
+                const lowY = priceToY(displayBar.low);
+                const closeY = priceToY(displayBar.close);
+
+                const color = displayBar.close >= displayBar.open ? colorBull : colorBear;
+                ctx.strokeStyle = color;
+                ctx.fillStyle = color;
+
+                // 繪製影線
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(x, highY);
+                ctx.lineTo(x, lowY);
+                ctx.stroke();
+
+                // 繪製實體
+                const bodyTop = Math.min(openY, closeY);
+                const bodyHeight = Math.abs(openY - closeY);
+                
+                // 確保實體至少有 1px 高度
+                const finalHeight = Math.max(1, bodyHeight);
+
+                ctx.fillRect(x - candleWidth / 2, bodyTop, candleWidth, finalHeight);
+            }
+        }
+
+        // 計算合適的 Y 軸刻度
+        function calculateYAxisTicks() {
+            const { minPrice, maxPrice } = state.chart;
+            const priceRange = maxPrice - minPrice;
+            
+            if (priceRange <= 0) return [];
+
+            // 動態調整刻度間距
+            let magnitude = Math.pow(10, Math.floor(Math.log10(priceRange)));
+            let normalizedRange = priceRange / magnitude;
+
+            let tickSpacing;
+            if (normalizedRange > 5) tickSpacing = magnitude;
+            else if (normalizedRange > 2) tickSpacing = magnitude * 0.5;
+            else tickSpacing = magnitude * 0.2;
+
+            const ticks = [];
+            let currentTick = Math.ceil(minPrice / tickSpacing) * tickSpacing;
+
+            while (currentTick <= maxPrice) {
+                ticks.push({ price: currentTick });
+                currentTick += tickSpacing;
+            }
+            return ticks;
+        }
+
+        function drawYAxis(ctx) {
+            const { width, height } = state.chart;
+            const { right } = CONFIG.CHART_PADDING;
+            const axisX = width - right;
+
+            // 繪製軸背景和邊框
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-bg');
+            ctx.fillRect(axisX, 0, right, height);
+            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-border');
+            ctx.beginPath();
+            ctx.moveTo(axisX, 0);
+            ctx.lineTo(axisX, height);
+            ctx.stroke();
+
+            // 繪製刻度文字
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-secondary');
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+
+            const ticks = calculateYAxisTicks();
+            ticks.forEach(tick => {
+                const y = priceToY(tick.price);
+                ctx.fillText(tick.price.toFixed(2), axisX + 5, y);
+            });
+
+            // 繪製當前價格指示器
+            if (state.currentIndex < state.gameData.length && state.chart.scrollOffset === 0) {
+                const currentPrice = getCurrentPrice();
+                const currentY = priceToY(currentPrice);
+                
+                const color = currentPrice >= state.gameData[state.currentIndex].open 
+                    ? getComputedStyle(document.documentElement).getPropertyValue('--color-bull')
+                    : getComputedStyle(document.documentElement).getPropertyValue('--color-bear');
+
+                ctx.fillStyle = color;
+                ctx.fillRect(axisX, currentY - 10, right, 20);
+                
+                ctx.fillStyle = 'white';
+                ctx.fillText(currentPrice.toFixed(2), axisX + 5, currentY);
+            }
+        }
+
+        // 計算合適的 X 軸刻度
+        function calculateXAxisTicks() {
+            const { viewStartIndex, viewEndIndex } = state.chart;
+            if (viewEndIndex <= viewStartIndex || viewStartIndex >= state.gameData.length) return [];
+
+            // 根據可視範圍決定時間間隔
+            const timeDiff = state.gameData[viewEndIndex - 1].time - state.gameData[viewStartIndex].time;
+
+            let intervalMs;
+            if (timeDiff < 2 * 3600 * 1000) intervalMs = 15 * 60 * 1000; // 15 分鐘
+            else if (timeDiff < 12 * 3600 * 1000) intervalMs = 60 * 60 * 1000; // 1 小時
+            else if (timeDiff < 48 * 3600 * 1000) intervalMs = 4 * 3600 * 1000; // 4 小時
+            else intervalMs = 24 * 3600 * 1000; // 1 天
+
+            const ticks = [];
+            let lastTickTime = 0;
+
+            for (let i = viewStartIndex; i < viewEndIndex; i++) {
+                const time = state.gameData[i].time;
+                if (time - lastTickTime >= intervalMs) {
+                    ticks.push({ index: i, time: time });
+                    lastTickTime = time;
+                }
+            }
+            return ticks;
+        }
+
+        function drawXAxis(ctx) {
+            const { width, height } = state.chart;
+            const { bottom } = CONFIG.CHART_PADDING;
+            const axisY = height - bottom;
+
+            // 繪製軸背景和邊框
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-bg');
+            ctx.fillRect(0, axisY, width, bottom);
+            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-border');
+            ctx.beginPath();
+            ctx.moveTo(0, axisY);
+            ctx.lineTo(width - CONFIG.CHART_PADDING.right, axisY);
+            ctx.stroke();
+
+            // 繪製刻度文字
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-secondary');
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+
+            const ticks = calculateXAxisTicks();
+            ticks.forEach(tick => {
+                const x = indexToX(tick.index);
+                if (x >= CONFIG.CHART_PADDING.left && x <= width - CONFIG.CHART_PADDING.right) {
+                    const date = new Date(tick.time);
+                    
+                    // 根據時間跨度決定顯示格式
+                    const timeDiff = state.gameData[state.chart.viewEndIndex - 1].time - state.gameData[state.chart.viewStartIndex].time;
+
+                    let label;
+                    if (timeDiff < 48 * 3600 * 1000) {
+                        // 顯示時間
+                        label = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                    } else {
+                        // 顯示日期
+                        label = date.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
+                    }
+                    
+                    ctx.fillText(label, x, axisY + 5);
+                }
+            });
+        }
+
+        function drawCrosshair(ctx) {
+            if (!state.mouse.isOverChart || state.chart.isDragging) return;
+
+            const { x, y } = state.mouse;
+            const { left, right, top, bottom } = CONFIG.CHART_PADDING;
+
+            if (x < left || x > state.chart.width - right || y < top || y > state.chart.height - bottom) return;
+
+            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-crosshair');
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+
+            // 水平線
+            ctx.beginPath();
+            ctx.moveTo(left, y);
+            ctx.lineTo(state.chart.width - right, y);
+            ctx.stroke();
+
+            // 垂直線
+            ctx.beginPath();
+            ctx.moveTo(x, top);
+            ctx.lineTo(x, state.chart.height - bottom);
+            ctx.stroke();
+
+            ctx.setLineDash([]);
+        }
+
+        // 核心功能：DOM 疊加層 (持倉線)
+        function updatePositionOverlays() {
+            const overlay = DOM.chartOverlay;
+            // 使用 Set 來高效追蹤需要保留的線條
+            const linesToKeep = new Set();
+
+            state.openPositions.forEach(pos => {
+                const entryId = `line-entry-${pos.id}`;
+                const slId = `line-sl-${pos.id}`;
+                const tpId = `line-tp-${pos.id}`;
+                
+                // 進場線
+                const entryColor = pos.type === 'BUY' ? 'var(--color-bull)' : 'var(--color-bear)';
+                createOrUpdatePositionLine(overlay, entryId, pos.entryPrice, entryColor, `Entry ${pos.entryPrice.toFixed(2)}`, pos);
+                linesToKeep.add(entryId);
+
+                // SL 線
+                if (pos.sl) {
+                    createOrUpdatePositionLine(overlay, slId, pos.sl, 'var(--color-danger)', `SL ${pos.sl.toFixed(2)}`);
+                    linesToKeep.add(slId);
+                }
+
+                // TP 線
+                if (pos.tp) {
+                    createOrUpdatePositionLine(overlay, tpId, pos.tp, 'var(--color-success)', `TP ${pos.tp.toFixed(2)}`);
+                    linesToKeep.add(tpId);
+                }
+            });
+
+            // 移除不再需要的線條
+            Array.from(overlay.children).forEach(child => {
+                if (child.classList.contains('position-line') && !linesToKeep.has(child.id)) {
+                    overlay.removeChild(child);
+                }
+            });
+        }
+
+        function createOrUpdatePositionLine(container, id, price, color, labelText, position = null) {
+            let line = document.getElementById(id);
+            // 建立新元素如果不存在
+            if (!line) {
+                line = document.createElement('div');
+                line.id = id;
+                line.className = 'position-line';
+                
+                const dash = document.createElement('div');
+                dash.className = 'position-line-dash';
+                line.appendChild(dash);
+
+                const label = document.createElement('div');
+                label.className = 'position-label';
+                line.appendChild(label);
+
+                container.appendChild(line);
+            }
+
+            const y = priceToY(price);
+            
+            // 如果超出圖表可視範圍則隱藏
+            if (y < CONFIG.CHART_PADDING.top || y > state.chart.height - CONFIG.CHART_PADDING.bottom) {
+                line.style.opacity = 0;
+            } else {
+                line.style.opacity = 1;
+                line.style.top = `${y - 10}px`; // 垂直居中調整
+            }
+
+            // 更新樣式和內容
+            const dash = line.querySelector('.position-line-dash');
+            dash.style.borderTopColor = color;
+
+            const label = line.querySelector('.position-label');
+            label.style.backgroundColor = color;
+            label.textContent = labelText;
+
+            // 顯示即時損益 (僅適用於進場線)
+            if (position) {
+                let plDisplay = line.querySelector('.position-pl');
+                if (!plDisplay) {
+                    plDisplay = document.createElement('div');
+                    plDisplay.className = 'position-pl';
+                    // 將損益顯示在線條左側
+                    line.insertBefore(plDisplay, dash);
+                }
+                plDisplay.textContent = `$${position.profit.toFixed(2)}`;
+                plDisplay.style.color = position.profit >= 0 ? 'var(--color-success)' : 'var(--color-danger';
+            }
+        }
+
+        // 核心功能：成交動畫
+        const tradeAnimations = [];
+
+        function addTradeAnimation(type, price, index, profit = 0) {
+            tradeAnimations.push({
+                type,
+                price,
+                index,
+                profit,
+                startTime: performance.now(),
+                duration: type === 'CLOSE' ? 1500 : 1000,
+            });
+            // 觸發一次重繪以顯示動畫
+            if (!state.isPlaying) {
+                draw();
+            }
+        }
+
+        function drawTradeAnimations(ctx) {
+            const now = performance.now();
+            
+            for (let i = tradeAnimations.length - 1; i >= 0; i--) {
+                const anim = tradeAnimations[i];
+                const elapsed = now - anim.startTime;
+                const progress = Math.min(1, elapsed / anim.duration);
+                const opacity = 1 - progress;
+
+                const x = indexToX(anim.index);
+                const y = priceToY(anim.price);
+
+                // 如果動畫位置在視圖外，則跳過
+                if (x < CONFIG.CHART_PADDING.left || x > state.chart.width - CONFIG.CHART_PADDING.right) {
+                     if (progress >= 1) {
+                        tradeAnimations.splice(i, 1);
+                    }
+                    continue;
+                }
+
+                ctx.globalAlpha = opacity;
+
+                if (anim.type === 'BUY' || anim.type === 'SELL') {
+                    // 開倉箭頭動畫
+                    const color = anim.type === 'BUY' ? 'var(--color-bull)' : 'var(--color-bear)';
+                    ctx.fillStyle = color;
+                    
+                    const size = 10 + progress * 3; // 輕微放大效果
+                    const offsetY = anim.type === 'BUY' ? 15 : -15;
+                    
+                    ctx.beginPath();
+                    if (anim.type === 'BUY') {
+                        // 向上箭頭
+                        ctx.moveTo(x, y - offsetY);
+                        ctx.lineTo(x - size/2, y - offsetY + size);
+                        ctx.lineTo(x + size/2, y - offsetY + size);
+                    } else {
+                        // 向下箭頭
+                        ctx.moveTo(x, y - offsetY);
+                        ctx.lineTo(x - size/2, y - offsetY - size);
+                        ctx.lineTo(x + size/2, y - offsetY - size);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+
+                } else if (anim.type === 'CLOSE') {
+                    // 平倉損益數字漂浮動畫
+                    const color = anim.profit >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+                    ctx.fillStyle = color;
+                    ctx.font = 'bold 16px sans-serif';
+                    ctx.textAlign = 'center';
+                    
+                    const floatY = y - progress * 50; // 向上漂浮
+                    ctx.fillText(`$${anim.profit.toFixed(2)}`, x, floatY);
+                }
+
+                ctx.globalAlpha = 1;
+
+                if (progress >= 1) {
+                    tradeAnimations.splice(i, 1);
+                }
+            }
+
+            // 如果還有動畫正在進行，且遊戲暫停了，繼續請求下一幀以完成動畫
+            if (tradeAnimations.length > 0 && !state.isPlaying) {
+                requestAnimationFrame(draw); 
+            }
+        }
+
+
+        // ----------------------------------------------------------------------------
+        // 5. 交易邏輯與帳戶管理 (Trading Logic & Account Management)
+        // ----------------------------------------------------------------------------
+
+        function getCurrentPrice() {
+            if (state.gameData.length === 0 || state.currentIndex >= state.gameData.length) return 0;
+            const currentBar = state.gameData[state.currentIndex];
+            // 使用動畫的即時價格
+            return getAnimatedBar(currentBar).close;
+        }
+
+        function openOrder(type, lots, sl = null, tp = null) {
+            if (state.isEnded) return;
+
+            const entryPrice = getCurrentPrice();
+
+            // 風險管理驗證
+            if (type === 'BUY') {
+                if (sl && sl >= entryPrice) {
+                    alert("停損價格必須低於買入價格。");
+                    return;
+                }
+                if (tp && tp <= entryPrice) {
+                    alert("停利價格必須高於買入價格。");
+                    return;
+                }
+            } else { // SELL
+                if (sl && sl <= entryPrice) {
+                    alert("停損價格必須高於賣出價格。");
+                    return;
+                }
+                if (tp && tp >= entryPrice) {
+                    alert("停利價格必須低於賣出價格。");
+                    return;
+                }
+            }
+
+            const position = {
+                id: state.orderIdCounter++,
+                type: type,
+                lots: lots,
+                entryPrice: entryPrice,
+                entryTime: state.gameData[state.currentIndex].time,
+                sl: sl,
+                tp: tp,
+                profit: 0,
+            };
+
+            state.openPositions.push(position);
+
+            // 觸發成交動畫
+            addTradeAnimation(type, entryPrice, state.currentIndex);
+
+            updateUI();
+             if (!state.isPlaying) {
+                draw();
+            }
+
+            // 新手導引步驟完成檢查
+            if (state.tutorialActive) {
+                completeTutorialStep();
+            }
+        }
+
+        function closeOrder(id, closePrice) {
+            const index = state.openPositions.findIndex(p => p.id === id);
+            if (index === -1) return;
+
+            const position = state.openPositions[index];
+            const profit = calculateProfit(position, closePrice);
+
+            state.balance += profit;
+            
+            const historyEntry = {
+                ...position,
+                closePrice: closePrice,
+                // 確保使用當前的時間戳
+                closeTime: state.gameData[state.currentIndex]?.time || position.entryTime,
+                profit: profit,
+            };
+            state.tradeHistory.push(historyEntry);
+            state.openPositions.splice(index, 1);
+
+            // 觸發平倉動畫
+            addTradeAnimation('CLOSE', closePrice, state.currentIndex, profit);
+
+            updateAccount();
+            updateUI();
+            if (!state.isPlaying) {
+                draw();
+            }
+        }
+
+        function calculateProfit(position, currentPrice) {
+            let priceDiff = 0;
+            if (position.type === 'BUY') {
+                priceDiff = currentPrice - position.entryPrice;
+            } else {
+                priceDiff = position.entryPrice - currentPrice;
+            }
+            // Profit = Price Difference * Contract Size * Lots
+            return priceDiff * CONFIG.CONTRACT_SIZE * position.lots;
+        }
+
+        function updatePositions() {
+            if (state.currentIndex >= state.gameData.length) return;
+
+            // 使用動畫期間的 High/Low 來進行更真實的 SL/TP 檢查
+            const currentBar = state.gameData[state.currentIndex];
+            const animatedBar = getAnimatedBar(currentBar);
+            const currentPrice = animatedBar.close;
+            const currentHigh = animatedBar.high;
+            const currentLow = animatedBar.low;
+
+            const positionsToClose = [];
+
+            state.openPositions.forEach(pos => {
+                // 更新浮動損益 (基於 Close 價格)
+                pos.profit = calculateProfit(pos, currentPrice);
+
+                // 檢查 SL/TP (基於 High/Low 價格)
+                if (pos.type === 'BUY') {
+                    if (pos.sl && currentLow <= pos.sl) {
+                        positionsToClose.push({ id: pos.id, price: pos.sl, reason: 'SL' });
+                    } else if (pos.tp && currentHigh >= pos.tp) {
+                        positionsToClose.push({ id: pos.id, price: pos.tp, reason: 'TP' });
+                    }
+                } else { // SELL
+                    if (pos.sl && currentHigh >= pos.sl) {
+                        positionsToClose.push({ id: pos.id, price: pos.sl, reason: 'SL' });
+                    } else if (pos.tp && currentLow <= pos.tp) {
+                        positionsToClose.push({ id: pos.id, price: pos.tp, reason: 'TP' });
+                    }
+                }
+            });
+
+            // 執行平倉
+            positionsToClose.forEach(order => {
+                closeOrder(order.id, order.price);
+            });
+        }
+
+        function updateAccount() {
+            state.floatingPL = state.openPositions.reduce((sum, pos) => sum + pos.profit, 0);
+            state.equity = state.balance + state.floatingPL;
+        }
+
+        // ----------------------------------------------------------------------------
+        // 6. UI 更新與互動 (UI Updates & Interaction)
+        // ----------------------------------------------------------------------------
+
+        function updateUI() {
+            updateHUD();
+            updatePositionsPanel();
+            updateHistoryPanel();
+            updateControls();
+        }
+
+        function updateHUD() {
+            if (state.gameData.length === 0) return;
+
+            let displayIndex = state.currentIndex;
+            if (displayIndex >= state.gameData.length) {
+                displayIndex = state.gameData.length - 1;
+            }
+
+            const currentDate = new Date(state.gameData[displayIndex].time);
+            DOM.hudDate.textContent = currentDate.toLocaleString('zh-TW', { hour12: false });
+            DOM.hudEquity.textContent = `$${state.equity.toFixed(2)}`;
+            DOM.hudPL.textContent = `$${state.floatingPL.toFixed(2)}`;
+            
+            DOM.hudPL.classList.toggle('positive', state.floatingPL > 0);
+            DOM.hudPL.classList.toggle('negative', state.floatingPL < 0);
+
+            const progress = (displayIndex / (state.gameData.length - 1)) * 100;
+            DOM.hudProgress.style.width = `${progress}%`;
+        }
+
+        function updatePositionsPanel() {
+            DOM.positionsList.innerHTML = '';
+            DOM.positionsCount.textContent = state.openPositions.length;
+            DOM.btnCloseAll.style.display = state.openPositions.length > 0 ? 'block' : 'none';
+
+            state.openPositions.forEach(pos => {
+                const item = document.createElement('div');
+                item.className = 'trade-item';
+                item.innerHTML = `
+                    <div class="trade-header">
+                        <span class="trade-type ${pos.type}">#${pos.id} ${pos.type} ${pos.lots.toFixed(2)}</span>
+                        <span style="color: ${pos.profit >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}">$${pos.profit.toFixed(2)}</span>
+                    </div>
+                    <div class="trade-details">
+                        <div>
+                            <div class="trade-detail-label">Entry</div>
+                            <div>${pos.entryPrice.toFixed(2)}</div>
+                        </div>
+                        <div>
+                            <div class="trade-detail-label">SL</div>
+                            <div>${pos.sl ? pos.sl.toFixed(2) : 'N/A'}</div>
+                        </div>
+                        <div>
+                            <div class="trade-detail-label">TP</div>
+                            <div>${pos.tp ? pos.tp.toFixed(2) : 'N/A'}</div>
+                        </div>
+                    </div>
+                    <div class="trade-actions">
+                        <button class="btn btn-small btn-secondary btn-modify" data-id="${pos.id}">修改</button>
+                        <button class="btn btn-small btn-danger btn-close" data-id="${pos.id}">平倉</button>
+                    </div>
+                `;
+                DOM.positionsList.appendChild(item);
+            });
+
+            // 綁定事件監聽器
+            DOM.positionsList.querySelectorAll('.btn-close').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = parseInt(e.target.dataset.id);
+                    const currentPrice = getCurrentPrice();
+                    closeOrder(id, currentPrice);
+                });
+            });
+
+            DOM.positionsList.querySelectorAll('.btn-modify').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = parseInt(e.target.dataset.id);
+                    modifyOrder(id);
+                });
+            });
+        }
+
+        function updateHistoryPanel() {
+            // 僅在歷史記錄長度改變時更新，提高效率
+            if (DOM.historyList.children.length === state.tradeHistory.length) return;
+
+            DOM.historyList.innerHTML = '';
+            // 顯示最新的交易在最上面
+            const sortedHistory = [...state.tradeHistory].reverse();
+
+            sortedHistory.forEach(trade => {
+                const item = document.createElement('div');
+                item.className = 'trade-item';
+                item.innerHTML = `
+                    <div class="trade-header">
+                        <span class="trade-type ${trade.type}">#${trade.id} ${trade.type} ${trade.lots.toFixed(2)}</span>
+                        <span style="color: ${trade.profit >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}">$${trade.profit.toFixed(2)}</span>
+                    </div>
+                    <div class="trade-details">
+                        <div>
+                            <div class="trade-detail-label">Open</div>
+                            <div>${trade.entryPrice.toFixed(2)}</div>
+                        </div>
+                        <div>
+                            <div class="trade-detail-label">Close</div>
+                            <div>${trade.closePrice.toFixed(2)}</div>
+                        </div>
+                        <div>
+                            <div class="trade-detail-label">Duration</div>
+                            <div>${formatDuration(trade.closeTime - trade.entryTime)}</div>
+                        </div>
+                    </div>
+                `;
+                DOM.historyList.appendChild(item);
+            });
+        }
+
+        function updateControls() {
+            DOM.btnPlayPause.textContent = state.isPlaying ? '⏸️ 暫停' : '▶️ 播放';
+            DOM.btnStepForward.disabled = state.isPlaying || state.isEnded;
+            DOM.btnPlayPause.disabled = state.isEnded;
+        }
+
+        function setupEventListeners() {
+            window.addEventListener('resize', resizeCanvas);
+
+            // Controls
+            DOM.btnPlayPause.addEventListener('click', togglePlayPause);
+            DOM.btnStepForward.addEventListener('click', stepForward);
+            DOM.speedSelector.addEventListener('click', handleSpeedChange);
+            document.getElementById('btnZoomIn').addEventListener('click', () => zoomChart(1.2));
+            document.getElementById('btnZoomOut').addEventListener('click', () => zoomChart(1/1.2));
+
+            // Trading Panel Tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', handleTabSwitch);
+            });
+
+            // Order Inputs (Steppers)
+            setupInputStepper('lotsUp', 'inputLots', 0.01);
+            setupInputStepper('lotsDown', 'inputLots', -0.01);
+            setupInputStepper('slUp', 'inputSL', 0.1);
+            setupInputStepper('slDown', 'inputSL', -0.1);
+            setupInputStepper('tpUp', 'inputTP', 0.1);
+            setupInputStepper('tpDown', 'inputTP', -0.1);
+
+            // Trade Buttons
+            document.getElementById('btnBuy').addEventListener('click', () => handleTrade('BUY'));
+            document.getElementById('btnSell').addEventListener('click', () => handleTrade('SELL'));
+            DOM.btnCloseAll.addEventListener('click', closeAllOrders);
+
+            // Chart Interaction
+            DOM.chartWrap.addEventListener('mousemove', handleMouseMove);
+            DOM.chartWrap.addEventListener('mouseleave', handleMouseLeave);
+            DOM.chartWrap.addEventListener('wheel', handleMouseWheel, { passive: false });
+            DOM.chartWrap.addEventListener('mousedown', handleDragStart);
+            // 使用 window 監聽 mousemove 和 mouseup 以確保拖動超出圖表範圍時仍能響應
+            window.addEventListener('mousemove', handleDragging);
+            window.addEventListener('mouseup', handleDragEnd);
+
+
+            // Modal Buttons
+            document.getElementById('eventContinueBtn').addEventListener('click', continueFromEvent);
+            document.getElementById('restartButton').addEventListener('click', startGame);
+        }
+
+        // Event Handlers
+        function togglePlayPause() {
+            if (state.isEnded) return;
+            state.isPlaying = !state.isPlaying;
+            
+            if (state.isPlaying) {
+                lastTickTime = performance.now();
+                animationFrameId = requestAnimationFrame(gameLoop);
+            } else {
+                cancelAnimationFrame(animationFrameId);
+            }
+            updateControls();
+
+            // Tutorial step completion
+            if (state.tutorialActive) {
+                completeTutorialStep();
+            }
+        }
+
+        function stepForward() {
+            if (state.isPlaying || state.isEnded) return;
+            
+            finalizeCurrentBar();
+            if (!advanceSimulation()) {
+                endGame();
+            } else {
+                state.barAnimationProgress = 1; // 立即顯示 K 棒
+                updatePositions();
+                updateAccount();
+                updateUI();
+                checkForEvents();
+                // 如果在歷史視圖中，手動前進時應減少 scrollOffset 以跟隨最新 K 棒
+                if (state.chart.scrollOffset > 0) {
+                    state.chart.scrollOffset = Math.max(0, state.chart.scrollOffset - 1);
+                }
+                draw();
+            }
+        }
+
+        function handleSpeedChange(e) {
+            if (e.target.classList.contains('speed-btn')) {
+                document.querySelectorAll('.speed-btn').forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+                state.speedMultiplier = parseInt(e.target.dataset.speed);
+            }
+        }
+
+        function handleTabSwitch(e) {
+            const target = e.target.closest('.tab-btn');
+            if (!target) return;
+
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            target.classList.add('active');
+            document.getElementById(target.dataset.target).classList.add('active');
+
+             // Tutorial step completion
+            if (state.tutorialActive && target.dataset.target === 'tabPositions') {
+                completeTutorialStep();
+            }
+        }
+
+        function handleTrade(type) {
+            const lots = parseFloat(DOM.inputLots.value);
+            const sl = DOM.inputSL.value ? parseFloat(DOM.inputSL.value) : null;
+            const tp = DOM.inputTP.value ? parseFloat(DOM.inputTP.value) : null;
+
+            if (isNaN(lots) || lots <= 0) {
+                alert("請輸入有效的手數。");
+                return;
+            }
+
+            openOrder(type, lots, sl, tp);
+        }
+
+        function closeAllOrders() {
+            if (state.openPositions.length === 0) return;
+            const currentPrice = getCurrentPrice();
+            // 使用 while 迴圈確保全部關閉
+            while(state.openPositions.length > 0) {
+                closeOrder(state.openPositions[0].id, currentPrice);
+            }
+        }
+
+        function modifyOrder(id) {
+            const position = state.openPositions.find(p => p.id === id);
+            if (!position) return;
+
+            // 使用 prompt 進行簡單修改 (在實際應用中應使用自定義 Modal)
+            const newSL = prompt(`修改訂單 #${id} 停損 (SL)。留空則取消 SL。目前: ${position.sl ? position.sl.toFixed(2) : 'N/A'}`, position.sl ? position.sl.toFixed(2) : '');
+            const newTP = prompt(`修改訂單 #${id} 停利 (TP)。留空則取消 TP。目前: ${position.tp ? position.tp.toFixed(2) : 'N/A'}`, position.tp ? position.tp.toFixed(2) : '');
+
+            // 處理 SL
+            if (newSL !== null) {
+                const slVal = parseFloat(newSL);
+                if (!isNaN(slVal) && slVal > 0) {
+                    // 驗證 (基於進場價)
+                    if (position.type === 'BUY' && slVal >= position.entryPrice) {
+                        alert("停損必須低於進場價。");
+                    } else if (position.type === 'SELL' && slVal <= position.entryPrice) {
+                        alert("停損必須高於進場價。");
+                    } else {
+                        position.sl = slVal;
+                    }
+                } else if (newSL === '') {
+                    position.sl = null;
+                }
+            }
+
+            // 處理 TP
+            if (newTP !== null) {
+                const tpVal = parseFloat(newTP);
+                if (!isNaN(tpVal) && tpVal > 0) {
+                    if (position.type === 'BUY' && tpVal <= position.entryPrice) {
+                        alert("停利必須高於進場價。");
+                    } else if (position.type === 'SELL' && tpVal >= position.entryPrice) {
+                        alert("停利必須低於進場價。");
+                    } else {
+                        position.tp = tpVal;
+                    }
+                } else if (newTP === '') {
+                    position.tp = null;
+                }
+            }
+            
+            updateUI();
+            if (!state.isPlaying) {
+                draw();
+            }
+        }
+
+        // Chart Interaction Handlers
+        function handleMouseMove(e) {
+            const rect = DOM.chartWrap.getBoundingClientRect();
+            state.mouse.x = e.clientX - rect.left;
+            state.mouse.y = e.clientY - rect.top;
+            state.mouse.isOverChart = true;
+            if (!state.isPlaying && !state.chart.isDragging) {
+                 draw();
+            }
+        }
+
+        function handleMouseLeave() {
+            state.mouse.isOverChart = false;
+             if (!state.isPlaying && !state.chart.isDragging) {
+                draw();
+            }
+        }
+
+        function handleMouseWheel(e) {
+            e.preventDefault(); // 防止頁面滾動
+            const zoomFactor = e.deltaY > 0 ? 1 / 1.1 : 1.1;
+            zoomChart(zoomFactor);
+        }
+
+        function zoomChart(factor) {
+            const newWidth = state.chart.candleWidth * factor;
+            const newSpacing = state.chart.candleSpacing * factor;
+
+            // 限制縮放範圍
+            if (newWidth < 2 || newWidth > 50) return;
+
+            state.chart.candleWidth = newWidth;
+            state.chart.candleSpacing = newSpacing;
+
+            validateScrollOffset();
+
+            if (!state.isPlaying) {
+                draw();
+            }
+        }
+
+        // Panning (Dragging)
+        function handleDragStart(e) {
+            if (e.button !== 0) return; // 只響應滑鼠左鍵
+            state.chart.isDragging = true;
+            state.chart.dragStartX = e.clientX;
+            state.chart.dragStartScroll = state.chart.scrollOffset;
+            DOM.chartWrap.style.cursor = 'grabbing';
+        }
+
+        function handleDragging(e) {
+            if (!state.chart.isDragging) return;
+
+            const dx = e.clientX - state.chart.dragStartX;
+            const candleUnitWidth = state.chart.candleWidth + state.chart.candleSpacing;
+            
+            // 計算拖動了多少根 K 棒
+            const candlesDragged = Math.round(dx / candleUnitWidth);
+            
+            // 更新 scrollOffset (向右拖動滑鼠 -> 視圖向左滾動 -> scrollOffset 增加)
+            state.chart.scrollOffset = state.chart.dragStartScroll - candlesDragged;
+
+            validateScrollOffset();
+
+            // 拖動時始終重繪
+            draw();
+        }
+
+        function handleDragEnd() {
+            if (!state.chart.isDragging) return;
+            state.chart.isDragging = false;
+            DOM.chartWrap.style.cursor = 'crosshair';
+             if (!state.isPlaying) {
+                draw(); // Final draw to clear potential crosshair remnants
+            }
+        }
+
+        function validateScrollOffset() {
+            const visibleCandles = calculateVisibleCandles();
+            // 最大偏移量是用戶可以看到最左邊的 K 棒時
+            const maxOffset = Math.max(0, state.currentIndex + 1 - visibleCandles);
+            // 最小偏移量是 0 (不能滾動到未來)
+            state.chart.scrollOffset = Math.max(0, Math.min(maxOffset, state.chart.scrollOffset));
+        }
+
+
+        // ----------------------------------------------------------------------------
+        // 7. 遊戲化功能 (Gamification Features)
+        // ----------------------------------------------------------------------------
+
+        // 7.1 財經事件 (Financial Events)
+        function checkForEvents() {
+            if (state.isEnded || state.gameData.length === 0) return;
+
+            // 根據模擬的日期觸發事件
+            const currentDate = new Date(state.gameData[state.currentIndex].time);
+            const currentDay = currentDate.getDate();
+
+            const event = state.financialEvents.find(e => e.triggerDay === currentDay);
+
+            // 確保事件在當前遊戲中只觸發一次 (基於月份和日期)
+            const eventKey = `${currentDate.getMonth()}-${currentDay}`;
+            if (event && !state.triggeredEvents.has(eventKey)) {
+                showEventModal(event);
+                state.triggeredEvents.add(eventKey);
+            }
+        }
+
+        function showEventModal(event) {
+            // 暫停模擬
+            if (state.isPlaying) {
+                state.wasPlayingBeforeEvent = true;
+                state.isPlaying = false;
+                cancelAnimationFrame(animationFrameId);
+                updateControls();
+            } else {
+                state.wasPlayingBeforeEvent = false;
+            }
+
+            document.getElementById('eventTitle').textContent = `⚠️ ${event.title}`;
+            document.getElementById('eventBody').textContent = event.description;
+            DOM.eventModal.classList.add('active');
+        }
+
+        function continueFromEvent() {
+            DOM.eventModal.classList.remove('active');
+            // 如果事件前正在播放，則恢復播放
+            if (state.wasPlayingBeforeEvent) {
+                togglePlayPause();
+            }
+        }
+
+        // 7.2 結束畫面 (End Screen)
+        function showEndGameModal() {
+            const finalRoR = ((state.equity - CONFIG.INITIAL_BALANCE) / CONFIG.INITIAL_BALANCE) * 100;
+            
+            document.getElementById('finalScore').textContent = `$${state.equity.toFixed(2)}`;
+            document.getElementById('finalRoR').textContent = `回報率 (RoR): ${finalRoR.toFixed(2)}%`;
+            document.getElementById('finalRoR').style.color = finalRoR >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+
+            // 計算統計數據
+            const totalTrades = state.tradeHistory.length;
+            const winningTrades = state.tradeHistory.filter(t => t.profit > 0).length;
+            const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
+
+            const statsHTML = `
+                <p><strong>交易統計：</strong></p>
+                <ul style="list-style-position: inside;">
+                    <li>總交易次數: ${totalTrades}</li>
+                    <li>勝率: ${winRate.toFixed(2)}%</li>
+                    <li>模擬期間: 約 ${CONFIG.SIMULATION_DURATION_DAYS} 天</li>
+                </ul>
+            `;
+            document.getElementById('endGameStats').innerHTML = statsHTML;
+
+            DOM.endGameModal.classList.add('active');
+        }
+
+        // 7.3 新手導引 (Tutorial)
+        const TUTORIAL_STEPS = [
+            { selector: '.chart-container', message: '歡迎來到交易挑戰！這裡是 K 線圖表區域，您將在這裡觀察市場走勢。您可以拖曳圖表查看歷史。', action: 'next' },
+            { selector: '#btnPlayPause', message: '點擊「播放」按鈕開始模擬市場行情。圖表將會動態更新。', action: 'click' },
+            { selector: '#tabOrder', message: '這裡是下單面板。您可以設定手數、停損 (SL) 和停利 (TP)。', action: 'next' },
+            { selector: '#btnBuy', message: '預期價格上漲？嘗試點擊「買入 (BUY)」建立您的第一筆多單。', action: 'click' },
+            { selector: '[data-target="tabPositions"]', message: '點擊「持倉」分頁來查看並管理您當前的訂單。', action: 'click' },
+            { selector: '.header', message: '頂部的 HUD 會即時顯示您的帳戶狀態和挑戰進度。祝您交易順利！', action: 'next' },
+        ];
+
+        let currentTutorialStep = 0;
+
+        function startTutorial() {
+            // 對於 Playable Ad，通常每次都會顯示導引
+            state.tutorialActive = true;
+            currentTutorialStep = 0;
+            showTutorialStep();
+        }
+
+        function showTutorialStep() {
+            if (currentTutorialStep >= TUTORIAL_STEPS.length) {
+                endTutorial();
+                return;
+            }
+
+            const step = TUTORIAL_STEPS[currentTutorialStep];
+            const element = document.querySelector(step.selector);
+
+            // 健壯性檢查：確保元素存在
+            if (!element) {
+                console.warn("Tutorial element not found:", step.selector);
+                // 如果找不到元素，稍等片刻再試，防止因 DOM 未準備好而失敗
+                setTimeout(showTutorialStep, 100);
+                return;
+            }
+
+            highlightElement(element);
+            DOM.tutorialText.textContent = step.message;
+
+            // 根據行動類型決定是否顯示「下一步」按鈕
+            if (step.action === 'next') {
+                DOM.tutorialNextBtn.classList.remove('hidden');
+                DOM.tutorialNextBtn.onclick = completeTutorialStep;
+            } else {
+                // 如果是 'click'，則隱藏按鈕，等待用戶點擊目標元素 (在對應的事件處理器中呼叫 completeTutorialStep)
+                DOM.tutorialNextBtn.classList.add('hidden');
+            }
+        }
+
+        // 當用戶完成要求的操作時呼叫此函式
+        function completeTutorialStep() {
+            if (!state.tutorialActive) return;
+            
+            // 這裡依賴觸發事件的邏輯來推進步驟。
+            // 例如，當用戶點擊了 'Play'，togglePlayPause 會呼叫此函式。
+
+            currentTutorialStep++;
+            showTutorialStep();
+        }
+
+        function endTutorial() {
+            state.tutorialActive = false;
+            DOM.tutorialHighlight.classList.add('hidden');
+            DOM.tutorialMessage.classList.add('hidden');
+        }
+
+        function highlightElement(element) {
+            const rect = element.getBoundingClientRect();
+            const padding = 10;
+
+            DOM.tutorialHighlight.classList.remove('hidden');
+            // 使用 window 的滾動位置來確保定位正確
+            DOM.tutorialHighlight.style.top = `${rect.top + window.scrollY - padding}px`;
+            DOM.tutorialHighlight.style.left = `${rect.left + window.scrollX - padding}px`;
+            DOM.tutorialHighlight.style.width = `${rect.width + padding * 2}px`;
+            DOM.tutorialHighlight.style.height = `${rect.height + padding * 2}px`;
+
+            // 定位訊息框
+            DOM.tutorialMessage.classList.remove('hidden');
+            let messageTop = rect.bottom + window.scrollY + padding + 20;
+            let messageLeft = rect.left + window.scrollX;
+
+            // 邊界檢查，確保訊息框在螢幕內
+            if (messageTop + DOM.tutorialMessage.offsetHeight > window.innerHeight + window.scrollY) {
+                messageTop = rect.top + window.scrollY - DOM.tutorialMessage.offsetHeight - padding - 20;
+            }
+            if (messageLeft + DOM.tutorialMessage.offsetWidth > window.innerWidth + window.scrollX) {
+                messageLeft = window.innerWidth + window.scrollX - DOM.tutorialMessage.offsetWidth - 20;
+            }
+            // 防止訊息框定位到負值
+            messageTop = Math.max(10 + window.scrollY, messageTop);
+            messageLeft = Math.max(10 + window.scrollX, messageLeft);
+
+
+            DOM.tutorialMessage.style.top = `${messageTop}px`;
+            DOM.tutorialMessage.style.left = `${messageLeft}px`;
+        }
+
+
+        // ----------------------------------------------------------------------------
+        // 8. 輔助函式 (Utility Functions)
+        // ----------------------------------------------------------------------------
+
+        function setupInputStepper(buttonId, inputId, step) {
+            document.getElementById(buttonId).addEventListener('click', () => {
+                const input = document.getElementById(inputId);
+                const currentValue = parseFloat(input.value) || 0;
+                let newValue = currentValue + step;
+                
+                // 精度處理
+                const decimalPlaces = (step.toString().split('.')[1] || []).length;
+                newValue = parseFloat(newValue.toFixed(decimalPlaces));
+
+                // 邊界檢查
+                if (inputId === 'inputLots') {
+                     if (newValue < 0.01) newValue = 0.01;
+                } else {
+                    // SL/TP
+                    if (newValue <= 0) {
+                        input.value = ''; // 清空輸入框
+                        return;
+                    }
+                }
+               
+                input.value = newValue.toFixed(decimalPlaces);
+            });
+        }
+
+        function formatDuration(ms) {
+            if (ms < 0) ms = 0;
+            const minutes = Math.floor(ms / 60000);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+
+            if (days > 0) return `${days}d ${hours % 24}h`;
+            if (hours > 0) return `${hours}h ${minutes % 60}m`;
+            return `${minutes}m`;
+        }
+
+        // ----------------------------------------------------------------------------
+        // 啟動應用程式 (Bootstrap Application)
+        // ----------------------------------------------------------------------------
+        document.addEventListener('DOMContentLoaded', init);
+
+    </script>
 </body>
 </html>
