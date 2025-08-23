@@ -13,14 +13,15 @@
   --muted: #6b7280;
   --border-color: #e5e7eb;
   --accent: #4a72ff;
-  --good: #10b981; /* Green for profit */
-  --danger: #ef4444; /* Red for loss */
+  --good: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --purple: #8b5cf6;
   --grid: rgba(0, 0, 0, 0.05);
-  /* Chart Colors: Restored to Green for Up, Red for Down as per working version */
   --chart-bg: #ffffff;
   --chart-text: #6b7280;
-  --chart-up: #10b981;   /* 陽棒顏色 (綠色) */
-  --chart-down: #ef4444; /* 陰棒顏色 (紅色) */
+  --chart-up: #10b981;
+  --chart-down: #ef4444;
 }
 
 * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -37,7 +38,6 @@ html, body {
   box-shadow: 0 0 20px rgba(0,0,0,0.05);
 }
 
-/* --- 頂部資訊 --- */
 .header {
   padding: 8px 16px; border-bottom: 1px solid var(--border-color);
   flex-shrink: 0; text-align: center;
@@ -51,7 +51,6 @@ html, body {
 .progress-bar { width: 100%; height: 4px; background: var(--border-color); border-radius: 2px; margin-top: 8px; overflow: hidden; }
 .progress-bar-inner { width: 0%; height: 100%; background: var(--accent); transition: width 0.2s linear; }
 
-/* --- 圖表區 --- */
 #chartWrap {
   flex-grow: 1; position: relative; background: var(--chart-bg);
   min-height: 0; cursor: grab;
@@ -60,42 +59,22 @@ html, body {
 #chart { width: 100%; height: 100%; display: block; }
 
 .price-axis {
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: 60px;
-    pointer-events: none;
-    border-left: 1px solid var(--border-color);
+    position: absolute; right: 0; top: 0; bottom: 0; width: 60px;
+    pointer-events: none; border-left: 1px solid var(--border-color);
 }
 .price-axis-tick {
-    position: absolute;
-    width: 100%;
-    padding-right: 5px;
-    font-size: 12px;
-    color: var(--chart-text);
-    transform: translateY(-50%);
-    text-align: right;
+    position: absolute; width: 100%; padding-right: 5px; font-size: 12px;
+    color: var(--chart-text); transform: translateY(-50%); text-align: right;
 }
 .price-line {
-    position: absolute;
-    left: 0;
-    right: 60px;
-    height: 1px;
-    pointer-events: none;
-    border-top: 1px dashed var(--muted);
+    position: absolute; left: 0; right: 60px; height: 1px;
+    pointer-events: none; border-top: 1px dashed var(--muted);
 }
 .price-line-label {
-    position: absolute;
-    right: 60px;
-    padding: 2px 6px;
-    font-size: 12px;
-    color: #ffffff;
-    border-radius: 4px;
-    transform: translate(100%, -50%);
+    position: absolute; right: 60px; padding: 2px 6px; font-size: 12px;
+    color: #ffffff; border-radius: 4px; transform: translate(100%, -50%);
 }
 
-/* --- 底部操作區 --- */
 .actions-panel {
   flex-shrink: 0; background: var(--panel);
   border-top: 1px solid var(--border-color);
@@ -112,12 +91,8 @@ html, body {
 .tab-content.active { display: block; }
 
 #trade-panel-content {
-    display: grid;
-    grid-template-areas:
-        "sl lots tp"
-        "sell close buy";
-    gap: 8px;
-    align-items: center;
+    display: grid; grid-template-areas: "sl lots tp" "sell close buy";
+    gap: 8px; align-items: center;
 }
 #trade-sl-group { grid-area: sl; }
 #trade-lots-group { grid-area: lots; }
@@ -127,12 +102,9 @@ html, body {
 #btnBuy { grid-area: buy; }
 
 .btn { padding: 12px; font-size: 16px; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; transition: transform 0.1s ease, filter 0.1s ease; }
-.btn.buy { background: var(--chart-up); color: white; }
-.btn.sell { background: var(--chart-down); color: white; }
-.btn:active { 
-    transform: scale(0.96); 
-    filter: brightness(0.9);
-}
+.btn.buy { background: var(--good); color: white; }
+.btn.sell { background: var(--danger); color: white; }
+.btn:active { transform: scale(0.96); filter: brightness(0.9); }
 
 .playback-controls {
     display: flex; justify-content: center; align-items: center;
@@ -140,8 +112,7 @@ html, body {
 }
 .playback-controls .btn {
     background: var(--panel-soft); color: var(--text);
-    border: 1px solid var(--border-color);
-    padding: 8px 10px; font-size: 12px;
+    border: 1px solid var(--border-color); padding: 8px 10px; font-size: 12px;
 }
 .playback-controls .btn.active { background: var(--accent); color: white; border-color: var(--accent); }
 
@@ -149,69 +120,32 @@ html, body {
 .input-group label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
 
 .input-stepper {
-    display: flex;
-    align-items: center;
-    background: var(--bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    overflow: hidden;
+    display: flex; align-items: center; background: var(--bg);
+    border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;
 }
 .input-stepper input {
-    border: none;
-    background: transparent;
-    flex-grow: 1;
-    padding: 8px;
-    width: 50px;
-    text-align: center;
+    border: none; background: transparent; flex-grow: 1; padding: 8px;
+    width: 50px; text-align: center; color: var(--text);
 }
-.stepper-btns {
-    display: flex;
-    flex-direction: column;
-    align-self: stretch;
-}
+.stepper-btns { display: flex; flex-direction: column; align-self: stretch; }
 .stepper-btn {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 0 8px;
-    color: var(--muted);
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-left: 1px solid var(--border-color);
+    background: transparent; border: none; cursor: pointer; padding: 0 8px;
+    color: var(--muted); flex: 1; display: flex; align-items: center;
+    justify-content: center; border-left: 1px solid var(--border-color);
     transition: background-color 0.1s ease;
 }
-.stepper-btn:first-child {
-    border-bottom: 1px solid var(--border-color);
-}
-.stepper-btn:active {
-    background: #e0e2e7;
-}
+.stepper-btn:first-child { border-bottom: 1px solid var(--border-color); }
+.stepper-btn:active { background: #e0e2e7; }
 
 input[type=number]::-webkit-inner-spin-button, 
-input[type=number]::-webkit-outer-spin-button { 
-  -webkit-appearance: none; 
-  margin: 0; 
-}
-input[type=number] {
-  -moz-appearance: textfield;
-}
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
 
 #positions-list, #journal-list { max-height: 25vh; overflow-y: auto; }
 .position-item { 
-    background: var(--panel-soft); 
-    padding: 10px; 
-    border-radius: 8px; 
-    margin-bottom: 8px; 
-    display: grid; 
-    grid-template-columns: 1fr 1fr;
-    grid-template-areas: 
-        "info pnl"
-        "sl tp"
-        "actions actions";
-    gap: 8px; 
-    align-items: center;
+    background: var(--panel-soft); padding: 10px; border-radius: 8px; margin-bottom: 8px; 
+    display: grid; grid-template-columns: 1fr 1fr; grid-template-areas: "info pnl" "sl tp" "actions actions";
+    gap: 8px; align-items: center;
 }
 .position-item-info { grid-area: info; }
 .position-item-pnl { grid-area: pnl; text-align: right; font-weight: bold; }
@@ -230,14 +164,8 @@ input[type=number] {
 .position-item .input-group input { padding: 6px; font-size: 12px; }
 
 .journal-item {
-    background: var(--panel-soft); 
-    padding: 10px; 
-    border-radius: 8px; 
-    margin-bottom: 8px; 
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 4px 16px;
-    font-size: 12px;
+    background: var(--panel-soft); padding: 10px; border-radius: 8px; margin-bottom: 8px; 
+    display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; font-size: 12px;
 }
 .journal-item-info { grid-column: 1 / 2; }
 .journal-item-pnl { grid-column: 2 / 3; grid-row: 1 / 3; text-align: right; font-weight: bold; font-size: 14px; align-self: center; }
@@ -247,105 +175,47 @@ input[type=number] {
 
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.5);
-  backdrop-filter: blur(4px); z-index: 9997;
-  display: flex; justify-content: center; align-items: center;
-  opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+  backdrop-filter: blur(4px); z-index: 9997; display: flex; justify-content: center;
+  align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
 }
 .modal-overlay.visible { opacity: 1; pointer-events: auto; }
 .modal-content {
-  width: min(90vw, 380px); background: var(--panel);
-  border: 1px solid var(--border-color); border-radius: 16px;
-  padding: 24px; text-align: center;
-  transform: scale(0.9); transition: transform 0.3s ease;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  width: min(90vw, 380px); background: var(--panel); border: 1px solid var(--border-color);
+  border-radius: 16px; padding: 24px; text-align: center; transform: scale(0.9);
+  transition: transform 0.3s ease; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
 }
 .modal-overlay.visible .modal-content { transform: scale(1); }
 .modal-header { font-weight: bold; margin-bottom: 16px; font-size: 20px; }
 .event-modal-icon { font-size: 48px; margin-bottom: 12px; }
 .event-modal-desc { color: var(--muted); margin-bottom: 20px; text-align: left; line-height: 1.6; }
 
-#tutorial-overlay {
-    z-index: 10000;
-    background: none;
-    backdrop-filter: none;
-    pointer-events: all;
-}
+#tutorial-overlay { z-index: 10000; background: none; backdrop-filter: none; pointer-events: all; }
 #tutorial-highlight {
-    position: absolute;
-    border-radius: 8px;
-    box-shadow: 0 0 0 9999px rgba(0,0,0,0.7);
-    transition: all 0.3s ease-in-out;
-    pointer-events: none;
+    position: absolute; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.7);
+    transition: all 0.3s ease-in-out; pointer-events: none;
 }
 #tutorial-box {
-    position: absolute;
-    background: var(--panel);
-    padding: 16px;
-    border-radius: 12px;
-    width: 280px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-    transition: all 0.3s ease-in-out;
+    position: absolute; background: var(--panel); padding: 16px; border-radius: 12px;
+    width: 280px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); transition: all 0.3s ease-in-out;
 }
-#tutorial-text {
-    margin-bottom: 16px;
-    line-height: 1.6;
-}
-#tutorial-nav {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-#tutorial-dots {
-    display: flex;
-    gap: 6px;
-}
-.tutorial-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--border-color);
-}
-.tutorial-dot.active {
-    background: var(--accent);
-}
+#tutorial-text { margin-bottom: 16px; line-height: 1.6; }
+#tutorial-nav { display: flex; justify-content: space-between; align-items: center; }
+#tutorial-dots { display: flex; gap: 6px; }
+.tutorial-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-color); }
+.tutorial-dot.active { background: var(--accent); }
 
-.glowing-btn {
-    animation: glowing 1.5s infinite;
-}
-
+.glowing-btn { animation: glowing 1.5s infinite; }
 @keyframes glowing {
     0% { box-shadow: 0 0 5px var(--accent); }
     50% { box-shadow: 0 0 20px var(--accent); }
     100% { box-shadow: 0 0 5px var(--accent); }
 }
 
-.end-game-stats {
-    display: flex;
-    justify-content: space-around;
-    margin: 24px 0;
-    text-align: center;
-}
-.end-game-stats .label {
-    font-size: 14px;
-    color: var(--muted);
-}
-.end-game-stats .value {
-    font-size: 24px;
-    font-weight: bold;
-    display: block;
-    margin-top: 4px;
-}
-#endGameModal .btn {
-    width: 100%;
-    margin-top: 8px;
-}
-#endGameModal .cta-btn {
-    background-color: var(--accent);
-    color: white;
-    text-decoration: none;
-    display: inline-block;
-    line-height: 1.5;
-}
+.end-game-stats { display: flex; justify-content: space-around; margin: 24px 0; text-align: center; }
+.end-game-stats .label { font-size: 14px; color: var(--muted); }
+.end-game-stats .value { font-size: 24px; font-weight: bold; display: block; margin-top: 4px; }
+#endGameModal .btn { width: 100%; margin-top: 8px; }
+#endGameModal .cta-btn { background-color: var(--accent); color: white; text-decoration: none; display: inline-block; line-height: 1.5; }
 
 </style>
 </head>
@@ -469,8 +339,9 @@ input[type=number] {
     </div>
 </div>
 
-
 <script>
+'use strict';
+
 const EVENTS = {
   "2025-01-03": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "俗稱「非農」的美國就業數據是市場最關注的指標之一。數據好壞將劇烈影響黃金價格，市場屏息以待！" },
   "2025-01-20": { time: "12:00", title: "🇺🇸 美國總統就職典禮", desc: "新任美國總統將於華盛頓特區宣誓就職。就職演說通常會概述新政府的施政藍圖，內容可能涉及國內外政策、經濟方向等，這些都可能成為市場關注的焦點。" },
@@ -507,7 +378,6 @@ let canvas, ctx, chartWrap;
 let CHART_COLORS = {};
 let hasPlayedOnce = false;
 
-// --- Data Handling ---
 function loadData() {
   return new Promise(async (resolve) => {
     try {
@@ -529,40 +399,42 @@ function parseData(text) {
     if (lines.length < 2) return [];
     const header = lines.shift() || '';
     const dataLines = lines;
-    
     const isTimestampFormat = header.startsWith('time,') || /^\d{10,}/.test(dataLines[0]);
     
-    if (isTimestampFormat) {
-        console.log("偵測到格式: Unix 時間戳 + 逗號分隔");
-        return dataLines.map(line => {
-            const parts = line.split(',');
-            if (parts.length < 5) return null;
-            const p = { 
-                date: new Date(parseInt(parts[0], 10) * 1000),
-                o: parseFloat(parts[1]), h: parseFloat(parts[2]),
-                l: parseFloat(parts[3]), c: parseFloat(parts[4])
-            };
-            return Object.values(p).some(val => val === null || (typeof val === 'object' && isNaN(val.getTime())) || (typeof val === 'number' && isNaN(val))) ? null : p;
-        }).filter(Boolean);
-    } else {
-        console.log("偵測到格式: 日期時間字串 + 空格/Tab 分隔");
-        return dataLines.map(line => {
-            const parts = line.trim().split(/\s+/);
-            if (parts.length < 6) return null;
-            const dateStr = parts[0].replace(/\./g, '-');
-            const timeStr = parts[1];
-            const p = {
-                date: new Date(`${dateStr}T${timeStr}`),
-                o: parseFloat(parts[2]), h: parseFloat(parts[3]),
-                l: parseFloat(parts[4]), c: parseFloat(parts[5]),
-            };
-            return Object.values(p).some(val => val === null || (typeof val === 'object' && isNaN(val.getTime())) || (typeof val === 'number' && isNaN(val))) ? null : p;
-        }).filter(Boolean);
-    }
+    console.log(isTimestampFormat ? "偵測到格式: Unix 時間戳 + 逗號分隔" : "偵測到格式: 日期時間字串 + 空格/Tab 分隔");
+    
+    return dataLines.map(line => {
+        let p = null;
+        try {
+            if (isTimestampFormat) {
+                const parts = line.split(',');
+                if (parts.length < 5) return null;
+                p = { 
+                    date: new Date(parseInt(parts[0], 10) * 1000),
+                    o: parseFloat(parts[1]), h: parseFloat(parts[2]),
+                    l: parseFloat(parts[3]), c: parseFloat(parts[4])
+                };
+            } else {
+                const parts = line.trim().split(/\s+/);
+                if (parts.length < 6) return null;
+                const dateStr = parts[0].replace(/\./g, '-');
+                const timeStr = parts[1];
+                p = {
+                    date: new Date(`${dateStr}T${timeStr}`),
+                    o: parseFloat(parts[2]), h: parseFloat(parts[3]),
+                    l: parseFloat(parts[4]), c: parseFloat(parts[5]),
+                };
+            }
+            if (Object.values(p).some(val => val === null || (val instanceof Date && isNaN(val.getTime())) || (typeof val === 'number' && isNaN(val)))) {
+                return null;
+            }
+            return p;
+        } catch(e) {
+            return null;
+        }
+    }).filter(Boolean);
 }
 
-
-// --- Game Flow ---
 function startGame() {
   if (!state.fullDataset || state.fullDataset.length < 200) {
       el('current-date').textContent = "數據錯誤"; return;
@@ -605,19 +477,25 @@ function startGame() {
   updateHUD();
   updatePositionsList();
   updateJournalList();
-  draw();
-  el('play-pause-btn').textContent = '▶';
-  el('play-pause-btn').disabled = false;
-  el('step-btn').disabled = false;
   
   if (!hasPlayedOnce) {
     startTutorial();
     hasPlayedOnce = true;
   }
+  
+  el('play-pause-btn').textContent = '▶';
+  el('play-pause-btn').disabled = false;
+  el('step-btn').disabled = false;
 }
 
 function gameLoop() {
     if (state.isPaused) return;
+    
+    if (state.currentBarIndex >= state.gameData.length - 1) {
+        pauseGame();
+        showEndScreen();
+        return;
+    }
     
     const bar = state.gameData[state.currentBarIndex];
     if (bar) {
@@ -632,12 +510,6 @@ function gameLoop() {
         }
     }
     
-    if (state.currentBarIndex >= state.gameData.length - 1) {
-        pauseGame();
-        showEndScreen();
-        return;
-    }
-    
     state.currentBarIndex++;
     updatePositions();
     updateHUD();
@@ -645,7 +517,6 @@ function gameLoop() {
         state.view.offset = state.currentBarIndex - state.view.barsInView + 10;
         clampOffset();
     }
-    draw();
 }
 
 function stepForward() {
@@ -668,27 +539,19 @@ function resumeGame() {
     el('play-pause-btn').textContent = '❚❚';
 }
 
-// --- Trading Logic ---
-function logTransaction(position, exitPrice, exitTime) {
-    const pnl = (exitPrice - position.entryPrice) * (position.side === 'buy' ? 1 : -1) * position.lots * 100;
-    state.journal.unshift({ ...position, exitPrice, exitTime, pnl });
-    updateJournalList();
-}
-
 function openOrder(side) {
     const lots = parseFloat(el('trade-lots').value);
     const sl = parseFloat(el('trade-sl').value) || null;
     const tp = parseFloat(el('trade-tp').value) || null;
 
     if (!lots || lots <= 0) return;
-    const currentPrice = state.gameData[state.currentBarIndex].c;
-    const entryTime = state.gameData[state.currentBarIndex].date;
+    const currentBar = state.gameData[state.currentBarIndex];
+    const entryPrice = currentBar.c;
     
-    state.positions.push({ id: Date.now(), side, entryPrice: currentPrice, entryTime, lots, sl, tp, pnl: 0 });
+    state.positions.push({ id: Date.now(), side, entryPrice, entryTime: currentBar.date, lots, sl, tp, pnl: 0 });
     
-    addChartAnimation(currentPrice, side, 'open');
+    addChartAnimation(entryPrice, side, 'open');
     updatePositionsList();
-    draw();
 }
 
 function closePosition(positionId) {
@@ -696,18 +559,16 @@ function closePosition(positionId) {
     if (index === -1) return;
 
     const position = state.positions[index];
-    const exitPrice = state.gameData[state.currentBarIndex].c;
-    const exitTime = state.gameData[state.currentBarIndex].date;
+    const currentBar = state.gameData[state.currentBarIndex];
     
-    logTransaction(position, exitPrice, exitTime);
-    addChartAnimation(exitPrice, position.side, 'close', position.pnl);
+    logTransaction(position, currentBar.c, currentBar.date);
+    addChartAnimation(currentBar.c, position.side, 'close', position.pnl);
 
     state.account.balance += position.pnl;
     state.positions.splice(index, 1);
     
     updatePositionsList();
     updateHUD();
-    draw();
 }
 
 function closeAllPositions() {
@@ -724,8 +585,6 @@ function modifyPosition(positionId) {
 
     position.sl = parseFloat(slInput.value) || null;
     position.tp = parseFloat(tpInput.value) || null;
-
-    draw(); 
     
     const itemEl = slInput.closest('.position-item');
     itemEl.style.transition = 'none';
@@ -735,7 +594,6 @@ function modifyPosition(positionId) {
         itemEl.style.backgroundColor = '';
     }, 100);
 }
-
 
 function updatePositions() {
     if (!state.gameData || state.currentBarIndex >= state.gameData.length) return;
@@ -758,7 +616,6 @@ function updatePositions() {
     state.account.equity = state.account.balance + totalPnl;
 }
 
-// --- UI Updates ---
 function updateHUD() {
     const currentDate = state.gameData[state.currentBarIndex]?.date;
     if(currentDate) el('current-date').textContent = currentDate.toISOString().slice(0, 10);
@@ -853,15 +710,15 @@ function showEndScreen() {
     el('step-btn').disabled = true;
 }
 
-// --- Drawing Helpers ---
 function drawPriceAxis(yMin, yMax, chartH) {
     const priceAxisEl = el('price-axis');
     priceAxisEl.innerHTML = '';
-    const numTicks = Math.max(2, Math.floor(chartH / 60));
+    const numTicks = Math.max(2, Math.floor(chartH / 50));
 
     for (let i = 0; i <= numTicks; i++) {
         const price = yMin + (i / numTicks) * (yMax - yMin);
         const yPos = chartH - (i / numTicks) * chartH;
+        if (yPos < 0 || yPos > chartH) continue;
         const tick = document.createElement('div');
         tick.className = 'price-axis-tick';
         tick.style.top = `${yPos}px`;
@@ -873,14 +730,10 @@ function drawPriceAxis(yMin, yMax, chartH) {
 function drawCurrentPriceLine(y) {
     const priceLinesContainer = el('price-lines-container');
     priceLinesContainer.innerHTML = '';
-
-    if (!state.gameData || state.currentBarIndex >= state.gameData.length) return;
-
+    if (!state.gameData || !state.gameData[state.currentBarIndex]) return;
     const currentPrice = state.gameData[state.currentBarIndex].c;
     const yPos = y(currentPrice);
-    
-    const rect = canvas.getBoundingClientRect();
-    if (yPos < 0 || yPos > rect.height - CONFIG.timeAxisHeight) return;
+    if (yPos < 0 || yPos > canvas.getBoundingClientRect().height - CONFIG.timeAxisHeight) return;
 
     const isUp = state.currentBarIndex > 0 && currentPrice >= state.gameData[state.currentBarIndex - 1].c;
     const color = isUp ? CHART_COLORS.up : CHART_COLORS.down;
@@ -926,15 +779,10 @@ function addChartAnimation(price, side, type, pnl) {
     state.chartAnimations.push({ price, side, type, pnl, startTime: performance.now(), duration: 800 });
 }
 
-// --- Main Drawing Function ---
-let lastAnimationTime = 0;
-function draw(animationProgress = 1) {
-    if (!ctx) return;
-    const now = performance.now();
-    requestAnimationFrame(draw);
-    if (now - lastAnimationTime < 16 && state.isPaused && state.chartAnimations.length === 0) return;
-    lastAnimationTime = now;
-
+let animationFrameId;
+function draw() {
+    if (!ctx || !state.gameData) return;
+    
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
     if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
@@ -949,7 +797,7 @@ function draw(animationProgress = 1) {
     ctx.fillStyle = CHART_COLORS.bg;
     ctx.fillRect(0, 0, W, H);
 
-    if (!state.gameData || state.gameData.length === 0) return;
+    if (state.gameData.length === 0) return;
     
     const startIdx = Math.floor(state.view.offset);
     const endIdx = startIdx + Math.ceil(state.view.barsInView);
@@ -967,20 +815,36 @@ function draw(animationProgress = 1) {
     drawCurrentPriceLine(y);
     drawTimeAxis(ctx, W, H, startIdx, endIdx, barWidth, state.view.offset);
 
-    // Draw Candles
+    // Draw Candles with Animation
+    const now = performance.now();
     for (let i = 0; i < dataInView.length; i++) {
         const barIndex = startIdx + i;
         const b = dataInView[i];
         const x = (barIndex - state.view.offset) * barWidth + barWidth / 2;
+        const isLastBar = barIndex === state.currentBarIndex;
         
         const up = b.c >= b.o;
         const color = up ? CHART_COLORS.up : CHART_COLORS.down;
         ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 1.5;
         
+        if (isLastBar && !state.isPaused && !state.lastDrawTime) state.lastDrawTime = now;
+        const progress = isLastBar && !state.isPaused ? (now - state.lastDrawTime) / state.animationSpeed : 1;
+
+        if (progress >= 1 && isLastBar) state.lastDrawTime = now;
+        
+        const wickProgress = Math.min(1, progress / 0.5);
+        const bodyProgress = Math.min(1, Math.max(0, (progress - 0.5) / 0.5));
+        
+        const wickH = y(b.o + (b.h - b.o) * wickProgress);
+        const wickL = y(b.o + (b.l - b.o) * wickProgress);
+        const bodyC = y(b.o + (b.c - b.o) * bodyProgress);
+
         ctx.beginPath(); ctx.moveTo(x, y(b.h)); ctx.lineTo(x, y(b.l)); ctx.stroke();
         
         const w = Math.max(2, barWidth * 0.7);
-        ctx.fillRect(x - w / 2, Math.min(y(b.o), y(b.c)), w, Math.max(1, Math.abs(y(b.o) - y(b.c))));
+        const bodyY = Math.min(y(b.o), bodyC);
+        const bodyH = Math.max(1, Math.abs(y(b.o) - bodyC));
+        ctx.fillRect(x - w / 2, bodyY, w, bodyH);
     }
   
     // Draw Position Lines
@@ -988,15 +852,14 @@ function draw(animationProgress = 1) {
         ctx.font = 'bold 12px sans-serif'; ctx.textBaseline = 'middle';
         
         [{price: p.entryPrice, color: p.side === 'buy' ? CHART_COLORS.up : CHART_COLORS.down, dash: [2,4], label: 'ENTRY'},
-         {price: p.sl, color: '#f59e0b', dash: [5,5], label: 'SL'},
-         {price: p.tp, color: '#8b5cf6', dash: [5,5], label: 'TP'}
+         {price: p.sl, color: 'var(--warning)', dash: [5,5]},
+         {price: p.tp, color: 'var(--purple)', dash: [5,5]}
         ].forEach(line => {
             if(!line.price) return;
             const lineY = y(line.price);
             if(lineY <= chartH && lineY >= 0){
                 ctx.strokeStyle = line.color; ctx.setLineDash(line.dash); ctx.lineWidth = 1.5;
                 ctx.beginPath(); ctx.moveTo(0, lineY); ctx.lineTo(W - 60, lineY); ctx.stroke();
-                
                 if(line.label === 'ENTRY'){
                     const pnlText = `${p.pnl >= 0 ? '+' : ''}${p.pnl.toFixed(2)}`;
                     const labelText = `${p.side.toUpperCase()} @ ${p.entryPrice.toFixed(2)} (${pnlText})`;
@@ -1019,8 +882,7 @@ function draw(animationProgress = 1) {
         if (elapsed > anim.duration) return false;
 
         const progress = elapsed / anim.duration;
-        const barIndex = state.positions.find(p => p.entryPrice === anim.price) ? state.currentBarIndex -1 : state.currentBarIndex;
-        const x = (barIndex - state.view.offset) * barWidth + barWidth / 2;
+        const x = (state.currentBarIndex - state.view.offset) * barWidth + barWidth / 2;
         const animY = y(anim.price);
         
         ctx.globalAlpha = 1 - progress;
@@ -1030,9 +892,9 @@ function draw(animationProgress = 1) {
             const arrowSize = 10 + progress * 10;
             ctx.fillStyle = color; ctx.beginPath();
             if (anim.side === 'buy') {
-                ctx.moveTo(x, animY + arrowSize); ctx.lineTo(x - arrowSize / 2, animY); ctx.lineTo(x + arrowSize / 2, animY);
+                ctx.moveTo(x, animY - arrowSize); ctx.lineTo(x - arrowSize/2, animY); ctx.lineTo(x + arrowSize/2, animY);
             } else {
-                ctx.moveTo(x, animY - arrowSize); ctx.lineTo(x - arrowSize / 2, animY); ctx.lineTo(x + arrowSize / 2, animY);
+                ctx.moveTo(x, animY + arrowSize); ctx.lineTo(x - arrowSize/2, animY); ctx.lineTo(x + arrowSize/2, animY);
             }
             ctx.closePath(); ctx.fill();
         } else {
@@ -1047,7 +909,6 @@ function draw(animationProgress = 1) {
     });
 }
 
-// --- Interaction ---
 function setupInteraction() {
     el('zoom-in').onclick = () => handleZoom(1);
     el('zoom-out').onclick = () => handleZoom(-1);
@@ -1107,7 +968,6 @@ function setupSteppers() {
     });
 }
 
-// --- Tutorial ---
 let tutorialStep = 0;
 const tutorialSteps = [
     { text: '歡迎來到交易挑戰賽！您的目標是在一個月的模擬時間內，盡可能地獲利。' },
@@ -1120,13 +980,11 @@ function showTutorialStep(stepIndex) {
     const step = tutorialSteps[stepIndex];
     const overlay = el('tutorial-overlay'), highlight = el('tutorial-highlight'), box = el('tutorial-box');
     const text = el('tutorial-text'), nextBtn = el('tutorial-next'), dots = el('tutorial-dots');
-
-    // *** FIX: Added null check for stability ***
+    
     const target = step.elementId ? el(step.elementId) : null;
     if (step.elementId && !target) {
-        console.error(`Tutorial Error: Element with ID "${step.elementId}" not found. Skipping step.`);
-        // Skip to the next step
-        if (++tutorialStep >= tutorialSteps.length) endTutorial(); else showTutorialStep(tutorialStep);
+        console.error(`Tutorial Error: Element with ID "${step.elementId}" not found. Skipping.`);
+        if (++tutorialStep < tutorialSteps.length) showTutorialStep(tutorialStep); else endTutorial();
         return;
     }
 
@@ -1162,7 +1020,6 @@ function endTutorial() {
 
 function startTutorial() { tutorialStep = 0; showTutorialStep(tutorialStep); }
 
-// --- Init ---
 async function init() {
   canvas = el('chart'); ctx = canvas.getContext('2d', { alpha: false }); chartWrap = el('chartWrap');
   
@@ -1207,7 +1064,7 @@ async function init() {
     setupInteraction();
     setupSteppers(); 
     startGame();
-    requestAnimationFrame(draw);
+    animationFrameId = requestAnimationFrame(draw);
   }
 }
 
