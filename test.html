@@ -243,7 +243,7 @@ const EVENTS = {
   "2025-01-03": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "俗稱「非農」的美國就業數據是市場最關注的指標之一。數據好壞將劇烈影響黃金價格，市場屏息以待！" },
   "2025-01-20": { time: "12:00", title: "🇺🇸 美國總統就職典禮", desc: "新任美國總統將於華盛頓特區宣誓就職。就職演說通常會概述新政府的施政藍圖，內容可能涉及國內外政策、經濟方向等，這些都可能成為市場關注的焦點。" },
   "2025-01-30": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "歐洲央行管理委員會將召開貨幣政策會議並發布利率決策聲明。市場將關注其對歐元區經濟前景和通膨路徑的最新評估。" },
-  "2025-02-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "本月非農數據公布，將再次考驗市場對美國經濟復甦力度的信心。" },
+  "2025-02-07": { time: "21:30", title: "�🇸 美國非農就業數據 (NFP)", desc: "本月非農數據公布，將再次考驗市場對美國經濟復甦力度的信心。" },
   "2025-03-05": { time: "10:00", title: "🇨🇳 中國全國人民代表大會年會開幕", desc: "中國將公布當年度的GDP增長目標、財政預算等主要經濟指標，並闡述相關政策方向。" },
   "2025-03-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "連續第三個月的非農數據，市場將尋找勞動力市場是否持續穩定的線索。" },
   "2025-03-19": { time: "03:00", title: "🇺🇸 聯準會利率決策 (FOMC)", desc: "聯準會將發布利率決策，會議將包含最新的經濟預測摘要 (SEP) 和「點陣圖」，揭示未來利率路徑預期。" },
@@ -272,6 +272,7 @@ const CONFIG = {
 // ===== 遊戲狀態與 DOM 元素 =====
 let state = {};
 const el = id => document.getElementById(id);
+let canvas, ctx, chartWrap, btnBuy, btnSell, btnManage, orderModal, orderTitle, confirmOrderBtn, positionsModal, eventModal, eventTitle, eventDesc, upcomingEventEl;
 
 // ===== 數據處理 =====
 function loadData() {
@@ -590,14 +591,19 @@ function clampOffset(isUserAction = false) {
 
 // ===== 初始化 =====
 async function init() {
+  // DOM 元素現在可以安全獲取
+  const canvas = el('chart');
+  const ctx = canvas.getContext('2d');
+  const chartWrap = el('chartWrap');
+  const btnBuy = el('btnBuy'), btnSell = el('btnSell'), btnManage = el('btnManage');
+  const orderModal = el('orderModal'), orderTitle = el('order-title'), confirmOrderBtn = el('confirmOrderBtn');
+  const positionsModal = el('positionsModal');
+  const eventModal = el('eventModal');
+  const upcomingEventEl = el('upcoming-event');
+
   const dataLoaded = await loadData();
   
   if (dataLoaded) {
-    const btnBuy = el('btnBuy'), btnSell = el('btnSell'), btnManage = el('btnManage');
-    const orderModal = el('orderModal'), orderTitle = el('order-title'), confirmOrderBtn = el('confirmOrderBtn');
-    const positionsModal = el('positionsModal');
-    const eventModal = el('eventModal');
-
     btnBuy.addEventListener('click', () => {
         pauseGame();
         orderTitle.textContent = '建立買入訂單';
@@ -615,7 +621,12 @@ async function init() {
     btnManage.addEventListener('click', () => {
         pauseGame();
         updatePositionsList();
-        positionsModal.classList.add('visible');
+        // 這邊應該是切換 tab 而不是顯示 modal
+        document.querySelector('.tab-btn.active').classList.remove('active');
+        document.querySelector('.tab-content.active').classList.remove('active');
+        const posTabBtn = document.querySelector('.tab-btn[data-tab="positions-panel"]');
+        posTabBtn.classList.add('active');
+        el('positions-panel').classList.add('active');
     });
     
     document.querySelectorAll('.modal-overlay').forEach(modal => {
@@ -645,6 +656,15 @@ async function init() {
             }
         }
     });
+    
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelector('.tab-btn.active').classList.remove('active');
+            document.querySelector('.tab-content.active').classList.remove('active');
+            btn.classList.add('active');
+            el(btn.dataset.tab).classList.add('active');
+        });
+    });
 
     setupInteraction();
     startGame();
@@ -656,3 +676,4 @@ document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
+�
