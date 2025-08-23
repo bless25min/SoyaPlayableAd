@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>XAUUSD 交易模擬挑戰 (Playable Ad Rework)</title>
+    <title>XAUUSD 交易模擬挑戰 (Playable Ad Rework V2)</title>
     <style>
         /* 1. Reset & Variables */
         :root {
@@ -16,6 +16,7 @@
             --color-primary-dark: #2980b9;
             --color-success: #2ecc71;
             --color-danger: #e74c3c;
+            --color-neutral: #95a5a6;
             --font-main: 'Helvetica Neue', Arial, sans-serif;
             --shadow-main: 0 4px 12px rgba(0, 0, 0, 0.05);
             --radius-main: 8px;
@@ -23,11 +24,10 @@
             /* Chart Specific */
             --chart-bg: #ffffff;
             --chart-grid: #f0f0f0;
+            --chart-date-separator: #cccccc; /* Color for date separator lines */
             --chart-crosshair: #999999;
             --color-bull: #26a69a; /* Green for Up */
             --color-bear: #ef5350; /* Red for Down */
-            --color-buy: #3498db;
-            --color-sell: #e91e63;
         }
 
         * {
@@ -72,7 +72,7 @@
         }
 
         .sidebar {
-            width: 300px;
+            width: 320px; /* Increased width slightly for new layout */
             background-color: var(--color-panel-bg);
             border-left: 1px solid var(--color-border);
             display: flex;
@@ -87,13 +87,17 @@
             }
             .sidebar {
                 width: 100%;
-                height: 40%;
+                height: auto;
+                max-height: 50%;
                 border-left: none;
                 border-top: 1px solid var(--color-border);
             }
             .chart-container {
-                height: 60%;
+                flex: 1;
                 padding: 10px;
+            }
+            .controls {
+                flex-wrap: wrap;
             }
         }
 
@@ -170,8 +174,7 @@
         .position-line {
             position: absolute;
             left: 0;
-            /* Assuming 60px Y-axis width, defined in JS CONFIG.CHART_PADDING.right */
-            width: calc(100% - 60px); 
+            /* Width will be set dynamically by JS based on CONFIG.CHART_PADDING.right */
             display: flex;
             align-items: center;
             pointer-events: none; /* Allow interaction with chart below */
@@ -227,11 +230,11 @@
             user-select: none;
         }
 
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             opacity: 0.9;
         }
 
-        .btn:active {
+        .btn:active:not(:disabled) {
             transform: scale(0.98);
         }
         .btn:disabled {
@@ -275,6 +278,22 @@
         }
 
         /* 6. Sidebar (Trading Panel) */
+        
+        /* 6.0 Game Objective */
+        .challenge-info {
+            background-color: #e8f4fd; /* Lighter shade of primary color */
+            color: var(--color-primary-dark);
+            padding: 15px;
+            text-align: center;
+            font-size: 14px;
+            border-bottom: 1px solid var(--color-border);
+        }
+        .challenge-info h4 {
+            font-size: 16px;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
         .panel-tabs {
             display: flex;
             border-bottom: 1px solid var(--color-border);
@@ -301,13 +320,21 @@
             display: none;
             flex-direction: column;
             gap: 15px;
+            flex-grow: 1; /* Allow content to fill remaining space */
         }
 
         .tab-content.active {
             display: flex;
         }
 
-        /* 6.1 Order Panel */
+        /* 6.1 Order Panel (Redesigned) */
+        .order-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
         .input-group {
             display: flex;
             flex-direction: column;
@@ -317,88 +344,55 @@
         .input-label {
             font-size: 14px;
             color: var(--color-text-secondary);
-        }
-
-        .input-stepper {
-            display: flex;
-            align-items: center;
+            text-align: center;
         }
 
         .input-field {
-            flex: 1;
-            padding: 10px;
+            padding: 10px 5px; /* Adjusted padding for compact view */
             border: 1px solid var(--color-border);
             border-radius: var(--radius-main);
             font-size: 16px;
             text-align: center;
-             -moz-appearance: textfield;
+            width: 100%;
+             /* Keep native number input appearance as requested */
         }
-        .input-field::-webkit-outer-spin-button,
-        .input-field::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
+        
 
-
-        .stepper-btn {
-            width: 40px;
-            height: 42px;
-            background-color: var(--color-border);
-            border: none;
-            cursor: pointer;
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .stepper-btn:active {
-            background-color: var(--color-primary);
-            color: white;
-        }
-
-        .stepper-btn:first-child {
-            border-top-left-radius: var(--radius-main);
-            border-bottom-left-radius: var(--radius-main);
-        }
-
-        .stepper-btn:last-child {
-            border-top-right-radius: var(--radius-main);
-            border-bottom-right-radius: var(--radius-main);
-        }
-
-        .input-stepper .input-field {
-            border-radius: 0;
-            border-left: none;
-            border-right: none;
-        }
-
-
-        .trade-buttons {
-            display: flex;
+        .trade-actions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 10px;
+        }
+
+        .btn-trade {
+            padding: 12px;
+            font-size: 18px;
+            color: white;
         }
 
         .btn-buy {
             background-color: var(--color-bull);
-            color: white;
-            flex: 1;
-            padding: 12px;
-            font-size: 18px;
         }
 
         .btn-sell {
             background-color: var(--color-bear);
-            color: white;
-            flex: 1;
-            padding: 12px;
-            font-size: 18px;
         }
+
+        .btn-close-all {
+            background-color: var(--color-neutral);
+            color: white;
+            font-size: 16px;
+        }
+
 
         /* 6.2 Positions & History */
         .positions-list, .history-list {
             display: flex;
             flex-direction: column;
             gap: 10px;
+            /* Allow lists to scroll if content overflows */
+            overflow-y: auto; 
+            flex-grow: 1;
         }
 
         .trade-item {
@@ -499,7 +493,7 @@
             color: white;
             padding: 15px 30px;
             font-size: 18px;
-            text-transform: uppercase;
+            /* text-transform: uppercase; */
             letter-spacing: 1px;
             text-decoration: none; /* For <a> tag implementation */
         }
@@ -529,7 +523,7 @@
             transition: top 0.3s, left 0.3s;
         }
 
-        /* 8. Utilities */
+        /* 8. Utilities & Loader */
         .hidden {
             display: none !important;
         }
@@ -547,6 +541,8 @@
             align-items: center;
             z-index: 2000;
             gap: 20px;
+            text-align: center;
+            padding: 20px;
         }
 
         .loading-spinner {
@@ -562,13 +558,33 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        /* 9. File Upload Fallback */
+        .file-upload-prompt {
+            background-color: var(--color-panel-bg);
+            padding: 30px;
+            border-radius: var(--radius-main);
+            box-shadow: var(--shadow-main);
+            border: 1px solid var(--color-border);
+            max-width: 450px;
+        }
     </style>
 </head>
 <body>
     <!-- Loader -->
     <div class="loader-wrap" id="loader">
-        <div class="loading-spinner"></div>
-        <p>正在載入數據與初始化圖表...</p>
+        <div id="loader-status">
+            <div class="loading-spinner"></div>
+            <p>正在載入數據與初始化圖表...</p>
+        </div>
+        <!-- Fallback File Upload (Hidden by default) -->
+        <div id="fileUploadFallback" class="file-upload-prompt hidden">
+            <p style="color: var(--color-danger); margin-bottom: 15px; font-weight: bold;">⚠️ 數據載入失敗</p>
+            <p id="loader-error-message" style="margin-bottom: 15px;"></p>
+            <p>這可能是由於瀏覽器的本地檔案存取限制 (CORS) 或檔案格式不正確。</p>
+            <p style="margin-bottom: 20px;">請手動上傳 <strong>XAUUSD_M15.csv</strong> 檔案以繼續：</p>
+            <input type="file" id="csvFileInput" accept=".csv">
+        </div>
     </div>
 
     <!-- Header (HUD) -->
@@ -607,6 +623,7 @@
                     <button class="speed-btn active" data-speed="1">1x</button>
                     <button class="speed-btn" data-speed="5">5x</button>
                     <button class="speed-btn" data-speed="20">20x</button>
+                    <button class="speed-btn" data-speed="40">40x</button> <!-- Added 40x -->
                 </div>
                 <button class="btn btn-secondary" id="btnZoomIn">🔍+</button>
                 <button class="btn btn-secondary" id="btnZoomOut">🔍-</button>
@@ -622,44 +639,41 @@
 
         <!-- Sidebar (Trading Panel) -->
         <aside class="sidebar">
+            <!-- NEW: Challenge Info -->
+            <div class="challenge-info" id="challengeInfo">
+                <h4>🏆 30天交易挑戰</h4>
+                <p>從隨機歷史日期開始，在一個月內盡力獲取最高收益！</p>
+            </div>
+
             <div class="panel-tabs">
-                <button class="tab-btn active" data-target="tabOrder">下單</button>
+                <button class="tab-btn active" data-target="tabOrder">交易</button>
                 <button class="tab-btn" data-target="tabPositions">持倉 (<span id="positionsCount">0</span>)</button>
                 <button class="tab-btn" data-target="tabHistory">紀錄</button>
             </div>
 
+            <!-- REDESIGNED: Order Tab -->
             <div class="tab-content active" id="tabOrder">
-                <div class="input-group">
-                    <label class="input-label">手數 (Lots)</label>
-                    <div class="input-stepper">
-                        <button class="stepper-btn" id="lotsDown">−</button>
+                <div class="order-grid">
+                    <div class="input-group">
+                        <label class="input-label">停損 SL</label>
+                        <input type="number" class="input-field" id="inputSL" placeholder="價格" step="0.1" min="0">
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">手數</label>
                         <input type="number" class="input-field" id="inputLots" value="0.10" step="0.01" min="0.01">
-                        <button class="stepper-btn" id="lotsUp">+</button>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">停利 TP</label>
+                        <input type="number" class="input-field" id="inputTP" placeholder="價格" step="0.1" min="0">
                     </div>
                 </div>
 
-                <div class="input-group">
-                    <label class="input-label">停損價格 (SL)</label>
-                    <div class="input-stepper">
-                        <button class="stepper-btn" id="slDown">−</button>
-                        <input type="number" class="input-field" id="inputSL" placeholder="選填" step="0.1">
-                        <button class="stepper-btn" id="slUp">+</button>
-                    </div>
-                </div>
-
-                <div class="input-group">
-                    <label class="input-label">停利價格 (TP)</label>
-                    <div class="input-stepper">
-                        <button class="stepper-btn" id="tpDown">−</button>
-                        <input type="number" class="input-field" id="inputTP" placeholder="選填" step="0.1">
-                        <button class="stepper-btn" id="tpUp">+</button>
-                    </div>
-                    
-                </div>
-
-                <div class="trade-buttons">
-                    <button class="btn btn-buy" id="btnBuy">買入 (BUY)</button>
-                    <button class="btn btn-sell" id="btnSell">賣出 (SELL)</button>
+                <div class="trade-actions-grid">
+                    <button class="btn btn-trade btn-sell" id="btnSell">Sell</button>
+                    <button class="btn btn-trade btn-close-all" id="btnCloseAllTab">平倉</button>
+                    <button class="btn btn-trade btn-buy" id="btnBuy">Buy</button>
                 </div>
             </div>
 
@@ -667,7 +681,7 @@
                 <div class="positions-list" id="positionsList">
                     <!-- Positions will be dynamically added here -->
                 </div>
-                <button class="btn btn-danger" id="btnCloseAll" style="margin-top: 15px; display: none;">全部平倉</button>
+                <!-- Note: The dedicated Close All button in this tab is removed as per the new design -->
             </div>
 
             <div class="tab-content" id="tabHistory">
@@ -698,7 +712,8 @@
                 <p id="finalRoR" style="font-size: 20px;"></p>
                 <div id="endGameStats" style="text-align: left; margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--color-border);"></div>
             </div>
-            <a href="https://www.example.com/register" target="_blank" class="btn cta-button" id="ctaButton">立即開設真實帳戶</a>
+            <!-- UPDATED CTA -->
+            <a href="https://www.fxvic.com.tw/" target="_blank" class="btn cta-button" id="ctaButton">了解如何取得高分</a>
             <button class="btn btn-secondary" id="restartButton" style="margin-top: 15px;">重新挑戰</button>
         </div>
     </div>
@@ -712,9 +727,8 @@
 
     <script>
         // ============================================================================
-        // 專案：XAUUSD 交易模擬 Playable Ad (Rework)
-        // 架構：狀態驅動 (State-Driven Architecture)
-        // 渲染：HTML5 Canvas + DOM Overlays
+        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V2)
+        // 更新：UI重構, 增加日期分隔線, 優化新手導引, CTA更新
         // ============================================================================
 
         // ----------------------------------------------------------------------------
@@ -732,7 +746,7 @@
             SIMULATION_DURATION_DAYS: 30,
         };
 
-        // Global State Object - The single source of truth
+        // Global State Object
         const state = {
             // Data
             rawData: [],
@@ -762,7 +776,6 @@
                 ctx: null,
                 width: 0,
                 height: 0,
-                // Viewport indices define what data is currently visible
                 viewStartIndex: 0, 
                 viewEndIndex: 0,
                 minPrice: 0,
@@ -771,15 +784,16 @@
                 candleSpacing: CONFIG.CANDLE_SPACING,
                 isDragging: false,
                 dragStartX: 0,
-                // scrollOffset represents how many candles are scrolled off the right side (0 means viewing the latest)
+                dragStartScroll: 0,
                 scrollOffset: 0, 
             },
 
             // UI & Interaction
             mouse: { x: -1, y: -1, isOverChart: false },
             tutorialActive: false,
+            tutorialCompletedOnce: false, // NEW: Flag to track tutorial completion
             
-            // Events (Mock data for demonstration)
+            // Events
             financialEvents: [
                 { triggerDay: 5, title: '美國非農就業數據 (NFP)', description: '非農數據即將公布，市場預期將出現劇烈波動。請注意風險！' },
                 { triggerDay: 15, title: '美國 CPI 公布', description: '消費者物價指數 (CPI) 高於預期，可能引發市場對通膨的擔憂。' },
@@ -792,111 +806,164 @@
         const DOM = {};
 
         // ----------------------------------------------------------------------------
-        // 2. 數據處理 (Data Processing)
+        // 2. 數據處理 (Data Processing) - 包含備援機制
         // ----------------------------------------------------------------------------
 
         async function loadData() {
             try {
+                // 嘗試使用 fetch API 自動載入
                 const response = await fetch(CONFIG.DATA_URL);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP 錯誤! 狀態碼: ${response.status} (檔案可能不存在或伺服器配置錯誤)`);
+                }
+                
                 const csvText = await response.text();
+                processData(csvText);
+
+            } catch (error) {
+                console.error("自動載入數據失敗:", error);
+                let errorMessage = error.message;
+                if (error instanceof TypeError && window.location.protocol === 'file:') {
+                    errorMessage = "無法從本地檔案系統 (file://) 載入數據。這是瀏覽器的安全限制。";
+                }
+                promptForFileUpload(errorMessage);
+            }
+        }
+
+        function promptForFileUpload(errorMessage) {
+            document.getElementById('loader-status').classList.add('hidden');
+            document.getElementById('fileUploadFallback').classList.remove('hidden');
+            if (errorMessage) {
+                document.getElementById('loader-error-message').textContent = errorMessage;
+            }
+            
+            const fileInput = document.getElementById('csvFileInput');
+            
+            if (fileInput.dataset.listenerAttached) return;
+            fileInput.dataset.listenerAttached = true;
+
+            fileInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const csvText = e.target.result;
+                        document.getElementById('fileUploadFallback').classList.add('hidden');
+                        document.getElementById('loader-status').classList.remove('hidden');
+                        processData(csvText);
+                    };
+                    reader.onerror = () => {
+                        promptForFileUpload("讀取檔案時發生錯誤。");
+                    };
+                    reader.readAsText(file, 'UTF-8');
+                }
+            });
+        }
+
+        function processData(csvText) {
+            try {
                 state.rawData = parseData(csvText);
                 
                 if (state.rawData.length === 0) {
-                    throw new Error("無法解析數據或數據為空。請檢查 CSV 檔案格式。");
+                    console.log("原始數據預覽 (前500字元):", csvText.substring(0, 500));
+                    let specificError = "無法解析數據或數據為空。請檢查 CSV 檔案的格式、內容和編碼 (應為 UTF-8)。";
+                    if (csvText.trim().startsWith('<')) {
+                        specificError += " 偵測到 HTML 標籤，您可能下載了網頁而不是原始 CSV 檔案。";
+                    }
+                    throw new Error(specificError);
                 }
                 
                 console.log(`成功載入 ${state.rawData.length} 筆數據。`);
                 startGame();
             } catch (error) {
-                console.error("載入數據失敗:", error);
-                document.getElementById('loader').innerHTML = `<p style="color: red;">錯誤：${error.message}</p><p>請確保 XAUUSD_M15.csv 與 index.html 位於同一個目錄，並且伺服器配置正確（或瀏覽器允許本地檔案存取）。</p>`;
+                console.error("處理數據失敗:", error);
+                promptForFileUpload(error.message);
             }
         }
 
-        // 自動偵測並解析 CSV 數據
         function parseData(csvText) {
+            if (csvText.charCodeAt(0) === 0xFEFF) {
+                csvText = csvText.substring(1);
+            }
+
             const lines = csvText.trim().split('\n');
             if (lines.length < 2) return [];
 
-            // 1. 偵測分隔符和時間格式
-            const firstLine = lines.find(line => line.trim() !== '' && !line.toLowerCase().includes('time') && !line.toLowerCase().includes('date') && !line.toLowerCase().includes('open'));
+            const firstLine = lines.find(line => {
+                const lowerLine = line.trim().toLowerCase();
+                return lowerLine !== '' && !lowerLine.includes('time') && !lowerLine.includes('date') && !lowerLine.includes('open') && !lowerLine.includes('volume');
+            });
+
             if (!firstLine) return [];
 
             let delimiter = ',';
-            
-            // 優先判斷是否為空格/Tab分隔 (常見於 MT4/MT5 導出)
-            if (firstLine.includes('\t') || (firstLine.includes(' ') && !firstLine.includes(','))) {
-                delimiter = /\s+/; // 空格或 Tab
+            if (firstLine.includes('\t')) {
+                delimiter = /\s+/;
+            } else if (firstLine.includes(';') && !firstLine.includes(',')) {
+                delimiter = ';';
+            } else if (firstLine.includes(' ') && !firstLine.includes(',')) {
+                 delimiter = /\s+/;
             }
 
             const testParts = firstLine.split(delimiter);
-
             if (testParts.length < 5) return [];
 
-            // 偵測時間格式
             let timeFormat = 'unknown';
             if (testParts[0].match(/^\d{10,}$/)) {
-                // 看起來像時間戳
                 timeFormat = 'timestamp';
-            } else if (testParts[0].match(/^\d{4}[\.\-]\d{2}[\.\-]\d{2}$/) && testParts[1].match(/^\d{2}:\d{2}/)) {
-                 // 格式為 YYYY.MM.DD HH:MM
+            } else if (testParts[0].match(/^\d{4}[\.\-\/]\d{2}[\.\-\/]\d{2}$/) && testParts.length > 1 && testParts[1].match(/^\d{2}:\d{2}/)) {
                 timeFormat = 'datetime_separate';
-            } else {
-                // 假設為合併的日期時間字串
+            } else if (testParts[0].includes(':') || testParts[0].match(/^\d{4}[\.\-\/]\d{2}[\.\-\/]\d{2}/)) {
                 timeFormat = 'datetime_combined';
             }
             
-
             const parsedData = [];
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
-                // 跳過標題列或空行
                 if (line === '' || line.toLowerCase().includes('open') || line.toLowerCase().includes('time')) continue;
 
                 const values = line.split(delimiter);
-                
                 let timestamp, open, high, low, close;
 
                 try {
                     if (timeFormat === 'timestamp') {
                         if (values.length < 5) continue;
                         timestamp = parseInt(values[0]);
-                        if (timestamp < 10000000000) timestamp *= 1000; // 秒轉毫秒
+                        if (timestamp < 10000000000) timestamp *= 1000;
                         open = parseFloat(values[1]);
                         high = parseFloat(values[2]);
                         low = parseFloat(values[3]);
                         close = parseFloat(values[4]);
                     } else if (timeFormat === 'datetime_separate') {
-                         // 格式: Date Time O H L C
                         if (values.length < 6) continue;
-                        const dateStr = `${values[0]} ${values[1]}`;
-                        timestamp = new Date(dateStr.replace(/\./g, '-')).getTime();
+                        const dateStr = `${values[0].replace(/[\.\/]/g, '-')} ${values[1]}`;
+                        timestamp = new Date(dateStr).getTime();
                         open = parseFloat(values[2]);
                         high = parseFloat(values[3]);
                         low = parseFloat(values[4]);
                         close = parseFloat(values[5]);
                     } else if (timeFormat === 'datetime_combined') {
-                        // 格式: DateTime O H L C (適用於某些逗號分隔的檔案)
                         if (values.length < 5) continue;
-                        timestamp = new Date(values[0].replace(/\./g, '-')).getTime();
+                        timestamp = new Date(values[0].replace(/[\.\/]/g, '-')).getTime();
                         open = parseFloat(values[1]);
                         high = parseFloat(values[2]);
                         low = parseFloat(values[3]);
                         close = parseFloat(values[4]);
+                    } else {
+                        continue;
                     }
 
-                    if (isNaN(timestamp) || isNaN(open) || isNaN(high) || isNaN(low) || isNaN(close)) {
+                    if (isNaN(timestamp) || timestamp <= 0 || isNaN(open) || isNaN(high) || isNaN(low) || isNaN(close)) {
                         continue;
                     }
 
                     parsedData.push({ time: timestamp, open, high, low, close });
                 } catch (error) {
-                    // console.warn(`Skipping line ${i+1} due to parsing error. Content: ${lines[i]}`);
+                    // Ignore parsing errors
                 }
             }
 
-            // 確保數據按時間排序
             return parsedData.sort((a, b) => a.time - b.time);
         }
 
@@ -912,7 +979,6 @@
             loadData();
         }
 
-        // 快取所有必要的 DOM 元素
         function cacheDOMElements() {
             // HUD
             DOM.hudDate = document.getElementById('hud-date');
@@ -934,8 +1000,8 @@
             DOM.positionsList = document.getElementById('positionsList');
             DOM.historyList = document.getElementById('historyList');
             DOM.positionsCount = document.getElementById('positionsCount');
-            DOM.btnCloseAll = document.getElementById('btnCloseAll');
-            // Modals
+            DOM.btnCloseAllTab = document.getElementById('btnCloseAllTab'); // NEW: Close All button in Trade tab
+            // Modals & Loader
             DOM.loader = document.getElementById('loader');
             DOM.eventModal = document.getElementById('eventModal');
             DOM.endGameModal = document.getElementById('endGameModal');
@@ -947,18 +1013,26 @@
         }
 
         function startGame() {
+            if (state.rawData.length === 0) {
+                console.error("Raw data is empty. Cannot start game.");
+                return;
+            }
+
             console.log("Starting new game...");
+            // 關閉可能打開的結束畫面 Modal
+            DOM.endGameModal.classList.remove('active');
+            
             resetState();
             selectRandomDataSegment();
 
             if (state.gameData.length === 0) {
-                console.error("Game data is empty. Cannot start game.");
+                console.error("Game data segment is empty.");
+                promptForFileUpload("無法從原始數據中選取足夠的模擬區間。");
                 return;
             }
             
-            // Initialize chart view (Show first few candles)
+            // Initialize chart view
             const initialVisibleCandles = calculateVisibleCandles();
-            // 初始顯示約 80% 的可視範圍
             state.currentIndex = Math.min(Math.floor(initialVisibleCandles * 0.8), state.gameData.length - 1);
             
             state.isLoading = false;
@@ -967,8 +1041,10 @@
             updateUI();
             requestAnimationFrame(draw);
 
-            // Start tutorial
-            startTutorial();
+            // UPDATED: Start tutorial only if it hasn't been completed before
+            if (!state.tutorialCompletedOnce) {
+                startTutorial();
+            }
         }
 
         function resetState() {
@@ -991,12 +1067,9 @@
             DOM.chartOverlay.innerHTML = '';
         }
 
-        // 隨機抽取一個月的數據區間
         function selectRandomDataSegment() {
             const totalDurationMs = CONFIG.SIMULATION_DURATION_DAYS * 24 * 60 * 60 * 1000;
             
-            if (state.rawData.length === 0) return;
-
             const dataDuration = state.rawData[state.rawData.length - 1].time - state.rawData[0].time;
 
             if (dataDuration < totalDurationMs) {
@@ -1005,78 +1078,67 @@
                 return;
             }
 
-            // 尋找隨機起點
             const latestStartTime = state.rawData[state.rawData.length - 1].time - totalDurationMs;
             const earliestStartTime = state.rawData[0].time;
 
-            // 在可能的時間範圍內隨機選擇一個開始時間
             const randomStartTime = earliestStartTime + Math.random() * (latestStartTime - earliestStartTime);
 
-            // 找到對應此時間的索引
-            const startIndex = state.rawData.findIndex(d => d.time >= randomStartTime);
+            let startIndex = state.rawData.findIndex(d => d.time >= randomStartTime);
+            if (startIndex === -1) startIndex = 0;
 
             const startTime = state.rawData[startIndex].time;
             const endTime = startTime + totalDurationMs;
 
-            // 提取區間
             state.gameData = state.rawData.filter(d => d.time >= startTime && d.time <= endTime);
             
             console.log(`選取數據區間: ${state.gameData.length} 根 K 棒。從 ${new Date(startTime).toLocaleDateString()} 開始。`);
         }
 
+
         let lastTickTime = 0;
         let animationFrameId;
 
-        // 主遊戲循環 (由 requestAnimationFrame 驅動)
         function gameLoop(timestamp) {
             if (!state.isPlaying || state.isEnded) {
                 cancelAnimationFrame(animationFrameId);
                 return;
             }
 
-            // 計算時間間隔和進度
             const effectiveInterval = CONFIG.TICK_INTERVAL / state.speedMultiplier;
+            
+            if (lastTickTime === 0) lastTickTime = timestamp;
+
             const deltaTime = timestamp - lastTickTime;
 
-            // 使用 deltaTime 計算動畫進度，確保流暢性
              if (deltaTime > 0) { 
                  const progressIncrement = deltaTime / effectiveInterval;
                  state.barAnimationProgress = Math.min(1, state.barAnimationProgress + progressIncrement);
                  
-                 // 在動畫期間持續更新持倉和帳戶
                  updatePositions();
                  updateAccount();
                  updateUI(); 
 
                  if (state.barAnimationProgress >= 1) {
-                    // K 棒動畫完成
                     finalizeCurrentBar();
                     if (!advanceSimulation()) {
-                        // 遊戲結束
                         endGame();
                         return;
                     }
-                    // 重置下一根 K 棒的狀態
                     state.barAnimationProgress = 0;
                     checkForEvents();
                     
-                    // 如果用戶正在查看歷史數據（scrollOffset > 0），不要自動滾動到最新
                     if (state.chart.scrollOffset > 0) {
-                        // 增加滾動偏移量，以匹配新生成的 K 棒，保持視圖不變
                         state.chart.scrollOffset++;
                     }
                  }
                  lastTickTime = timestamp;
             }
             
-            // 繪圖
             draw();
-            // 繼續循環
             animationFrameId = requestAnimationFrame(gameLoop);
         }
 
         function finalizeCurrentBar() {
-            // 確保最終更新使用收盤價
             state.barAnimationProgress = 1;
             updatePositions();
             updateAccount();
@@ -1096,17 +1158,19 @@
             state.isEnded = true;
             cancelAnimationFrame(animationFrameId);
             
-            // 以最後價格平倉所有剩餘訂單
-            while(state.openPositions.length > 0) {
-                const position = state.openPositions[0];
-                const closePrice = state.gameData[state.currentIndex].close;
-                closeOrder(position.id, closePrice);
+            if (state.gameData.length > 0) {
+                 const closePrice = state.gameData[state.currentIndex].close;
+                while(state.openPositions.length > 0) {
+                    const position = state.openPositions[0];
+                    closeOrder(position.id, closePrice);
+                }
             }
 
             updateAccount();
             updateUI();
             showEndGameModal();
         }
+
 
         // ----------------------------------------------------------------------------
         // 4. 圖表繪製與渲染 (Chart Drawing & Rendering)
@@ -1121,22 +1185,21 @@
         function resizeCanvas() {
             const dpr = window.devicePixelRatio || 1;
             const rect = DOM.chartWrap.getBoundingClientRect();
-            // 確保寬高為整數
             const width = Math.floor(rect.width);
             const height = Math.floor(rect.height);
 
-            state.chart.canvas.width = width * dpr;
-            state.chart.canvas.height = height * dpr;
-            // 設置 CSS 尺寸
-            state.chart.canvas.style.width = `${width}px`;
-            state.chart.canvas.style.height = `${height}px`;
+            if (state.chart.width !== width || state.chart.height !== height) {
+                state.chart.canvas.width = width * dpr;
+                state.chart.canvas.height = height * dpr;
+                state.chart.canvas.style.width = `${width}px`;
+                state.chart.canvas.style.height = `${height}px`;
 
-            state.chart.ctx.scale(dpr, dpr);
-            state.chart.width = width;
-            state.chart.height = height;
+                state.chart.ctx.scale(dpr, dpr);
+                state.chart.width = width;
+                state.chart.height = height;
 
-            // 重新計算滾動位置，防止因縮放導致視圖錯誤
-            validateScrollOffset();
+                validateScrollOffset();
+            }
 
             if (!state.isLoading) {
                 draw();
@@ -1144,72 +1207,59 @@
         }
 
         function draw() {
-            // 使用 requestAnimationFrame 封裝繪圖操作，確保不會過度繪製
-            // 如果遊戲正在運行，gameLoop 已經處理了 rAF。如果暫停，則手動觸發。
-            if (state.isLoading) return;
+            if (state.isLoading || state.gameData.length === 0) return;
 
             const ctx = state.chart.ctx;
-            // 1. 清空畫布
             ctx.clearRect(0, 0, state.chart.width, state.chart.height);
 
-            // 2. 計算視圖範圍和價格範圍
             calculateViewport();
 
-            // 3. 繪製圖表元素
             drawBackground(ctx);
-            drawGrid(ctx);
+            drawGrid(ctx); // UPDATED: Now includes date separators
             drawCandles(ctx);
             drawYAxis(ctx);
             drawXAxis(ctx);
             drawCrosshair(ctx);
             drawTradeAnimations(ctx);
             
-            // 4. 更新 DOM 疊加層 (持倉線)
             updatePositionOverlays();
         }
 
-        function calculateVisibleCandles() {
+         function calculateVisibleCandles() {
             const { width, candleWidth, candleSpacing } = state.chart;
             const { left, right } = CONFIG.CHART_PADDING;
             const chartAreaWidth = width - left - right;
             const candleUnitWidth = candleWidth + candleSpacing;
-            if (candleUnitWidth <= 0) return 100; // 避免除以零
-            return Math.floor(chartAreaWidth / candleUnitWidth);
+            if (candleUnitWidth <= 0) return 100;
+            return Math.max(1, Math.floor(chartAreaWidth / candleUnitWidth));
         }
 
         function calculateViewport() {
             const visibleCandles = calculateVisibleCandles();
 
-            // 根據 currentIndex 和 scrollOffset 確定可視範圍
-            // endIndex 是可視範圍最右側的 K 棒索引 (不包含)
             let endIndex = state.currentIndex + 1 - state.chart.scrollOffset;
-            // startIndex 是可視範圍最左側的 K 棒索引
             let startIndex = endIndex - visibleCandles;
 
-            // 邊界檢查
             if (endIndex > state.currentIndex + 1) {
                 endIndex = state.currentIndex + 1;
                 startIndex = Math.max(0, endIndex - visibleCandles);
             }
             if (startIndex < 0) {
                 startIndex = 0;
-                // 確保 endIndex 不會超出當前數據範圍
-                endIndex = Math.min(state.currentIndex + 1, visibleCandles);
+                endIndex = Math.min(state.currentIndex + 1, startIndex + visibleCandles);
             }
             
             state.chart.viewStartIndex = startIndex;
             state.chart.viewEndIndex = endIndex;
 
-            // 計算價格範圍
             let minPrice = Infinity;
             let maxPrice = -Infinity;
 
             for (let i = startIndex; i < endIndex; i++) {
-                // 確保索引在 gameData 範圍內
-                if (i >= state.gameData.length) break; 
+                if (i >= state.gameData.length || i < 0) continue; 
+
                 const bar = state.gameData[i];
 
-                // 對於當前活動的 K 棒，且視圖在最右側時，考慮動畫價格
                 if (i === state.currentIndex && state.chart.scrollOffset === 0) {
                     const animatedBar = getAnimatedBar(bar);
                     minPrice = Math.min(minPrice, animatedBar.low);
@@ -1220,12 +1270,12 @@
                 }
             }
 
-            // 增加價格範圍的緩衝
             const priceRange = maxPrice - minPrice;
             if (priceRange <= 0 || !isFinite(priceRange)) {
-                const padding = 0.5;
-                state.chart.minPrice = (minPrice === Infinity ? 1900 : minPrice) - padding;
-                state.chart.maxPrice = (maxPrice === -Infinity ? 1901 : maxPrice) + padding;
+                const centerPrice = (minPrice === Infinity) ? (state.gameData[0]?.close || 1900) : minPrice;
+                const padding = centerPrice * 0.001;
+                state.chart.minPrice = centerPrice - padding;
+                state.chart.maxPrice = centerPrice + padding;
             } else {
                 const padding = priceRange * 0.1;
                 state.chart.minPrice = minPrice - padding;
@@ -1233,73 +1283,86 @@
             }
         }
 
-        // 輔助函式：價格轉 Y 座標
         function priceToY(price) {
             const { height, minPrice, maxPrice } = state.chart;
             const { top, bottom } = CONFIG.CHART_PADDING;
             const chartAreaHeight = height - top - bottom;
             const priceRange = maxPrice - minPrice;
             
-            if (priceRange === 0) return top + chartAreaHeight / 2;
+            if (priceRange <= 0) return top + chartAreaHeight / 2;
 
-            return top + chartAreaHeight * (1 - (price - minPrice) / priceRange);
+            const y = top + chartAreaHeight * (1 - (price - minPrice) / priceRange);
+            return Math.max(top, Math.min(height - bottom, y));
         }
 
-        // 輔助函式：索引轉 X 座標
         function indexToX(index) {
             const { viewStartIndex, candleWidth, candleSpacing } = state.chart;
             const { left } = CONFIG.CHART_PADDING;
             const candleUnitWidth = candleWidth + candleSpacing;
-            // 計算相對於 viewStartIndex 的位置
             return left + (index - viewStartIndex) * candleUnitWidth + candleWidth / 2;
         }
 
         function drawBackground(ctx) {
-            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-bg');
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-bg').trim();
             ctx.fillRect(0, 0, state.chart.width, state.chart.height);
         }
 
+        // UPDATED: 繪製網格線和日期分隔線
         function drawGrid(ctx) {
-            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-grid');
-            ctx.lineWidth = 1;
+            const gridColor = getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim();
+            const dateSeparatorColor = getComputedStyle(document.documentElement).getPropertyValue('--chart-date-separator').trim();
+            const { left, right, top, bottom } = CONFIG.CHART_PADDING;
 
-            // 水平網格線 (基於 Y 軸刻度)
+            
+
+            // 1. 水平網格線
+            ctx.strokeStyle = gridColor;
+            ctx.lineWidth = 1;
             const yTicks = calculateYAxisTicks();
             yTicks.forEach(tick => {
                 const y = priceToY(tick.price);
                 ctx.beginPath();
-                ctx.moveTo(CONFIG.CHART_PADDING.left, y);
-                ctx.lineTo(state.chart.width - CONFIG.CHART_PADDING.right, y);
+                ctx.moveTo(left, y);
+                ctx.lineTo(state.chart.width - right, y);
                 ctx.stroke();
             });
 
-            // 垂直網格線 (基於 X 軸刻度)
+            // 2. 垂直網格線與日期分隔線
             const xTicks = calculateXAxisTicks();
             xTicks.forEach(tick => {
                 const x = indexToX(tick.index);
-                if (x >= CONFIG.CHART_PADDING.left && x <= state.chart.width - CONFIG.CHART_PADDING.right) {
+                if (x >= left && x <= state.chart.width - right) {
+                    
+                    // NEW: 根據是否為日期分隔線設置樣式
+                    if (tick.isDateSeparator) {
+                        ctx.strokeStyle = dateSeparatorColor;
+                        ctx.lineWidth = 1.5; // 稍微加粗
+                    } else {
+                        ctx.strokeStyle = gridColor;
+                        ctx.lineWidth = 1;
+                    }
+
                     ctx.beginPath();
-                    ctx.moveTo(x, CONFIG.CHART_PADDING.top);
-                    ctx.lineTo(x, state.chart.height - CONFIG.CHART_PADDING.bottom);
+                    ctx.moveTo(x, top);
+                    ctx.lineTo(x, state.chart.height - bottom);
                     ctx.stroke();
                 }
             });
+            
+            // 重置線寬
+            ctx.lineWidth = 1;
         }
 
-        // 核心功能：K 棒動畫邏輯 (開盤 -> 影線 -> 實體)
         function getAnimatedBar(bar) {
             const progress = state.barAnimationProgress;
             const open = bar.open;
             
-            // 1. 影線 (Wicks) - 假設影線在動畫的前半段 (50%) 形成
             const wickProgress = Math.min(1, progress * 2);
             const high = open + (bar.high - open) * wickProgress;
             const low = open + (bar.low - open) * wickProgress;
 
-            // 2. 實體 (Body/Close) - 從開盤價線性增長到收盤價
             const close = open + (bar.close - open) * progress;
 
-            // 確保 High/Low 始終包含當前的 Open 和 Close 價格
             const finalHigh = Math.max(high, close, open);
             const finalLow = Math.min(low, close, open);
 
@@ -1308,15 +1371,15 @@
 
         function drawCandles(ctx) {
             const { viewStartIndex, viewEndIndex, candleWidth } = state.chart;
-            const colorBull = getComputedStyle(document.documentElement).getPropertyValue('--color-bull');
-            const colorBear = getComputedStyle(document.documentElement).getPropertyValue('--color-bear');
+            const colorBull = getComputedStyle(document.documentElement).getPropertyValue('--color-bull').trim();
+            const colorBear = getComputedStyle(document.documentElement).getPropertyValue('--color-bear').trim();
 
             for (let i = viewStartIndex; i < viewEndIndex; i++) {
-                 if (i >= state.gameData.length) break;
+                 if (i >= state.gameData.length || i < 0) continue;
+
                 const bar = state.gameData[i];
                 let displayBar = bar;
 
-                // 僅對當前活動的 K 棒且視圖在最右側時應用動畫
                 if (i === state.currentIndex && state.chart.scrollOffset === 0) {
                     displayBar = getAnimatedBar(bar);
                 }
@@ -1331,46 +1394,48 @@
                 ctx.strokeStyle = color;
                 ctx.fillStyle = color;
 
-                // 繪製影線
                 ctx.lineWidth = 1;
                 ctx.beginPath();
                 ctx.moveTo(x, highY);
                 ctx.lineTo(x, lowY);
                 ctx.stroke();
 
-                // 繪製實體
                 const bodyTop = Math.min(openY, closeY);
                 const bodyHeight = Math.abs(openY - closeY);
                 
-                // 確保實體至少有 1px 高度
                 const finalHeight = Math.max(1, bodyHeight);
+                const finalWidth = Math.max(1, candleWidth);
 
-                ctx.fillRect(x - candleWidth / 2, bodyTop, candleWidth, finalHeight);
+                ctx.fillRect(x - finalWidth / 2, bodyTop, finalWidth, finalHeight);
             }
         }
 
-        // 計算合適的 Y 軸刻度
         function calculateYAxisTicks() {
-            const { minPrice, maxPrice } = state.chart;
+            const { minPrice, maxPrice, height } = state.chart;
             const priceRange = maxPrice - minPrice;
             
             if (priceRange <= 0) return [];
 
-            // 動態調整刻度間距
-            let magnitude = Math.pow(10, Math.floor(Math.log10(priceRange)));
-            let normalizedRange = priceRange / magnitude;
+            const targetCount = Math.max(2, Math.floor(height / 50));
+            const rawSpacing = priceRange / targetCount;
+            const magnitude = Math.pow(10, Math.floor(Math.log10(rawSpacing)));
+            const normalizedSpacing = rawSpacing / magnitude;
 
             let tickSpacing;
-            if (normalizedRange > 5) tickSpacing = magnitude;
-            else if (normalizedRange > 2) tickSpacing = magnitude * 0.5;
-            else tickSpacing = magnitude * 0.2;
+            if (normalizedSpacing > 5) tickSpacing = 10 * magnitude;
+            else if (normalizedSpacing > 2) tickSpacing = 5 * magnitude;
+            else if (normalizedSpacing > 1) tickSpacing = 2 * magnitude;
+            else tickSpacing = magnitude;
 
             const ticks = [];
             let currentTick = Math.ceil(minPrice / tickSpacing) * tickSpacing;
 
             while (currentTick <= maxPrice) {
-                ticks.push({ price: currentTick });
+                if (isFinite(currentTick)) {
+                    ticks.push({ price: currentTick });
+                }
                 currentTick += tickSpacing;
+                if (tickSpacing === 0) break;
             }
             return ticks;
         }
@@ -1380,17 +1445,15 @@
             const { right } = CONFIG.CHART_PADDING;
             const axisX = width - right;
 
-            // 繪製軸背景和邊框
-            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-bg');
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-bg').trim();
             ctx.fillRect(axisX, 0, right, height);
-            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-border');
+            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-border').trim();
             ctx.beginPath();
             ctx.moveTo(axisX, 0);
             ctx.lineTo(axisX, height);
             ctx.stroke();
 
-            // 繪製刻度文字
-            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-secondary');
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-secondary').trim();
             ctx.font = '12px sans-serif';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
@@ -1401,86 +1464,103 @@
                 ctx.fillText(tick.price.toFixed(2), axisX + 5, y);
             });
 
-            // 繪製當前價格指示器
             if (state.currentIndex < state.gameData.length && state.chart.scrollOffset === 0) {
                 const currentPrice = getCurrentPrice();
                 const currentY = priceToY(currentPrice);
                 
                 const color = currentPrice >= state.gameData[state.currentIndex].open 
-                    ? getComputedStyle(document.documentElement).getPropertyValue('--color-bull')
-                    : getComputedStyle(document.documentElement).getPropertyValue('--color-bear');
+                    ? getComputedStyle(document.documentElement).getPropertyValue('--color-bull').trim()
+                    : getComputedStyle(document.documentElement).getPropertyValue('--color-bear').trim();
 
                 ctx.fillStyle = color;
-                ctx.fillRect(axisX, currentY - 10, right, 20);
+                ctx.fillRect(axisX + 1, currentY - 10, right - 1, 20);
                 
                 ctx.fillStyle = 'white';
                 ctx.fillText(currentPrice.toFixed(2), axisX + 5, currentY);
             }
         }
 
-        // 計算合適的 X 軸刻度
+        // UPDATED: 計算 X 軸刻度並標記日期分隔線
         function calculateXAxisTicks() {
-            const { viewStartIndex, viewEndIndex } = state.chart;
+            const { viewStartIndex, viewEndIndex, width } = state.chart;
             if (viewEndIndex <= viewStartIndex || viewStartIndex >= state.gameData.length) return [];
 
-            // 根據可視範圍決定時間間隔
-            const timeDiff = state.gameData[viewEndIndex - 1].time - state.gameData[viewStartIndex].time;
-
-            let intervalMs;
-            if (timeDiff < 2 * 3600 * 1000) intervalMs = 15 * 60 * 1000; // 15 分鐘
-            else if (timeDiff < 12 * 3600 * 1000) intervalMs = 60 * 60 * 1000; // 1 小時
-            else if (timeDiff < 48 * 3600 * 1000) intervalMs = 4 * 3600 * 1000; // 4 小時
-            else intervalMs = 24 * 3600 * 1000; // 1 天
+            const targetCount = Math.max(2, Math.floor(width / 100));
+            const visibleCandles = viewEndIndex - viewStartIndex;
+            const interval = Math.max(1, Math.round(visibleCandles / targetCount));
 
             const ticks = [];
-            let lastTickTime = 0;
+            let lastDateStr = null;
 
             for (let i = viewStartIndex; i < viewEndIndex; i++) {
                 const time = state.gameData[i].time;
-                if (time - lastTickTime >= intervalMs) {
-                    ticks.push({ index: i, time: time });
-                    lastTickTime = time;
+                const currentDate = new Date(time);
+                // 獲取日期的字串表示 (例如 "Mon Jan 01 2024")
+                const currentDateStr = currentDate.toDateString(); 
+
+                // NEW: 檢查日期是否改變 (用於日期分隔線)
+                let isDateSeparator = false;
+                if (lastDateStr !== null && currentDateStr !== lastDateStr) {
+                    isDateSeparator = true;
+                }
+                lastDateStr = currentDateStr;
+
+                // 添加刻度 (基於間隔或日期分隔)
+                // 如果是日期分隔線，強制添加；否則按間隔添加
+                if (isDateSeparator || (i - viewStartIndex) % interval === 0) {
+                     // 避免在同一位置重複添加 (如果間隔刻度剛好是日期分隔)
+                     if (!ticks.some(t => t.index === i)) {
+                        ticks.push({ index: i, time: time, isDateSeparator: isDateSeparator });
+                     }
                 }
             }
             return ticks;
         }
 
+        // UPDATED: 繪製 X 軸，並對日期分隔線的標籤加粗
         function drawXAxis(ctx) {
             const { width, height } = state.chart;
-            const { bottom } = CONFIG.CHART_PADDING;
+            const { bottom, right, left } = CONFIG.CHART_PADDING;
             const axisY = height - bottom;
 
-            // 繪製軸背景和邊框
-            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-bg');
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-bg').trim();
             ctx.fillRect(0, axisY, width, bottom);
-            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-border');
+            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-border').trim();
             ctx.beginPath();
             ctx.moveTo(0, axisY);
-            ctx.lineTo(width - CONFIG.CHART_PADDING.right, axisY);
+            ctx.lineTo(width - right, axisY);
             ctx.stroke();
 
-            // 繪製刻度文字
-            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-secondary');
-            ctx.font = '12px sans-serif';
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-secondary').trim();
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
 
             const ticks = calculateXAxisTicks();
+            
+            let timeDiff = 0;
+            if (state.chart.viewEndIndex > state.chart.viewStartIndex) {
+                timeDiff = state.gameData[state.chart.viewEndIndex - 1].time - state.gameData[state.chart.viewStartIndex].time;
+            }
+
             ticks.forEach(tick => {
                 const x = indexToX(tick.index);
-                if (x >= CONFIG.CHART_PADDING.left && x <= width - CONFIG.CHART_PADDING.right) {
+                if (x >= left && x <= width - right) {
                     const date = new Date(tick.time);
                     
-                    // 根據時間跨度決定顯示格式
-                    const timeDiff = state.gameData[state.chart.viewEndIndex - 1].time - state.gameData[state.chart.viewStartIndex].time;
-
                     let label;
-                    if (timeDiff < 48 * 3600 * 1000) {
-                        // 顯示時間
-                        label = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                    
+                    // NEW: 如果是日期分隔線，強制顯示日期並加粗
+                    if (tick.isDateSeparator) {
+                         label = date.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
+                         ctx.font = 'bold 12px sans-serif'; 
                     } else {
-                        // 顯示日期
-                        label = date.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
+                        ctx.font = '12px sans-serif';
+                        // 否則根據時間跨度決定格式
+                        if (timeDiff < 48 * 3600 * 1000) {
+                            label = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                        } else {
+                            label = date.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
+                        }
                     }
                     
                     ctx.fillText(label, x, axisY + 5);
@@ -1493,32 +1573,29 @@
 
             const { x, y } = state.mouse;
             const { left, right, top, bottom } = CONFIG.CHART_PADDING;
+            const { width, height } = state.chart;
 
-            if (x < left || x > state.chart.width - right || y < top || y > state.chart.height - bottom) return;
+            if (x < left || x > width - right || y < top || y > height - bottom) return;
 
-            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-crosshair');
+            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-crosshair').trim();
             ctx.lineWidth = 1;
             ctx.setLineDash([5, 5]);
 
-            // 水平線
             ctx.beginPath();
             ctx.moveTo(left, y);
-            ctx.lineTo(state.chart.width - right, y);
+            ctx.lineTo(width - right, y);
             ctx.stroke();
 
-            // 垂直線
             ctx.beginPath();
             ctx.moveTo(x, top);
-            ctx.lineTo(x, state.chart.height - bottom);
+            ctx.lineTo(x, height - bottom);
             ctx.stroke();
 
             ctx.setLineDash([]);
         }
 
-        // 核心功能：DOM 疊加層 (持倉線)
         function updatePositionOverlays() {
             const overlay = DOM.chartOverlay;
-            // 使用 Set 來高效追蹤需要保留的線條
             const linesToKeep = new Set();
 
             state.openPositions.forEach(pos => {
@@ -1526,25 +1603,21 @@
                 const slId = `line-sl-${pos.id}`;
                 const tpId = `line-tp-${pos.id}`;
                 
-                // 進場線
                 const entryColor = pos.type === 'BUY' ? 'var(--color-bull)' : 'var(--color-bear)';
                 createOrUpdatePositionLine(overlay, entryId, pos.entryPrice, entryColor, `Entry ${pos.entryPrice.toFixed(2)}`, pos);
                 linesToKeep.add(entryId);
 
-                // SL 線
                 if (pos.sl) {
                     createOrUpdatePositionLine(overlay, slId, pos.sl, 'var(--color-danger)', `SL ${pos.sl.toFixed(2)}`);
                     linesToKeep.add(slId);
                 }
 
-                // TP 線
                 if (pos.tp) {
                     createOrUpdatePositionLine(overlay, tpId, pos.tp, 'var(--color-success)', `TP ${pos.tp.toFixed(2)}`);
                     linesToKeep.add(tpId);
                 }
             });
 
-            // 移除不再需要的線條
             Array.from(overlay.children).forEach(child => {
                 if (child.classList.contains('position-line') && !linesToKeep.has(child.id)) {
                     overlay.removeChild(child);
@@ -1554,7 +1627,6 @@
 
         function createOrUpdatePositionLine(container, id, price, color, labelText, position = null) {
             let line = document.getElementById(id);
-            // 建立新元素如果不存在
             if (!line) {
                 line = document.createElement('div');
                 line.id = id;
@@ -1573,15 +1645,16 @@
 
             const y = priceToY(price);
             
-            // 如果超出圖表可視範圍則隱藏
             if (y < CONFIG.CHART_PADDING.top || y > state.chart.height - CONFIG.CHART_PADDING.bottom) {
                 line.style.opacity = 0;
             } else {
                 line.style.opacity = 1;
-                line.style.top = `${y - 10}px`; // 垂直居中調整
+                line.style.top = `${y - 10}px`; 
             }
+            
+            line.style.width = `calc(100% - ${CONFIG.CHART_PADDING.right}px)`;
 
-            // 更新樣式和內容
+
             const dash = line.querySelector('.position-line-dash');
             dash.style.borderTopColor = color;
 
@@ -1589,13 +1662,11 @@
             label.style.backgroundColor = color;
             label.textContent = labelText;
 
-            // 顯示即時損益 (僅適用於進場線)
             if (position) {
                 let plDisplay = line.querySelector('.position-pl');
                 if (!plDisplay) {
                     plDisplay = document.createElement('div');
                     plDisplay.className = 'position-pl';
-                    // 將損益顯示在線條左側
                     line.insertBefore(plDisplay, dash);
                 }
                 plDisplay.textContent = `$${position.profit.toFixed(2)}`;
@@ -1603,7 +1674,6 @@
             }
         }
 
-        // 核心功能：成交動畫
         const tradeAnimations = [];
 
         function addTradeAnimation(type, price, index, profit = 0) {
@@ -1613,30 +1683,32 @@
                 index,
                 profit,
                 startTime: performance.now(),
-                duration: type === 'CLOSE' ? 1500 : 1000,
+                duration: type === 'CLOSE' ? 1500 : 800,
             });
-            // 觸發一次重繪以顯示動畫
             if (!state.isPlaying) {
-                draw();
+                requestAnimationFrame(draw);
             }
         }
 
         function drawTradeAnimations(ctx) {
             const now = performance.now();
-            
+            let animationsRunning = false;
+
             for (let i = tradeAnimations.length - 1; i >= 0; i--) {
                 const anim = tradeAnimations[i];
                 const elapsed = now - anim.startTime;
                 const progress = Math.min(1, elapsed / anim.duration);
+                
                 const opacity = 1 - progress;
 
                 const x = indexToX(anim.index);
                 const y = priceToY(anim.price);
 
-                // 如果動畫位置在視圖外，則跳過
                 if (x < CONFIG.CHART_PADDING.left || x > state.chart.width - CONFIG.CHART_PADDING.right) {
                      if (progress >= 1) {
                         tradeAnimations.splice(i, 1);
+                    } else {
+                        animationsRunning = true;
                     }
                     continue;
                 }
@@ -1644,36 +1716,32 @@
                 ctx.globalAlpha = opacity;
 
                 if (anim.type === 'BUY' || anim.type === 'SELL') {
-                    // 開倉箭頭動畫
-                    const color = anim.type === 'BUY' ? 'var(--color-bull)' : 'var(--color-bear)';
+                    const color = anim.type === 'BUY' ? getComputedStyle(document.documentElement).getPropertyValue('--color-bull').trim() : getComputedStyle(document.documentElement).getPropertyValue('--color-bear').trim();
                     ctx.fillStyle = color;
                     
-                    const size = 10 + progress * 3; // 輕微放大效果
+                    const size = 12 + progress * 5; 
                     const offsetY = anim.type === 'BUY' ? 15 : -15;
                     
                     ctx.beginPath();
                     if (anim.type === 'BUY') {
-                        // 向上箭頭
-                        ctx.moveTo(x, y - offsetY);
-                        ctx.lineTo(x - size/2, y - offsetY + size);
-                        ctx.lineTo(x + size/2, y - offsetY + size);
+                        ctx.moveTo(x, y + offsetY);
+                        ctx.lineTo(x - size/2, y + offsetY + size);
+                        ctx.lineTo(x + size/2, y + offsetY + size);
                     } else {
-                        // 向下箭頭
-                        ctx.moveTo(x, y - offsetY);
-                        ctx.lineTo(x - size/2, y - offsetY - size);
-                        ctx.lineTo(x + size/2, y - offsetY - size);
+                        ctx.moveTo(x, y + offsetY);
+                        ctx.lineTo(x - size/2, y + offsetY - size);
+                        ctx.lineTo(x + size/2, y + offsetY - size);
                     }
                     ctx.closePath();
                     ctx.fill();
 
                 } else if (anim.type === 'CLOSE') {
-                    // 平倉損益數字漂浮動畫
-                    const color = anim.profit >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+                    const color = anim.profit >= 0 ? getComputedStyle(document.documentElement).getPropertyValue('--color-success').trim() : getComputedStyle(document.documentElement).getPropertyValue('--color-danger').trim();
                     ctx.fillStyle = color;
-                    ctx.font = 'bold 16px sans-serif';
+                    ctx.font = 'bold 18px sans-serif';
                     ctx.textAlign = 'center';
                     
-                    const floatY = y - progress * 50; // 向上漂浮
+                    const floatY = y - progress * 60; 
                     ctx.fillText(`$${anim.profit.toFixed(2)}`, x, floatY);
                 }
 
@@ -1681,11 +1749,12 @@
 
                 if (progress >= 1) {
                     tradeAnimations.splice(i, 1);
+                } else {
+                    animationsRunning = true;
                 }
             }
 
-            // 如果還有動畫正在進行，且遊戲暫停了，繼續請求下一幀以完成動畫
-            if (tradeAnimations.length > 0 && !state.isPlaying) {
+            if (animationsRunning && !state.isPlaying) {
                 requestAnimationFrame(draw); 
             }
         }
@@ -1698,32 +1767,32 @@
         function getCurrentPrice() {
             if (state.gameData.length === 0 || state.currentIndex >= state.gameData.length) return 0;
             const currentBar = state.gameData[state.currentIndex];
-            // 使用動畫的即時價格
             return getAnimatedBar(currentBar).close;
         }
 
         function openOrder(type, lots, sl = null, tp = null) {
-            if (state.isEnded) return;
+            if (state.isEnded || state.gameData.length === 0) return;
 
             const entryPrice = getCurrentPrice();
 
-            // 風險管理驗證
+            if (entryPrice <= 0) return;
+
             if (type === 'BUY') {
                 if (sl && sl >= entryPrice) {
-                    alert("停損價格必須低於買入價格。");
+                    alert("買單 (BUY) 的停損價格 (SL) 必須低於進場價格。");
                     return;
                 }
                 if (tp && tp <= entryPrice) {
-                    alert("停利價格必須高於買入價格。");
+                    alert("買單 (BUY) 的停利價格 (TP) 必須高於進場價格。");
                     return;
                 }
             } else { // SELL
                 if (sl && sl <= entryPrice) {
-                    alert("停損價格必須高於賣出價格。");
+                    alert("賣單 (SELL) 的停損價格 (SL) 必須高於進場價格。");
                     return;
                 }
                 if (tp && tp >= entryPrice) {
-                    alert("停利價格必須低於賣出價格。");
+                    alert("賣單 (SELL) 的停利價格 (TP) 必須低於進場價格。");
                     return;
                 }
             }
@@ -1741,17 +1810,12 @@
 
             state.openPositions.push(position);
 
-            // 觸發成交動畫
             addTradeAnimation(type, entryPrice, state.currentIndex);
 
+            updateAccount();
             updateUI();
              if (!state.isPlaying) {
-                draw();
-            }
-
-            // 新手導引步驟完成檢查
-            if (state.tutorialActive) {
-                completeTutorialStep();
+                requestAnimationFrame(draw);
             }
         }
 
@@ -1767,20 +1831,19 @@
             const historyEntry = {
                 ...position,
                 closePrice: closePrice,
-                // 確保使用當前的時間戳
                 closeTime: state.gameData[state.currentIndex]?.time || position.entryTime,
                 profit: profit,
             };
             state.tradeHistory.push(historyEntry);
+            
             state.openPositions.splice(index, 1);
 
-            // 觸發平倉動畫
             addTradeAnimation('CLOSE', closePrice, state.currentIndex, profit);
 
             updateAccount();
             updateUI();
             if (!state.isPlaying) {
-                draw();
+                requestAnimationFrame(draw);
             }
         }
 
@@ -1788,19 +1851,18 @@
             let priceDiff = 0;
             if (position.type === 'BUY') {
                 priceDiff = currentPrice - position.entryPrice;
-            } else {
+            } else { // SELL
                 priceDiff = position.entryPrice - currentPrice;
             }
-            // Profit = Price Difference * Contract Size * Lots
             return priceDiff * CONFIG.CONTRACT_SIZE * position.lots;
         }
 
         function updatePositions() {
-            if (state.currentIndex >= state.gameData.length) return;
+            if (state.currentIndex >= state.gameData.length || state.gameData.length === 0) return;
 
-            // 使用動畫期間的 High/Low 來進行更真實的 SL/TP 檢查
             const currentBar = state.gameData[state.currentIndex];
             const animatedBar = getAnimatedBar(currentBar);
+            
             const currentPrice = animatedBar.close;
             const currentHigh = animatedBar.high;
             const currentLow = animatedBar.low;
@@ -1808,26 +1870,25 @@
             const positionsToClose = [];
 
             state.openPositions.forEach(pos => {
-                // 更新浮動損益 (基於 Close 價格)
                 pos.profit = calculateProfit(pos, currentPrice);
 
-                // 檢查 SL/TP (基於 High/Low 價格)
                 if (pos.type === 'BUY') {
                     if (pos.sl && currentLow <= pos.sl) {
                         positionsToClose.push({ id: pos.id, price: pos.sl, reason: 'SL' });
-                    } else if (pos.tp && currentHigh >= pos.tp) {
+                    } 
+                    else if (pos.tp && currentHigh >= pos.tp) {
                         positionsToClose.push({ id: pos.id, price: pos.tp, reason: 'TP' });
                     }
                 } else { // SELL
                     if (pos.sl && currentHigh >= pos.sl) {
                         positionsToClose.push({ id: pos.id, price: pos.sl, reason: 'SL' });
-                    } else if (pos.tp && currentLow <= pos.tp) {
+                    } 
+                    else if (pos.tp && currentLow <= pos.tp) {
                         positionsToClose.push({ id: pos.id, price: pos.tp, reason: 'TP' });
                     }
                 }
             });
 
-            // 執行平倉
             positionsToClose.forEach(order => {
                 closeOrder(order.id, order.price);
             });
@@ -1847,7 +1908,16 @@
             updatePositionsPanel();
             updateHistoryPanel();
             updateControls();
+            updateOrderPanel(); // NEW: Update specific elements in Order Panel
         }
+
+        // NEW: 更新下單面板狀態
+        function updateOrderPanel() {
+            // 根據是否有持倉決定「平倉」按鈕的啟用狀態
+            const hasPositions = state.openPositions.length > 0;
+            DOM.btnCloseAllTab.disabled = !hasPositions || state.isEnded;
+        }
+
 
         function updateHUD() {
             if (state.gameData.length === 0) return;
@@ -1858,7 +1928,11 @@
             }
 
             const currentDate = new Date(state.gameData[displayIndex].time);
-            DOM.hudDate.textContent = currentDate.toLocaleString('zh-TW', { hour12: false });
+            DOM.hudDate.textContent = currentDate.toLocaleString('zh-TW', { 
+                year: 'numeric', month: 'numeric', day: 'numeric', 
+                hour: '2-digit', minute: '2-digit', hour12: false 
+            });
+            
             DOM.hudEquity.textContent = `$${state.equity.toFixed(2)}`;
             DOM.hudPL.textContent = `$${state.floatingPL.toFixed(2)}`;
             
@@ -1866,25 +1940,30 @@
             DOM.hudPL.classList.toggle('negative', state.floatingPL < 0);
 
             const progress = (displayIndex / (state.gameData.length - 1)) * 100;
-            DOM.hudProgress.style.width = `${progress}%`;
+            DOM.hudProgress.style.width = `${Math.min(100, progress)}%`;
         }
 
         function updatePositionsPanel() {
-            DOM.positionsList.innerHTML = '';
+            
             DOM.positionsCount.textContent = state.openPositions.length;
-            DOM.btnCloseAll.style.display = state.openPositions.length > 0 ? 'block' : 'none';
+            
+            DOM.positionsList.innerHTML = '';
 
             state.openPositions.forEach(pos => {
                 const item = document.createElement('div');
                 item.className = 'trade-item';
+                item.dataset.id = pos.id; 
+                
+                const profitColor = pos.profit >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+                
                 item.innerHTML = `
                     <div class="trade-header">
-                        <span class="trade-type ${pos.type}">#${pos.id} ${pos.type} ${pos.lots.toFixed(2)}</span>
-                        <span style="color: ${pos.profit >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}">$${pos.profit.toFixed(2)}</span>
+                        <span class="trade-type ${pos.type}">#${pos.id} ${pos.type} ${pos.lots.toFixed(2)}手</span>
+                        <span style="color: ${profitColor}">$${pos.profit.toFixed(2)}</span>
                     </div>
                     <div class="trade-details">
                         <div>
-                            <div class="trade-detail-label">Entry</div>
+                            <div class="trade-detail-label">進場價</div>
                             <div>${pos.entryPrice.toFixed(2)}</div>
                         </div>
                         <div>
@@ -1897,8 +1976,8 @@
                         </div>
                     </div>
                     <div class="trade-actions">
-                        <button class="btn btn-small btn-secondary btn-modify" data-id="${pos.id}">修改</button>
-                        <button class="btn btn-small btn-danger btn-close" data-id="${pos.id}">平倉</button>
+                        <button class="btn btn-small btn-secondary btn-modify">修改</button>
+                        <button class="btn btn-small btn-danger btn-close">平倉</button>
                     </div>
                 `;
                 DOM.positionsList.appendChild(item);
@@ -1907,7 +1986,7 @@
             // 綁定事件監聽器
             DOM.positionsList.querySelectorAll('.btn-close').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    const id = parseInt(e.target.dataset.id);
+                    const id = parseInt(e.target.closest('.trade-item').dataset.id);
                     const currentPrice = getCurrentPrice();
                     closeOrder(id, currentPrice);
                 });
@@ -1915,39 +1994,40 @@
 
             DOM.positionsList.querySelectorAll('.btn-modify').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    const id = parseInt(e.target.dataset.id);
+                    const id = parseInt(e.target.closest('.trade-item').dataset.id);
                     modifyOrder(id);
                 });
             });
         }
 
         function updateHistoryPanel() {
-            // 僅在歷史記錄長度改變時更新，提高效率
             if (DOM.historyList.children.length === state.tradeHistory.length) return;
 
             DOM.historyList.innerHTML = '';
-            // 顯示最新的交易在最上面
             const sortedHistory = [...state.tradeHistory].reverse();
 
             sortedHistory.forEach(trade => {
                 const item = document.createElement('div');
                 item.className = 'trade-item';
+                
+                const profitColor = trade.profit >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+
                 item.innerHTML = `
                     <div class="trade-header">
-                        <span class="trade-type ${trade.type}">#${trade.id} ${trade.type} ${trade.lots.toFixed(2)}</span>
-                        <span style="color: ${trade.profit >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}">$${trade.profit.toFixed(2)}</span>
+                        <span class="trade-type ${trade.type}">#${trade.id} ${trade.type} ${trade.lots.toFixed(2)}手</span>
+                        <span style="color: ${profitColor}">$${trade.profit.toFixed(2)}</span>
                     </div>
                     <div class="trade-details">
                         <div>
-                            <div class="trade-detail-label">Open</div>
+                            <div class="trade-detail-label">開倉價</div>
                             <div>${trade.entryPrice.toFixed(2)}</div>
                         </div>
                         <div>
-                            <div class="trade-detail-label">Close</div>
+                            <div class="trade-detail-label">平倉價</div>
                             <div>${trade.closePrice.toFixed(2)}</div>
                         </div>
                         <div>
-                            <div class="trade-detail-label">Duration</div>
+                            <div class="trade-detail-label">持有時間</div>
                             <div>${formatDuration(trade.closeTime - trade.entryTime)}</div>
                         </div>
                     </div>
@@ -1960,6 +2040,8 @@
             DOM.btnPlayPause.textContent = state.isPlaying ? '⏸️ 暫停' : '▶️ 播放';
             DOM.btnStepForward.disabled = state.isPlaying || state.isEnded;
             DOM.btnPlayPause.disabled = state.isEnded;
+            document.getElementById('btnBuy').disabled = state.isEnded;
+            document.getElementById('btnSell').disabled = state.isEnded;
         }
 
         function setupEventListeners() {
@@ -1977,70 +2059,65 @@
                 btn.addEventListener('click', handleTabSwitch);
             });
 
-            // Order Inputs (Steppers)
-            setupInputStepper('lotsUp', 'inputLots', 0.01);
-            setupInputStepper('lotsDown', 'inputLots', -0.01);
-            setupInputStepper('slUp', 'inputSL', 0.1);
-            setupInputStepper('slDown', 'inputSL', -0.1);
-            setupInputStepper('tpUp', 'inputTP', 0.1);
-            setupInputStepper('tpDown', 'inputTP', -0.1);
-
             // Trade Buttons
             document.getElementById('btnBuy').addEventListener('click', () => handleTrade('BUY'));
             document.getElementById('btnSell').addEventListener('click', () => handleTrade('SELL'));
-            DOM.btnCloseAll.addEventListener('click', closeAllOrders);
+            
+            // UPDATED: Bind the new Close All button
+            DOM.btnCloseAllTab.addEventListener('click', closeAllOrders);
 
-            // Chart Interaction
+
+            // Chart Interaction (Mouse)
             DOM.chartWrap.addEventListener('mousemove', handleMouseMove);
             DOM.chartWrap.addEventListener('mouseleave', handleMouseLeave);
             DOM.chartWrap.addEventListener('wheel', handleMouseWheel, { passive: false });
             DOM.chartWrap.addEventListener('mousedown', handleDragStart);
-            // 使用 window 監聽 mousemove 和 mouseup 以確保拖動超出圖表範圍時仍能響應
             window.addEventListener('mousemove', handleDragging);
             window.addEventListener('mouseup', handleDragEnd);
+
+            // Chart Interaction (Touch)
+            DOM.chartWrap.addEventListener('touchstart', handleTouchStart, { passive: false });
+            window.addEventListener('touchmove', handleTouchMove, { passive: false });
+            window.addEventListener('touchend', handleTouchEnd);
 
 
             // Modal Buttons
             document.getElementById('eventContinueBtn').addEventListener('click', continueFromEvent);
             document.getElementById('restartButton').addEventListener('click', startGame);
         }
-
+        
         // Event Handlers
         function togglePlayPause() {
             if (state.isEnded) return;
             state.isPlaying = !state.isPlaying;
             
             if (state.isPlaying) {
-                lastTickTime = performance.now();
+                lastTickTime = 0; 
                 animationFrameId = requestAnimationFrame(gameLoop);
             } else {
                 cancelAnimationFrame(animationFrameId);
             }
             updateControls();
-
-            // Tutorial step completion
-            if (state.tutorialActive) {
-                completeTutorialStep();
-            }
         }
 
         function stepForward() {
             if (state.isPlaying || state.isEnded) return;
             
             finalizeCurrentBar();
+            
             if (!advanceSimulation()) {
                 endGame();
             } else {
-                state.barAnimationProgress = 1; // 立即顯示 K 棒
+                state.barAnimationProgress = 1; 
                 updatePositions();
                 updateAccount();
                 updateUI();
                 checkForEvents();
-                // 如果在歷史視圖中，手動前進時應減少 scrollOffset 以跟隨最新 K 棒
+                
                 if (state.chart.scrollOffset > 0) {
                     state.chart.scrollOffset = Math.max(0, state.chart.scrollOffset - 1);
                 }
-                draw();
+                requestAnimationFrame(draw);
             }
         }
 
@@ -2049,6 +2126,7 @@
                 document.querySelectorAll('.speed-btn').forEach(btn => btn.classList.remove('active'));
                 e.target.classList.add('active');
                 state.speedMultiplier = parseInt(e.target.dataset.speed);
+                lastTickTime = 0;
             }
         }
 
@@ -2060,11 +2138,6 @@
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             target.classList.add('active');
             document.getElementById(target.dataset.target).classList.add('active');
-
-             // Tutorial step completion
-            if (state.tutorialActive && target.dataset.target === 'tabPositions') {
-                completeTutorialStep();
-            }
         }
 
         function handleTrade(type) {
@@ -2073,7 +2146,16 @@
             const tp = DOM.inputTP.value ? parseFloat(DOM.inputTP.value) : null;
 
             if (isNaN(lots) || lots <= 0) {
-                alert("請輸入有效的手數。");
+                alert("請輸入有效的手數 (Lots)。");
+                return;
+            }
+            
+            if (sl !== null && (isNaN(sl) || sl <= 0)) {
+                 alert("停損價格 (SL) 必須是正數。");
+                return;
+            }
+             if (tp !== null && (isNaN(tp) || tp <= 0)) {
+                alert("停利價格 (TP) 必須是正數。");
                 return;
             }
 
@@ -2081,9 +2163,10 @@
         }
 
         function closeAllOrders() {
-            if (state.openPositions.length === 0) return;
+            if (state.openPositions.length === 0 || state.isEnded) return;
+            
+            // 在「交易」分頁點擊時不需確認，直接平倉 (Playable Ad UX)
             const currentPrice = getCurrentPrice();
-            // 使用 while 迴圈確保全部關閉
             while(state.openPositions.length > 0) {
                 closeOrder(state.openPositions[0].id, currentPrice);
             }
@@ -2093,69 +2176,79 @@
             const position = state.openPositions.find(p => p.id === id);
             if (!position) return;
 
-            // 使用 prompt 進行簡單修改 (在實際應用中應使用自定義 Modal)
-            const newSL = prompt(`修改訂單 #${id} 停損 (SL)。留空則取消 SL。目前: ${position.sl ? position.sl.toFixed(2) : 'N/A'}`, position.sl ? position.sl.toFixed(2) : '');
-            const newTP = prompt(`修改訂單 #${id} 停利 (TP)。留空則取消 TP。目前: ${position.tp ? position.tp.toFixed(2) : 'N/A'}`, position.tp ? position.tp.toFixed(2) : '');
+            const currentSL = position.sl ? position.sl.toFixed(2) : '';
+            const currentTP = position.tp ? position.tp.toFixed(2) : '';
 
-            // 處理 SL
-            if (newSL !== null) {
-                const slVal = parseFloat(newSL);
-                if (!isNaN(slVal) && slVal > 0) {
-                    // 驗證 (基於進場價)
-                    if (position.type === 'BUY' && slVal >= position.entryPrice) {
-                        alert("停損必須低於進場價。");
-                    } else if (position.type === 'SELL' && slVal <= position.entryPrice) {
-                        alert("停損必須高於進場價。");
-                    } else {
-                        position.sl = slVal;
-                    }
-                } else if (newSL === '') {
-                    position.sl = null;
+            const newSLInput = prompt(`修改訂單 #${id} 停損 (SL)。\n進場價: ${position.entryPrice.toFixed(2)}\n留空則取消 SL。目前值: ${currentSL}`, currentSL);
+            
+            if (newSLInput === null) return;
+
+            const newTPInput = prompt(`修改訂單 #${id} 停利 (TP)。\n進場價: ${position.entryPrice.toFixed(2)}\n留空則取消 TP。目前值: ${currentTP}`, currentTP);
+
+            if (newTPInput === null) return;
+
+            let newSL = null;
+            if (newSLInput !== '') {
+                newSL = parseFloat(newSLInput);
+                if (isNaN(newSL) || newSL <= 0) {
+                    alert("無效的 SL 價格。");
+                    return;
+                }
+                if (position.type === 'BUY' && newSL >= position.entryPrice) {
+                    alert("買單的停損必須低於進場價。");
+                    return;
+                } else if (position.type === 'SELL' && newSL <= position.entryPrice) {
+                    alert("賣單的停損必須高於進場價。");
+                    return;
                 }
             }
 
-            // 處理 TP
-            if (newTP !== null) {
-                const tpVal = parseFloat(newTP);
-                if (!isNaN(tpVal) && tpVal > 0) {
-                    if (position.type === 'BUY' && tpVal <= position.entryPrice) {
-                        alert("停利必須高於進場價。");
-                    } else if (position.type === 'SELL' && tpVal >= position.entryPrice) {
-                        alert("停利必須低於進場價。");
-                    } else {
-                        position.tp = tpVal;
-                    }
-                } else if (newTP === '') {
-                    position.tp = null;
+            let newTP = null;
+            if (newTPInput !== '') {
+                newTP = parseFloat(newTPInput);
+                if (isNaN(newTP) || newTP <= 0) {
+                    alert("無效的 TP 價格。");
+                    return;
+                }
+                if (position.type === 'BUY' && newTP <= position.entryPrice) {
+                    alert("買單的停利必須高於進場價。");
+                    return;
+                } else if (position.type === 'SELL' && newTP >= position.entryPrice) {
+                    alert("賣單的停利必須低於進場價。");
+                    return;
                 }
             }
+
+            position.sl = newSL;
+            position.tp = newTP;
             
             updateUI();
             if (!state.isPlaying) {
-                draw();
+                requestAnimationFrame(draw);
             }
         }
 
-        // Chart Interaction Handlers
+        
+        // Chart Interaction Handlers (Mouse & Touch)
         function handleMouseMove(e) {
             const rect = DOM.chartWrap.getBoundingClientRect();
             state.mouse.x = e.clientX - rect.left;
             state.mouse.y = e.clientY - rect.top;
             state.mouse.isOverChart = true;
             if (!state.isPlaying && !state.chart.isDragging) {
-                 draw();
+                 requestAnimationFrame(draw);
             }
         }
 
         function handleMouseLeave() {
             state.mouse.isOverChart = false;
              if (!state.isPlaying && !state.chart.isDragging) {
-                draw();
+                requestAnimationFrame(draw);
             }
         }
 
         function handleMouseWheel(e) {
-            e.preventDefault(); // 防止頁面滾動
+            e.preventDefault();
             const zoomFactor = e.deltaY > 0 ? 1 / 1.1 : 1.1;
             zoomChart(zoomFactor);
         }
@@ -2164,7 +2257,6 @@
             const newWidth = state.chart.candleWidth * factor;
             const newSpacing = state.chart.candleSpacing * factor;
 
-            // 限制縮放範圍
             if (newWidth < 2 || newWidth > 50) return;
 
             state.chart.candleWidth = newWidth;
@@ -2173,51 +2265,85 @@
             validateScrollOffset();
 
             if (!state.isPlaying) {
-                draw();
+                requestAnimationFrame(draw);
             }
         }
 
-        // Panning (Dragging)
+        // Panning (Dragging) Logic
         function handleDragStart(e) {
-            if (e.button !== 0) return; // 只響應滑鼠左鍵
-            state.chart.isDragging = true;
-            state.chart.dragStartX = e.clientX;
-            state.chart.dragStartScroll = state.chart.scrollOffset;
-            DOM.chartWrap.style.cursor = 'grabbing';
+            if (e.button !== 0) return;
+            startDrag(e.clientX);
         }
 
         function handleDragging(e) {
             if (!state.chart.isDragging) return;
+            performDrag(e.clientX);
+        }
 
-            const dx = e.clientX - state.chart.dragStartX;
+        function handleDragEnd() {
+            endDrag();
+        }
+
+        function handleTouchStart(e) {
+            // 確保只在圖表區域觸發拖動
+            if (e.touches.length === 1 && e.target.closest('#chartWrap')) {
+                e.preventDefault();
+                startDrag(e.touches[0].clientX);
+            }
+        }
+
+        function handleTouchMove(e) {
+            if (e.touches.length === 1 && state.chart.isDragging) {
+                e.preventDefault();
+                performDrag(e.touches[0].clientX);
+            }
+        }
+
+        function handleTouchEnd(e) {
+            if (state.chart.isDragging) {
+                endDrag();
+            }
+        }
+
+        function startDrag(clientX) {
+            state.chart.isDragging = true;
+            state.chart.dragStartX = clientX;
+            state.chart.dragStartScroll = state.chart.scrollOffset;
+            DOM.chartWrap.style.cursor = 'grabbing';
+        }
+
+        function performDrag(clientX) {
+            const dx = clientX - state.chart.dragStartX;
             const candleUnitWidth = state.chart.candleWidth + state.chart.candleSpacing;
             
-            // 計算拖動了多少根 K 棒
+            if (candleUnitWidth <= 0) return;
+
             const candlesDragged = Math.round(dx / candleUnitWidth);
             
-            // 更新 scrollOffset (向右拖動滑鼠 -> 視圖向左滾動 -> scrollOffset 增加)
             state.chart.scrollOffset = state.chart.dragStartScroll - candlesDragged;
 
             validateScrollOffset();
 
-            // 拖動時始終重繪
-            draw();
+            requestAnimationFrame(draw);
         }
 
-        function handleDragEnd() {
-            if (!state.chart.isDragging) return;
+        function endDrag() {
             state.chart.isDragging = false;
             DOM.chartWrap.style.cursor = 'crosshair';
              if (!state.isPlaying) {
-                draw(); // Final draw to clear potential crosshair remnants
+                requestAnimationFrame(draw);
             }
         }
 
         function validateScrollOffset() {
+            if (state.gameData.length === 0) {
+                state.chart.scrollOffset = 0;
+                return;
+            }
+
             const visibleCandles = calculateVisibleCandles();
-            // 最大偏移量是用戶可以看到最左邊的 K 棒時
             const maxOffset = Math.max(0, state.currentIndex + 1 - visibleCandles);
-            // 最小偏移量是 0 (不能滾動到未來)
+            
             state.chart.scrollOffset = Math.max(0, Math.min(maxOffset, state.chart.scrollOffset));
         }
 
@@ -2226,18 +2352,16 @@
         // 7. 遊戲化功能 (Gamification Features)
         // ----------------------------------------------------------------------------
 
-        // 7.1 財經事件 (Financial Events)
         function checkForEvents() {
             if (state.isEnded || state.gameData.length === 0) return;
 
-            // 根據模擬的日期觸發事件
             const currentDate = new Date(state.gameData[state.currentIndex].time);
             const currentDay = currentDate.getDate();
 
             const event = state.financialEvents.find(e => e.triggerDay === currentDay);
 
-            // 確保事件在當前遊戲中只觸發一次 (基於月份和日期)
-            const eventKey = `${currentDate.getMonth()}-${currentDay}`;
+            const eventKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${currentDay}`;
+            
             if (event && !state.triggeredEvents.has(eventKey)) {
                 showEventModal(event);
                 state.triggeredEvents.add(eventKey);
@@ -2245,7 +2369,6 @@
         }
 
         function showEventModal(event) {
-            // 暫停模擬
             if (state.isPlaying) {
                 state.wasPlayingBeforeEvent = true;
                 state.isPlaying = false;
@@ -2262,13 +2385,11 @@
 
         function continueFromEvent() {
             DOM.eventModal.classList.remove('active');
-            // 如果事件前正在播放，則恢復播放
             if (state.wasPlayingBeforeEvent) {
                 togglePlayPause();
             }
         }
 
-        // 7.2 結束畫面 (End Screen)
         function showEndGameModal() {
             const finalRoR = ((state.equity - CONFIG.INITIAL_BALANCE) / CONFIG.INITIAL_BALANCE) * 100;
             
@@ -2276,16 +2397,18 @@
             document.getElementById('finalRoR').textContent = `回報率 (RoR): ${finalRoR.toFixed(2)}%`;
             document.getElementById('finalRoR').style.color = finalRoR >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
 
-            // 計算統計數據
             const totalTrades = state.tradeHistory.length;
             const winningTrades = state.tradeHistory.filter(t => t.profit > 0).length;
             const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
+            
+            const totalProfit = state.tradeHistory.reduce((sum, t) => sum + t.profit, 0);
 
             const statsHTML = `
                 <p><strong>交易統計：</strong></p>
-                <ul style="list-style-position: inside;">
+                <ul style="list-style-position: inside; padding-left: 10px;">
                     <li>總交易次數: ${totalTrades}</li>
                     <li>勝率: ${winRate.toFixed(2)}%</li>
+                    <li>總損益: $${totalProfit.toFixed(2)}</li>
                     <li>模擬期間: 約 ${CONFIG.SIMULATION_DURATION_DAYS} 天</li>
                 </ul>
             `;
@@ -2295,19 +2418,20 @@
         }
 
         // 7.3 新手導引 (Tutorial)
+        // UPDATED: 移除了強迫點擊 (action: 'click') 的步驟，全部改為 'next'
         const TUTORIAL_STEPS = [
-            { selector: '.chart-container', message: '歡迎來到交易挑戰！這裡是 K 線圖表區域，您將在這裡觀察市場走勢。您可以拖曳圖表查看歷史。', action: 'next' },
-            { selector: '#btnPlayPause', message: '點擊「播放」按鈕開始模擬市場行情。圖表將會動態更新。', action: 'click' },
-            { selector: '#tabOrder', message: '這裡是下單面板。您可以設定手數、停損 (SL) 和停利 (TP)。', action: 'next' },
-            { selector: '#btnBuy', message: '預期價格上漲？嘗試點擊「買入 (BUY)」建立您的第一筆多單。', action: 'click' },
-            { selector: '[data-target="tabPositions"]', message: '點擊「持倉」分頁來查看並管理您當前的訂單。', action: 'click' },
+            { selector: '#challengeInfo', message: '歡迎！首先請了解本次挑戰的目標：在隨機的30天內取得最高收益。', action: 'next' },
+            { selector: '.chart-container', message: '這裡是 K 線圖表區域。您可以拖曳平移圖表，或使用滾輪/按鈕縮放。注意圖表上的日期分隔線。', action: 'next' },
+            { selector: '.controls', message: '使用這些按鈕控制模擬的播放/暫停、速度，或逐根 K 棒前進。', action: 'next' },
+            { selector: '.order-grid', message: '在這裡設定您的停損 (SL)、手數和停利 (TP)。', action: 'next' },
+            { selector: '.trade-actions-grid', message: '點擊 Sell 或 Buy 進行交易。如果有持倉，可以點擊「平倉」關閉所有訂單。', action: 'next' },
+            { selector: '[data-target="tabPositions"]', message: '點擊「持倉」分頁來查看和管理您當前的訂單。', action: 'next' },
             { selector: '.header', message: '頂部的 HUD 會即時顯示您的帳戶狀態和挑戰進度。祝您交易順利！', action: 'next' },
         ];
 
         let currentTutorialStep = 0;
 
         function startTutorial() {
-            // 對於 Playable Ad，通常每次都會顯示導引
             state.tutorialActive = true;
             currentTutorialStep = 0;
             showTutorialStep();
@@ -2322,10 +2446,8 @@
             const step = TUTORIAL_STEPS[currentTutorialStep];
             const element = document.querySelector(step.selector);
 
-            // 健壯性檢查：確保元素存在
             if (!element) {
                 console.warn("Tutorial element not found:", step.selector);
-                // 如果找不到元素，稍等片刻再試，防止因 DOM 未準備好而失敗
                 setTimeout(showTutorialStep, 100);
                 return;
             }
@@ -2333,29 +2455,26 @@
             highlightElement(element);
             DOM.tutorialText.textContent = step.message;
 
-            // 根據行動類型決定是否顯示「下一步」按鈕
-            if (step.action === 'next') {
-                DOM.tutorialNextBtn.classList.remove('hidden');
-                DOM.tutorialNextBtn.onclick = completeTutorialStep;
-            } else {
-                // 如果是 'click'，則隱藏按鈕，等待用戶點擊目標元素 (在對應的事件處理器中呼叫 completeTutorialStep)
-                DOM.tutorialNextBtn.classList.add('hidden');
-            }
+            // UPDATED: 現在所有步驟都顯示「下一步」按鈕
+            // 確保按鈕可見並綁定事件
+            DOM.tutorialNextBtn.classList.remove('hidden');
+            DOM.tutorialNextBtn.onclick = completeTutorialStep;
         }
 
-        // 當用戶完成要求的操作時呼叫此函式
         function completeTutorialStep() {
             if (!state.tutorialActive) return;
             
-            // 這裡依賴觸發事件的邏輯來推進步驟。
-            // 例如，當用戶點擊了 'Play'，togglePlayPause 會呼叫此函式。
-
+            const expectedStep = currentTutorialStep;
             currentTutorialStep++;
-            showTutorialStep();
+            
+            if (currentTutorialStep > expectedStep) {
+                 showTutorialStep();
+            }
         }
 
         function endTutorial() {
             state.tutorialActive = false;
+            state.tutorialCompletedOnce = true; // NEW: 標記導引已完成
             DOM.tutorialHighlight.classList.add('hidden');
             DOM.tutorialMessage.classList.add('hidden');
         }
@@ -2365,26 +2484,28 @@
             const padding = 10;
 
             DOM.tutorialHighlight.classList.remove('hidden');
-            // 使用 window 的滾動位置來確保定位正確
             DOM.tutorialHighlight.style.top = `${rect.top + window.scrollY - padding}px`;
             DOM.tutorialHighlight.style.left = `${rect.left + window.scrollX - padding}px`;
             DOM.tutorialHighlight.style.width = `${rect.width + padding * 2}px`;
             DOM.tutorialHighlight.style.height = `${rect.height + padding * 2}px`;
 
-            // 定位訊息框
             DOM.tutorialMessage.classList.remove('hidden');
-            let messageTop = rect.bottom + window.scrollY + padding + 20;
+            
+            let messageTop = rect.bottom + window.scrollY + padding + 15;
             let messageLeft = rect.left + window.scrollX;
 
-            // 邊界檢查，確保訊息框在螢幕內
-            if (messageTop + DOM.tutorialMessage.offsetHeight > window.innerHeight + window.scrollY) {
-                messageTop = rect.top + window.scrollY - DOM.tutorialMessage.offsetHeight - padding - 20;
+            const messageRect = DOM.tutorialMessage.getBoundingClientRect();
+
+            // 邊界檢查
+            if (messageTop + messageRect.height > window.innerHeight + window.scrollY) {
+                 // 確保上方位置不會小於螢幕頂部
+                messageTop = Math.max(10 + window.scrollY, rect.top + window.scrollY - messageRect.height - padding - 15);
             }
-            if (messageLeft + DOM.tutorialMessage.offsetWidth > window.innerWidth + window.scrollX) {
-                messageLeft = window.innerWidth + window.scrollX - DOM.tutorialMessage.offsetWidth - 20;
+            
+            if (messageLeft + messageRect.width > window.innerWidth + window.scrollX) {
+                messageLeft = window.innerWidth + window.scrollX - messageRect.width - 20;
             }
-            // 防止訊息框定位到負值
-            messageTop = Math.max(10 + window.scrollY, messageTop);
+            
             messageLeft = Math.max(10 + window.scrollX, messageLeft);
 
 
@@ -2397,40 +2518,16 @@
         // 8. 輔助函式 (Utility Functions)
         // ----------------------------------------------------------------------------
 
-        function setupInputStepper(buttonId, inputId, step) {
-            document.getElementById(buttonId).addEventListener('click', () => {
-                const input = document.getElementById(inputId);
-                const currentValue = parseFloat(input.value) || 0;
-                let newValue = currentValue + step;
-                
-                // 精度處理
-                const decimalPlaces = (step.toString().split('.')[1] || []).length;
-                newValue = parseFloat(newValue.toFixed(decimalPlaces));
-
-                // 邊界檢查
-                if (inputId === 'inputLots') {
-                     if (newValue < 0.01) newValue = 0.01;
-                } else {
-                    // SL/TP
-                    if (newValue <= 0) {
-                        input.value = ''; // 清空輸入框
-                        return;
-                    }
-                }
-               
-                input.value = newValue.toFixed(decimalPlaces);
-            });
-        }
-
+        // (formatDuration 保持不變)
         function formatDuration(ms) {
             if (ms < 0) ms = 0;
             const minutes = Math.floor(ms / 60000);
             const hours = Math.floor(minutes / 60);
             const days = Math.floor(hours / 24);
 
-            if (days > 0) return `${days}d ${hours % 24}h`;
-            if (hours > 0) return `${hours}h ${minutes % 60}m`;
-            return `${minutes}m`;
+            if (days > 0) return `${days}天 ${hours % 24}小時`;
+            if (hours > 0) return `${hours}小時 ${minutes % 60}分鐘`;
+            return `${minutes}分鐘`;
         }
 
         // ----------------------------------------------------------------------------
