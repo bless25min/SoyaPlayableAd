@@ -16,11 +16,11 @@
   --good: #10b981;
   --danger: #ef4444;
   --grid: rgba(0, 0, 0, 0.05);
-  /* Dark Theme for Chart */
-  --chart-bg: #131722;
-  --chart-text: #D1D4DC;
-  --chart-up: #26a69a;
-  --chart-down: #ef5350;
+  /* Light Theme for Chart */
+  --chart-bg: #ffffff;
+  --chart-text: #6b7280;
+  --chart-up: #10b981;
+  --chart-down: #ef4444;
 }
 
 * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -66,7 +66,7 @@ html, body {
     bottom: 0;
     width: 60px;
     pointer-events: none;
-    border-left: 1px solid #363a45;
+    border-left: 1px solid var(--border-color);
 }
 .price-axis-tick {
     position: absolute;
@@ -83,7 +83,7 @@ html, body {
     right: 60px;
     height: 1px;
     pointer-events: none;
-    border-top: 1px dashed #787b86;
+    border-top: 1px dashed var(--muted);
 }
 .price-line-label {
     position: absolute;
@@ -93,7 +93,6 @@ html, body {
     color: #ffffff;
     border-radius: 4px;
     transform: translate(100%, -50%);
-    border: 1px solid #787b86;
 }
 
 /* --- 底部操作區 --- */
@@ -323,11 +322,11 @@ input[type=number] {
 <script>
 // ===== 財經事件數據 (省略) =====
 const EVENTS = {
-  "2025-01-03": { time: "21:30", title: "🇺� 美國非農就業數據 (NFP)", desc: "俗稱「非農」的美國就業數據是市場最關注的指標之一。數據好壞將劇烈影響黃金價格，市場屏息以待！" },
+  "2025-01-03": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "俗稱「非農」的美國就業數據是市場最關注的指標之一。數據好壞將劇烈影響黃金價格，市場屏息以待！" },
   "2025-01-20": { time: "12:00", title: "🇺🇸 美國總統就職典禮", desc: "新任美國總統將於華盛頓特區宣誓就職。就職演說通常會概述新政府的施政藍圖，內容可能涉及國內外政策、經濟方向等，這些都可能成為市場關注的焦點。" },
   "2025-01-30": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "歐洲央行管理委員會將召開貨幣政策會議並發布利率決策聲明。市場將關注其對歐元区經濟前景和通膨路徑的最新評估。" },
   "2025-02-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "本月非農數據公布，將再次考驗市場對美國經濟復甦力度的信心。" },
-  "2025-03-05": { time: "10:00", title: "🇨🇳 中國全國人民代表大會年會開幕", desc: "中國將公布當年度的GDP增長目標、財政預算等主要經濟指標，並闡述相關政策方向。" },
+  "2025-03-05": { time: "10:00", title: "�🇳 中國全國人民代表大會年會開幕", desc: "中國將公布當年度的GDP增長目標、財政預算等主要經濟指標，並闡述相關政策方向。" },
   "2025-03-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "連續第三個月的非農數據，市場將尋找勞動力市場是否持續穩定的線索。" },
   "2025-03-19": { time: "03:00", title: "🇺🇸 聯準會利率決策 (FOMC)", desc: "聯準會將發布利率決策，會議將包含最新的經濟預測摘要 (SEP) 和「點陣圖」，揭示未來利率路徑預期。" },
   "2025-04-04": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "第二季度的首次非農報告，將為市場對上半年的經濟預測定下基調。" },
@@ -357,6 +356,8 @@ const CONFIG = {
 let state = {};
 const el = id => document.getElementById(id);
 let canvas, ctx, chartWrap;
+// ******** FIX: Object to hold computed chart colors ********
+let CHART_COLORS = {};
 
 // ===== 數據處理 =====
 function loadData() {
@@ -648,7 +649,7 @@ function drawCurrentPriceLine(y) {
     if (yPos < 0 || yPos > rect.height - CONFIG.timeAxisHeight) return;
 
     const isUp = state.currentBarIndex > 0 && currentPrice >= state.gameData[state.currentBarIndex - 1].c;
-    const color = isUp ? 'var(--chart-up)' : 'var(--chart-down)';
+    const color = isUp ? CHART_COLORS.up : CHART_COLORS.down;
 
     const line = document.createElement('div');
     line.className = 'price-line';
@@ -658,7 +659,6 @@ function drawCurrentPriceLine(y) {
     label.className = 'price-line-label';
     label.style.top = `${yPos}px`;
     label.style.backgroundColor = color;
-    label.style.borderColor = color;
     label.textContent = currentPrice.toFixed(2);
 
     priceLinesContainer.appendChild(line);
@@ -666,7 +666,7 @@ function drawCurrentPriceLine(y) {
 }
 
 function drawTimeAxis(ctx, W, H, startIdx, endIdx, barWidth, offset) {
-    ctx.fillStyle = 'var(--chart-text)';
+    ctx.fillStyle = CHART_COLORS.text;
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -698,7 +698,7 @@ function draw(animationProgress = 1) {
   const chartH = H - CONFIG.timeAxisHeight;
   
   // 繪製背景
-  ctx.fillStyle = 'var(--chart-bg)';
+  ctx.fillStyle = CHART_COLORS.bg;
   ctx.fillRect(0, 0, W, H);
 
   if (!state.gameData || state.gameData.length === 0) return;
@@ -748,15 +748,18 @@ function draw(animationProgress = 1) {
         closeY = currentCloseY;
     }
 
-    const color = up ? 'var(--chart-up)' : 'var(--chart-down)';
+    const color = up ? CHART_COLORS.up : CHART_COLORS.down;
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
     ctx.lineWidth = 1.5;
+    
+    // Wick
     ctx.beginPath();
     ctx.moveTo(x, highY);
     ctx.lineTo(x, lowY);
     ctx.stroke();
     
+    // Body
     const w = Math.max(2, barWidth * 0.7);
     ctx.fillRect(x - w / 2, Math.min(openY, closeY), w, Math.max(1, Math.abs(openY - closeY)));
   }
@@ -765,12 +768,12 @@ function draw(animationProgress = 1) {
   state.positions.forEach(p => {
     const entryY = y(p.entryPrice);
     if (entryY > chartH || entryY < 0) return;
-    ctx.strokeStyle = p.side === 'buy' ? 'var(--good)' : 'var(--danger)';
+    ctx.strokeStyle = p.side === 'buy' ? CHART_COLORS.up : CHART_COLORS.down;
     ctx.setLineDash([5, 5]);
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, entryY); ctx.lineTo(W - 60, entryY); ctx.stroke();
-    if (p.sl) { const slY = y(p.sl); ctx.strokeStyle = 'var(--danger)'; ctx.beginPath(); ctx.moveTo(0, slY); ctx.lineTo(W - 60, slY); ctx.stroke(); }
-    if (p.tp) { const tpY = y(p.tp); ctx.strokeStyle = 'var(--good)'; ctx.beginPath(); ctx.moveTo(0, tpY); ctx.lineTo(W - 60, tpY); ctx.stroke(); }
+    if (p.sl) { const slY = y(p.sl); ctx.strokeStyle = CHART_COLORS.down; ctx.beginPath(); ctx.moveTo(0, slY); ctx.lineTo(W - 60, slY); ctx.stroke(); }
+    if (p.tp) { const tpY = y(p.tp); ctx.strokeStyle = CHART_COLORS.up; ctx.beginPath(); ctx.moveTo(0, tpY); ctx.lineTo(W - 60, tpY); ctx.stroke(); }
     ctx.setLineDash([]);
   });
 }
@@ -805,7 +808,7 @@ function clampOffset(isUserAction = false) {
     state.view.offset = Math.max(0, Math.min(state.view.offset, maxOffset));
 }
 
-// ===== NEW: Input Stepper Logic =====
+// ===== Input Stepper Logic =====
 function setupSteppers() {
     el('trade-panel-content').addEventListener('click', e => {
         const button = e.target.closest('.stepper-btn');
@@ -857,6 +860,13 @@ async function init() {
   const dataLoaded = await loadData();
   
   if (dataLoaded) {
+    // ******** FIX: Get computed colors for canvas drawing ********
+    const style = getComputedStyle(document.documentElement);
+    CHART_COLORS.up = style.getPropertyValue('--chart-up').trim();
+    CHART_COLORS.down = style.getPropertyValue('--chart-down').trim();
+    CHART_COLORS.bg = style.getPropertyValue('--chart-bg').trim();
+    CHART_COLORS.text = style.getPropertyValue('--chart-text').trim();
+
     el('btnBuy').addEventListener('click', () => openOrder('buy'));
     el('btnSell').addEventListener('click', () => openOrder('sell'));
     el('btnCloseAll').addEventListener('click', closeAllPositions);
@@ -903,7 +913,7 @@ async function init() {
     });
 
     setupInteraction();
-    setupSteppers(); // Add this line
+    setupSteppers(); 
     startGame();
   }
 }
