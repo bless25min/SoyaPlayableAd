@@ -1,16 +1,14 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
-
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>交易獲利挑戰賽</title>
+    <title>Trading Profit Challenge</title>
     <style>
         :root {
             --background-color: #f0f2f5;
             --chart-background: #ffffff;
             --text-color: #1c1e21;
-            --text-color-secondary: #65676b;
             --border-color: #dce1e6;
             --primary-button-bg: #1877f2;
             --primary-button-text: #ffffff;
@@ -20,9 +18,10 @@
             --secondary-button-hover: #d8dadf;
             --buy-color: #42b72a;
             --sell-color: #f02849;
+            --buy-color-light: rgba(66, 183, 42, 0.1);
+            --sell-color-light: rgba(240, 40, 73, 0.1);
             --sl-color: #fa3838;
             --tp-color: #26a69a;
-            --position-line-color: #1877f2;
             --inactive-tab-bg: #e9eaec;
             --active-tab-bg: #ffffff;
             --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -40,7 +39,6 @@
             color: var(--text-color);
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            user-select: none;
         }
 
         #app-container {
@@ -58,26 +56,21 @@
             justify-content: space-between;
             align-items: center;
             flex-shrink: 0;
+            position: relative;
+            z-index: 10;
         }
 
         #header .info {
             font-size: 14px;
-            display: flex;
-            flex-wrap: wrap;
         }
 
         #header .info span {
             margin-right: 16px;
-            white-space: nowrap;
         }
 
         #chart-container {
             flex-grow: 1;
             position: relative;
-            cursor: grab;
-        }
-        #chart-container:active {
-            cursor: grabbing;
         }
 
         #chart-canvas {
@@ -94,6 +87,8 @@
             border-top: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
+            position: relative;
+            z-index: 10;
         }
 
         #tab-buttons {
@@ -113,6 +108,9 @@
             color: var(--text-color);
             border-right: 1px solid var(--border-color);
             transition: background-color 0.2s;
+        }
+        .tab-button:active {
+            filter: brightness(0.95);
         }
 
         .tab-button:last-child {
@@ -149,7 +147,6 @@
         .input-row label {
             width: 80px;
             font-size: 14px;
-            color: var(--text-color-secondary);
         }
         
         .input-wrapper {
@@ -186,11 +183,10 @@
             font-weight: bold;
             cursor: pointer;
             color: var(--secondary-button-text);
-            transition: background-color 0.2s, transform 0.1s;
+            transition: background-color 0.1s;
         }
         .step-button:active {
-            background-color: var(--secondary-button-hover);
-            transform: scale(0.95);
+             background-color: var(--secondary-button-hover);
         }
 
         #positions-panel table {
@@ -217,10 +213,9 @@
             cursor: pointer;
             font-weight: bold;
             font-size: 14px;
-            transition: transform 0.1s;
         }
         .close-pos-btn:active {
-            transform: scale(0.9);
+            opacity: 0.7;
         }
 
         .buy-button, .sell-button {
@@ -232,10 +227,10 @@
             font-weight: bold;
             color: var(--primary-button-text);
             cursor: pointer;
-            transition: background-color 0.2s, transform 0.1s;
+            transition: transform 0.1s ease, background-color 0.2s;
         }
         .buy-button:active, .sell-button:active {
-            transform: scale(0.98);
+             transform: scale(0.98);
         }
 
         .buy-button { background-color: var(--buy-color); }
@@ -256,10 +251,10 @@
             padding: 6px 10px;
             border-radius: 4px;
             cursor: pointer;
-            transition: background-color 0.2s, transform 0.1s;
+            transition: background-color 0.1s;
         }
         #playback-controls button:hover { background-color: var(--secondary-button-hover); }
-        #playback-controls button:active { transform: scale(0.95); }
+        #playback-controls button:active { filter: brightness(0.9); }
 
         #playback-controls select {
             padding: 6px;
@@ -267,29 +262,18 @@
             border: 1px solid var(--border-color);
         }
 
-        /* Tutorial & End Card Styles */
-        #tutorial-overlay, #end-card {
+        #tutorial-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             z-index: 999;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: rgba(0, 0, 0, 0.6);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease-in-out;
-        }
-        #tutorial-overlay.visible, #end-card.visible {
-            opacity: 1;
-            pointer-events: auto;
+            display: none;
         }
         #tutorial-highlight {
             position: absolute;
-            border: 3px solid var(--primary-button-bg);
+            border: 3px solid #1877f2;
             border-radius: 8px;
             box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
             transition: all 0.4s ease-in-out;
@@ -306,22 +290,18 @@
         }
         #tutorial-box p { margin: 0 0 15px 0; font-size: 16px; line-height: 1.5; }
         #tutorial-box button {
-            background-color: var(--primary-button-bg);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            font-size: 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            float: right;
+            background-color: #1877f2; color: white; border: none; padding: 10px 20px;
+            font-size: 16px; border-radius: 6px; cursor: pointer; float: right;
+        }
+
+        #end-card {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7); z-index: 1000; display: none;
+            justify-content: center; align-items: center;
         }
         #end-card-content {
-            background: var(--chart-background);
-            padding: 30px;
-            border-radius: 12px;
-            text-align: center;
-            width: 80%;
-            max-width: 400px;
+            background: var(--chart-background); padding: 30px; border-radius: 12px;
+            text-align: center; width: 80%; max-width: 400px;
             box-shadow: 0 5px 20px rgba(0,0,0,0.2);
         }
         #end-card-content h2 { margin-top: 0; font-size: 24px; }
@@ -330,21 +310,12 @@
         .profit-positive { color: var(--buy-color); }
         .profit-negative { color: var(--sell-color); }
         #cta-button {
-            display: inline-block;
-            background-color: var(--buy-color);
-            color: white;
-            padding: 15px 30px;
-            border: none;
-            border-radius: 8px;
-            font-size: 18px;
-            font-weight: bold;
-            text-decoration: none;
-            margin-top: 20px;
-            cursor: pointer;
-            transition: background-color 0.2s, transform 0.1s;
+            display: inline-block; background-color: var(--buy-color); color: white;
+            padding: 15px 30px; border: none; border-radius: 8px; font-size: 18px;
+            font-weight: bold; text-decoration: none; margin-top: 20px; cursor: pointer;
+            transition: background-color 0.2s;
         }
         #cta-button:hover { background-color: #3aa122; }
-        #cta-button:active { transform: scale(0.98); }
     </style>
 </head>
 
@@ -433,156 +404,172 @@
     </div>
 
     <script>
-        // =================================================================================
-        // MAIN APPLICATION LOGIC
-        // =================================================================================
+    // =================================================================================
+    // MAIN APPLICATION LOGIC
+    // =================================================================================
+    
+    class TradingChart {
+        constructor(canvasId) {
+            this.canvas = document.getElementById(canvasId);
+            this.ctx = this.canvas.getContext('2d');
+            this.ohlcData = [];
+            this.visibleCandles = [];
+            this.animations = [];
+            this.candleWidth = 8;
+            this.candleSpacing = 4;
+            this.zoom = 1.0;
+            this.panX = 0;
+            this.minPrice = Infinity;
+            this.maxPrice = -Infinity;
+            this.isDragging = false;
+            this.lastMouseX = 0;
+
+            this.resizeCanvas();
+            window.addEventListener('resize', () => this.resizeCanvas());
+            this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+            this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+            this.canvas.addEventListener('mouseup', () => this.onMouseUp());
+            this.canvas.addEventListener('mouseleave', () => this.onMouseUp());
+            this.canvas.addEventListener('wheel', (e) => this.onWheel(e));
+            this.startAnimationLoop();
+        }
+
+        resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = this.canvas.getBoundingClientRect();
+            this.canvas.width = rect.width * dpr;
+            this.canvas.height = rect.height * dpr;
+            this.ctx.scale(dpr, dpr);
+        }
+
+        setData(data, visibleCandles) {
+            this.ohlcData = data;
+            this.visibleCandles = visibleCandles.map(c => ({...c, animProgress: 1}));
+            this.calculatePriceRange();
+        }
+         
+        updateData(newData) {
+            this.visibleCandles = newData.map(c => {
+                const existing = this.visibleCandles.find(vc => vc.time === c.time);
+                return existing ? existing : {...c, animProgress: 0};
+            });
+            this.calculatePriceRange();
+        }
+
+        calculatePriceRange() {
+            if (this.visibleCandles.length === 0) return;
+            let min = Infinity, max = -Infinity;
+            this.visibleCandles.forEach(candle => {
+                min = Math.min(min, candle.low);
+                max = Math.max(max, candle.high);
+            });
+            const padding = (max - min) * 0.1;
+            this.minPrice = min - padding;
+            this.maxPrice = max + padding;
+        }
+
+        startAnimationLoop() {
+            const loop = () => {
+                this.draw();
+                requestAnimationFrame(loop);
+            };
+            requestAnimationFrame(loop);
+        }
+
+        draw() {
+            if (!this.ctx) return;
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.drawDateSeparators();
+            this.drawCandles();
+            this.drawPriceAxis();
+            this.drawPositions();
+            this.drawAnimations();
+        }
         
-        class TradingChart {
-             constructor(canvasId) {
-                this.canvas = document.getElementById(canvasId);
-                this.ctx = this.canvas.getContext('2d');
-                this.animations = [];
-                this.visibleCandles = []; 
-                this.candleWidth = 8;
-                this.candleSpacing = 4;
-                this.zoom = 1.0;
-                this.panX = 0;
-                this.minPrice = Infinity;
-                this.maxPrice = -Infinity;
-                this.isDragging = false;
-                this.lastMouseX = 0;
+        drawPositions() {
+            if (!window.positions) return;
+            positions.forEach(pos => {
+                const y = this.priceToY(pos.entryPrice);
+                this.drawPositionLine(pos.entryPrice, 'blue', pos.pnl);
+                if (pos.sl) this.drawPositionLine(pos.sl, 'var(--sl-color)');
+                if (pos.tp) this.drawPositionLine(pos.tp, 'var(--tp-color)');
+            });
+        }
 
-                // For K-bar animation
-                this.currentAnimatingCandle = null;
-                this.animationProgress = 0; // 0 to 1
-
-                window.addEventListener('resize', () => this.resizeCanvas(), { passive: true });
-                this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
-                this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
-                this.canvas.addEventListener('mouseup', () => this.onMouseUp());
-                this.canvas.addEventListener('mouseleave', () => this.onMouseUp());
-                this.canvas.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
-                
-                this.resizeCanvas(); // Initial size setup
-             }
-
-            resizeCanvas() {
-                const dpr = window.devicePixelRatio || 1;
-                const rect = this.canvas.getBoundingClientRect();
-                this.canvas.width = rect.width * dpr;
-                this.canvas.height = rect.height * dpr;
-                this.ctx.scale(dpr, dpr);
-            }
-
-            setData(visibleCandles) {
-                this.visibleCandles = visibleCandles;
-                this.calculatePriceRange();
-            }
-             
-            updateData(newVisibleCandles, newAnimatingCandle) {
-                this.visibleCandles = newVisibleCandles;
-                this.currentAnimatingCandle = newAnimatingCandle;
-                this.animationProgress = 0;
-                this.calculatePriceRange();
-            }
-
-            calculatePriceRange() {
-                const candlesToConsider = [...this.visibleCandles];
-                if (this.currentAnimatingCandle) {
-                    candlesToConsider.push(this.currentAnimatingCandle);
-                }
-                if (candlesToConsider.length === 0) return;
-
-                let min = Infinity, max = -Infinity;
-                for(const candle of candlesToConsider) {
-                    min = Math.min(min, candle.low);
-                    max = Math.max(max, candle.high);
-                }
-
-                const padding = (max - min) * 0.15;
-                this.minPrice = min - padding;
-                this.maxPrice = max + padding;
-            }
-
-            drawLoop(progress) {
-                this.animationProgress = Math.min(1, this.animationProgress + progress);
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                this.drawDateSeparators();
-                this.drawCandles();
-                this.drawAnimatingCandle();
-                this.drawPriceAxis();
-                this.drawPositions();
-                this.drawAnimations();
-            }
+        drawPositionLine(price, color, pnl = null) {
+            const y = this.priceToY(price);
+            this.ctx.beginPath();
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.strokeStyle = color;
+            this.ctx.moveTo(0, y);
+            this.ctx.lineTo(this.canvas.clientWidth - 50, y);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
             
-            drawPositions() {
-                if (!window.positions) return;
-                positions.forEach(pos => {
-                    this.drawPositionLine(pos.entryPrice, 'var(--position-line-color)', pos.pnl);
-                    if (pos.sl) this.drawPositionLine(pos.sl, 'var(--sl-color)');
-                    if (pos.tp) this.drawPositionLine(pos.tp, 'var(--tp-color)');
-                });
-            }
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = '12px Arial';
+            this.ctx.textAlign = 'right';
+            const priceText = price.toFixed(2);
+            const textWidth = this.ctx.measureText(priceText).width;
+            this.ctx.fillRect(this.canvas.clientWidth - 50 - textWidth - 10, y - 8, textWidth + 10, 16);
+            this.ctx.fillStyle = color;
+            this.ctx.fillText(priceText, this.canvas.clientWidth - 55, y + 4);
 
-            drawPositionLine(price, color, pnl = null) {
-                const y = this.priceToY(price);
-                const axisWidth = 50;
-                this.ctx.save();
-                this.ctx.beginPath();
-                this.ctx.setLineDash([4, 4]);
-                this.ctx.strokeStyle = color;
-                this.ctx.lineWidth = 1;
-                this.ctx.moveTo(0, y);
-                this.ctx.lineTo(this.canvas.clientWidth - axisWidth, y);
-                this.ctx.stroke();
-                this.ctx.setLineDash([]);
-                
-                const text = pnl !== null ? pnl.toFixed(2) : price.toFixed(2);
+            if (pnl !== null) {
+                const pnlText = (pnl >= 0 ? '+' : '') + pnl.toFixed(2);
                 const pnlColor = pnl >= 0 ? 'var(--buy-color)' : 'var(--sell-color)';
-                this.ctx.font = '12px ' + getComputedStyle(document.body).getPropertyValue('--font-family');
-                this.ctx.fillStyle = pnl !== null ? pnlColor : color;
+                this.ctx.fillStyle = pnlColor;
                 this.ctx.textAlign = 'left';
-                this.ctx.fillText(text, 5, y - 5);
-                this.ctx.restore();
+                this.ctx.fillText(pnlText, 10, y - 5);
             }
+        }
 
-            drawDateSeparators() {
-                if (!this.visibleCandles || this.visibleCandles.length === 0) return;
-                this.ctx.save();
-                this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-                this.ctx.lineWidth = 1;
-                this.ctx.font = '12px ' + getComputedStyle(document.body).getPropertyValue('--font-family');
-                this.ctx.fillStyle = 'var(--text-color-secondary)';
-                this.ctx.textAlign = 'left';
+        drawDateSeparators() {
+            if (this.visibleCandles.length === 0) return;
 
-                let lastDate = null;
-                const allCandles = [...this.visibleCandles, this.currentAnimatingCandle].filter(Boolean);
+            this.ctx.strokeStyle = '#e0e0e0';
+            this.ctx.lineWidth = 1;
+            this.ctx.font = '12px Arial';
+            this.ctx.fillStyle = '#888';
+            let lastDate = null;
 
-                allCandles.forEach((candle, i) => {
-                    const date = new Date(candle.time * 1000);
-                    const candleDate = date.toDateString();
-                    if (lastDate && candleDate !== lastDate) {
-                        const x = this.getXPosition(i);
-                        this.ctx.beginPath();
-                        this.ctx.setLineDash([2, 2]);
-                        this.ctx.moveTo(x, 0);
-                        this.ctx.lineTo(x, this.canvas.clientHeight);
-                        this.ctx.stroke();
-                        this.ctx.setLineDash([]);
-                        this.ctx.fillText(date.toLocaleDateString(), x + 5, this.canvas.clientHeight - 10);
-                    }
-                    lastDate = candleDate;
-                });
-                this.ctx.restore();
+            for (let i = 0; i < this.visibleCandles.length; i++) {
+                const candle = this.visibleCandles[i];
+                const date = new Date(candle.time * 1000);
+                const candleDateStr = date.toDateString();
+                if (lastDate && candleDateStr !== lastDate) {
+                    const x = this.getXPosition(i);
+                    this.ctx.beginPath();
+                    this.ctx.setLineDash([4, 4]);
+                    this.ctx.moveTo(x, 0);
+                    this.ctx.lineTo(x, this.canvas.clientHeight);
+                    this.ctx.stroke();
+                    this.ctx.setLineDash([]);
+                    this.ctx.textAlign = 'left';
+                    this.ctx.fillText(date.toLocaleDateString(), x + 5, this.canvas.clientHeight - 10);
+                }
+                lastDate = candleDateStr;
             }
+        }
 
-            getXPosition(index) {
-                const totalCandleWidth = (this.candleWidth + this.candleSpacing) * this.zoom;
-                const allCandles = [...this.visibleCandles, this.currentAnimatingCandle].filter(Boolean);
-                return (this.canvas.clientWidth - 50) - (allCandles.length - index) * totalCandleWidth - this.panX;
-            }
+        getXPosition(index) {
+            const totalCandleWidth = (this.candleWidth + this.candleSpacing) * this.zoom;
+            return this.canvas.clientWidth - (this.visibleCandles.length - index) * totalCandleWidth - this.panX;
+        }
 
-            drawSingleCandle(candle, x) {
+        drawCandles() {
+            if (this.visibleCandles.length === 0) return;
+            const totalCandleWidth = (this.candleWidth + this.candleSpacing) * this.zoom;
+            
+            this.visibleCandles.forEach((candle, i) => {
+                if (candle.animProgress < 1) {
+                    candle.animProgress += 0.05; // Animation speed
+                    if (candle.animProgress > 1) candle.animProgress = 1;
+                }
+
+                const x = this.getXPosition(i);
+                if (x < -totalCandleWidth || x > this.canvas.clientWidth + totalCandleWidth) return;
+
                 const openY = this.priceToY(candle.open);
                 const closeY = this.priceToY(candle.close);
                 const highY = this.priceToY(candle.high);
@@ -592,432 +579,358 @@
                 this.ctx.strokeStyle = isBullish ? 'var(--buy-color)' : 'var(--sell-color)';
                 this.ctx.fillStyle = isBullish ? 'var(--buy-color)' : 'var(--sell-color)';
                 
-                this.ctx.beginPath();
-                this.ctx.moveTo(x + (this.candleWidth * this.zoom) / 2, highY);
-                this.ctx.lineTo(x + (this.candleWidth * this.zoom) / 2, lowY);
-                this.ctx.stroke();
+                // Animated Drawing Logic
+                const p = candle.animProgress;
+                let currentHigh = highY, currentLow = lowY, currentClose = closeY;
 
-                const bodyHeight = Math.max(1, Math.abs(openY - closeY));
-                const bodyY = Math.min(openY, closeY);
-                this.ctx.fillRect(x, bodyY, this.candleWidth * this.zoom, bodyHeight);
-            }
-
-            drawCandles() {
-                if (!this.visibleCandles || this.visibleCandles.length === 0) return;
-                this.visibleCandles.forEach((candle, i) => {
-                    const x = this.getXPosition(i);
-                    this.drawSingleCandle(candle, x);
-                });
-            }
-            
-            drawAnimatingCandle() {
-                if (!this.currentAnimatingCandle || this.animationProgress === 0) return;
-
-                const candle = this.currentAnimatingCandle;
-                const x = this.getXPosition(this.visibleCandles.length);
-                const openY = this.priceToY(candle.open);
-                
-                // Animate wick
-                const currentHigh = candle.open + (candle.high - candle.open) * this.animationProgress;
-                const currentLow = candle.open - (candle.open - candle.low) * this.animationProgress;
-                const highY = this.priceToY(currentHigh);
-                const lowY = this.priceToY(currentLow);
-
-                // Animate body
-                const currentClose = candle.open + (candle.close - candle.open) * this.animationProgress;
-                const closeY = this.priceToY(currentClose);
-
-                const isBullish = currentClose >= candle.open;
-                this.ctx.strokeStyle = isBullish ? 'var(--buy-color)' : 'var(--sell-color)';
-                this.ctx.fillStyle = isBullish ? 'var(--buy-color)' : 'var(--sell-color)';
-
-                this.ctx.beginPath();
-                this.ctx.moveTo(x + (this.candleWidth * this.zoom) / 2, highY);
-                this.ctx.lineTo(x + (this.candleWidth * this.zoom) / 2, lowY);
-                this.ctx.stroke();
-
-                const bodyHeight = Math.max(1, Math.abs(openY - closeY));
-                const bodyY = Math.min(openY, closeY);
-                this.ctx.fillRect(x, bodyY, this.candleWidth * this.zoom, bodyHeight);
-            }
-
-            drawPriceAxis() {
-                const axisWidth = 50;
-                const clientWidth = this.canvas.clientWidth;
-                const clientHeight = this.canvas.clientHeight;
-                
-                this.ctx.save();
-                this.ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--chart-background');
-                this.ctx.fillRect(clientWidth - axisWidth, 0, axisWidth, clientHeight);
-                this.ctx.strokeStyle = 'var(--border-color)';
-                this.ctx.beginPath();
-                this.ctx.moveTo(clientWidth - axisWidth, 0);
-                this.ctx.lineTo(clientWidth - axisWidth, clientHeight);
-                this.ctx.stroke();
-
-                this.ctx.fillStyle = 'var(--text-color-secondary)';
-                this.ctx.font = '12px ' + getComputedStyle(document.body).getPropertyValue('--font-family');
-                
-                if (this.maxPrice === -Infinity || this.minPrice === Infinity) { this.ctx.restore(); return; }
-
-                const priceRange = this.maxPrice - this.minPrice;
-                const numTicks = Math.max(2, Math.floor(clientHeight / 50));
-                for (let i = 0; i <= numTicks; i++) {
-                    const price = this.minPrice + (i / numTicks) * priceRange;
-                    const y = this.priceToY(price);
-                    this.ctx.fillText(price.toFixed(2), clientWidth - axisWidth + 5, y + 4);
+                if (p < 0.25) { // Open
+                    currentHigh = openY; currentLow = openY; currentClose = openY;
+                } else if (p < 0.75) { // High/Low
+                    const highLowProgress = (p - 0.25) / 0.5;
+                    currentHigh = openY + (highY - openY) * highLowProgress;
+                    currentLow = openY + (lowY - openY) * highLowProgress;
+                    currentClose = openY;
+                } else { // Close
+                    const closeProgress = (p - 0.75) / 0.25;
+                    currentClose = openY + (closeY - openY) * closeProgress;
                 }
-                this.ctx.restore();
-            }
-             
-            addOpenPositionAnimation(price, type) {
-                const y = this.priceToY(price);
-                const x = this.canvas.clientWidth - 55;
-                this.animations.push({ type: 'arrow', x, y, dir: type === 'buy' ? 1 : -1, life: 60 });
-            }
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(x + (this.candleWidth * this.zoom) / 2, highY);
+                this.ctx.lineTo(x + (this.candleWidth * this.zoom) / 2, lowY);
+                this.ctx.stroke();
 
-            addClosePositionAnimation(price, pnl) {
-                const y = this.priceToY(price);
-                const x = this.canvas.clientWidth - 100;
-                this.animations.push({ type: 'pnl', x, y, pnl, life: 90 });
-            }
+                const bodyHeight = Math.max(1, Math.abs(openY - currentClose));
+                const bodyY = Math.min(openY, currentClose);
+                this.ctx.fillRect(x, bodyY, this.candleWidth * this.zoom, bodyHeight);
+            });
+        }
+
+        drawPriceAxis() {
+            const axisWidth = 50;
+            const clientWidth = this.canvas.clientWidth;
+            const clientHeight = this.canvas.clientHeight;
             
-            drawAnimations() {
-                this.ctx.save();
-                for (let i = this.animations.length - 1; i >= 0; i--) {
-                    const anim = this.animations[i];
-                    anim.life--;
+            this.ctx.fillStyle = 'var(--background-color)';
+            this.ctx.fillRect(clientWidth - axisWidth, 0, axisWidth, clientHeight);
+            this.ctx.strokeStyle = 'var(--border-color)';
+            this.ctx.beginPath();
+            this.ctx.moveTo(clientWidth - axisWidth, 0);
+            this.ctx.lineTo(clientWidth - axisWidth, clientHeight);
+            this.ctx.stroke();
 
-                    if (anim.type === 'arrow') {
-                        this.ctx.fillStyle = anim.dir === 1 ? 'var(--buy-color)' : 'var(--sell-color)';
-                        this.ctx.globalAlpha = anim.life / 60;
-                        this.ctx.beginPath();
-                        if (anim.dir === 1) {
-                            this.ctx.moveTo(anim.x, anim.y + 10); this.ctx.lineTo(anim.x + 10, anim.y); this.ctx.lineTo(anim.x + 20, anim.y + 10);
-                        } else {
-                            this.ctx.moveTo(anim.x, anim.y - 10); this.ctx.lineTo(anim.x + 10, anim.y); this.ctx.lineTo(anim.x + 20, anim.y - 10);
-                        }
-                        this.ctx.fill();
-                    } else if (anim.type === 'pnl') {
-                        const pnlText = (anim.pnl > 0 ? '+' : '') + anim.pnl.toFixed(2);
-                        this.ctx.fillStyle = anim.pnl > 0 ? 'var(--buy-color)' : 'var(--sell-color)';
-                        this.ctx.font = 'bold 14px ' + getComputedStyle(document.body).getPropertyValue('--font-family');
-                        anim.y -= 0.5;
-                        this.ctx.globalAlpha = anim.life / 90;
-                        this.ctx.fillText(pnlText, anim.x, anim.y);
+            this.ctx.fillStyle = 'var(--text-color)';
+            this.ctx.font = '12px Arial';
+            this.ctx.textAlign = 'left';
+
+            if (this.maxPrice === -Infinity) return;
+            const priceRange = this.maxPrice - this.minPrice;
+            if (priceRange <= 0) return;
+            
+            const numTicks = Math.floor(clientHeight / 50);
+            for (let i = 0; i <= numTicks; i++) {
+                const price = this.minPrice + (i / numTicks) * priceRange;
+                const y = this.priceToY(price);
+                this.ctx.fillText(price.toFixed(2), clientWidth - axisWidth + 5, y + 4);
+                this.ctx.beginPath();
+                this.ctx.moveTo(clientWidth - axisWidth, y);
+                this.ctx.lineTo(clientWidth - axisWidth - 5, y);
+                this.ctx.stroke();
+            }
+        }
+         
+        addOpenPositionAnimation(price, type) {
+            const y = this.priceToY(price);
+            const x = this.getXPosition(this.visibleCandles.length - 1);
+            this.animations.push({ type: 'arrow', x, y, dir: type === 'buy' ? 1 : -1, life: 60 });
+        }
+
+        addClosePositionAnimation(price, pnl) {
+            const y = this.priceToY(price);
+            const x = this.getXPosition(this.visibleCandles.length - 1);
+            this.animations.push({ type: 'pnl', x, y, pnl, life: 90, startY: y });
+        }
+        
+        drawAnimations() {
+            this.ctx.save();
+            for (let i = this.animations.length - 1; i >= 0; i--) {
+                const anim = this.animations[i];
+                anim.life--;
+                this.ctx.globalAlpha = Math.max(0, anim.life / 60);
+
+                if (anim.type === 'arrow') {
+                    this.ctx.fillStyle = anim.dir === 1 ? 'var(--buy-color)' : 'var(--sell-color)';
+                    this.ctx.beginPath();
+                    if (anim.dir === 1) {
+                        this.ctx.moveTo(anim.x, anim.y); this.ctx.lineTo(anim.x - 5, anim.y + 10); this.ctx.lineTo(anim.x + 5, anim.y + 10);
+                    } else {
+                        this.ctx.moveTo(anim.x, anim.y); this.ctx.lineTo(anim.x - 5, anim.y - 10); this.ctx.lineTo(anim.x + 5, anim.y - 10);
                     }
-
-                    if (anim.life <= 0) this.animations.splice(i, 1);
+                    this.ctx.fill();
+                } else if (anim.type === 'pnl') {
+                    const pnlText = (anim.pnl > 0 ? '+' : '') + anim.pnl.toFixed(2);
+                    this.ctx.fillStyle = anim.pnl > 0 ? 'var(--buy-color)' : 'var(--sell-color)';
+                    this.ctx.font = 'bold 14px Arial';
+                    anim.y -= 0.5;
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText(pnlText, anim.x, anim.y);
                 }
-                 this.ctx.restore();
+
+                if (anim.life <= 0) this.animations.splice(i, 1);
             }
-
-            priceToY(price) {
-                const priceRange = this.maxPrice - this.minPrice;
-                if (priceRange <= 0) return this.canvas.clientHeight / 2;
-                return (1 - (price - this.minPrice) / priceRange) * this.canvas.clientHeight;
-            }
-
-            onMouseDown(e) { this.isDragging = true; this.lastMouseX = e.clientX; }
-            onMouseMove(e) { if (this.isDragging) { const dx = e.clientX - this.lastMouseX; this.panX -= dx; this.lastMouseX = e.clientX; } }
-            onMouseUp() { this.isDragging = false; }
-            onWheel(e) { e.preventDefault(); const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9; this.zoom = Math.max(0.1, Math.min(10, this.zoom * zoomFactor)); }
+             this.ctx.restore();
         }
 
-        // --- GLOBAL STATE ---
-        let ohlcData = [], currentIndex = 0, visibleCandles = [], isPlaying = false, gameInterval, candleSpeed = 500, chart, positions = [], nextPositionId = 1;
-        let account = { balance: 10000, equity: 10000 };
-        const VISIBLE_CANDLE_COUNT = 60;
-        let tutorialStep = 0;
-        let lastFrameTime = 0;
-
-        // --- CORE FUNCTIONS ---
-
-        async function loadDataAndStart() {
-            try {
-                const response = await fetch('XAUUSD_M15.csv');
-                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const csvText = await response.text();
-                const parsedData = parseData(csvText);
-                if (parsedData.length === 0) throw new Error("No valid data parsed from file.");
-                ohlcData = selectRandomMonth(parsedData);
-                if (ohlcData.length === 0) throw new Error("No valid month data could be selected.");
-                resetChallenge();
-            } catch (error) {
-                console.error("Fatal Error:", error);
-                alert("錯誤：無法載入或處理市場數據。 " + error.message);
-            }
-        }
-        
-        function parseData(text) {
-            const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim().split('\n');
-            if (lines.length <= 1) return [];
-            const header = lines[0].trim();
-            const dataLines = lines.slice(1);
-            const isTimestampFormat = header.startsWith('time,') || /^\d{10,}/.test(dataLines[0]);
-            return isTimestampFormat ? parseTimestampCSV(dataLines) : parseDateTimeSpaceSeparated(dataLines);
+        priceToY(price) {
+            const priceRange = this.maxPrice - this.minPrice;
+            if (priceRange <= 0) return this.canvas.clientHeight / 2;
+            return (1 - (price - this.minPrice) / priceRange) * this.canvas.clientHeight;
         }
 
-        function parseTimestampCSV(dataLines) { /* ... implementation from previous step ... */ return []; }
-        function parseDateTimeSpaceSeparated(dataLines) {
-            const results = [];
-            for (let line of dataLines) {
-                const parts = line.trim().split(/\s+/);
-                if (parts.length < 6) continue;
-                try {
-                    const dateString = parts[0].replace(/\./g, '-') + ' ' + parts[1];
-                    const timestamp = new Date(dateString).getTime() / 1000;
-                    const dataPoint = {
-                        time: timestamp, open: parseFloat(parts[2]), high: parseFloat(parts[3]),
-                        low: parseFloat(parts[4]), close: parseFloat(parts[5])
-                    };
-                    if (!Object.values(dataPoint).some(isNaN)) results.push(dataPoint);
-                } catch (e) {}
-            }
-            return results;
-        }
+        onMouseDown(e) { this.isDragging = true; this.lastMouseX = e.clientX; }
+        onMouseMove(e) { if (this.isDragging) { const dx = e.clientX - this.lastMouseX; this.panX -= dx; this.lastMouseX = e.clientX; } }
+        onMouseUp() { this.isDragging = false; }
+        onWheel(e) { e.preventDefault(); const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9; this.zoom = Math.max(0.1, Math.min(10, this.zoom * zoomFactor)); }
+    }
 
-        function selectRandomMonth(data) {
-            if (!data || data.length === 0) return [];
-            const months = {};
-            data.forEach(d => {
-                const date = new Date(d.time * 1000);
-                if (isNaN(date.getTime())) return;
-                const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
-                if (!months[monthKey]) months[monthKey] = [];
-                months[monthKey].push(d);
-            });
-            const monthKeys = Object.keys(months);
-            if (monthKeys.length === 0) return [];
-            const randomMonthKey = monthKeys[Math.floor(Math.random() * monthKeys.length)];
-            return months[randomMonthKey] || [];
-        }
+    let ohlcData = [], currentIndex = 0, visibleCandles = [], isPlaying = false,
+        gameInterval, candleSpeed = 500, chart, positions = [], nextPositionId = 1,
+        account = { balance: 10000, equity: 10000 },
+        VISIBLE_CANDLE_COUNT = 100, tutorialStep = 0;
 
-        function resetChallenge() {
-            currentIndex = VISIBLE_CANDLE_COUNT;
-            visibleCandles = ohlcData.slice(0, VISIBLE_CANDLE_COUNT);
-            chart.setData(visibleCandles);
-            updateUI();
-            showTutorialStep(0);
-            requestAnimationFrame(gameLoop);
+    async function loadDataAndStart() {
+        try {
+            const response = await fetch('XAUUSD_M15.csv');
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const text = await response.text();
+            const parsedData = parseData(text);
+            ohlcData = selectRandomMonth(parsedData);
+            resetChallenge();
+        } catch (error) {
+            console.error("Fatal Error: Failed to load or process data.", error);
+            alert("錯誤：無法載入或處理市場數據。");
         }
+    }
+    
+    function parseData(text) {
+        const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim().split('\n');
+        const header = lines.shift() || '';
+        const isTimestampFormat = header.startsWith('time,') || /^\d{10,}/.test(lines[0]);
+        const parser = isTimestampFormat ? parseTimestampCSV : parseDateTimeSpaceSeparated;
+        return parser(lines);
+    }
 
-        function gameLoop(timestamp) {
-            if (!lastFrameTime) lastFrameTime = timestamp;
-            const deltaTime = timestamp - lastFrameTime;
-            lastFrameTime = timestamp;
-            
-            // Calculate progress based on candle speed, not frame rate
-            const progress = deltaTime / candleSpeed;
-            
-            chart.drawLoop(isPlaying ? progress : 0);
-            requestAnimationFrame(gameLoop);
-        }
+    function parseTimestampCSV(lines) {
+        return lines.map(line => {
+            const parts = line.split(',');
+            if (parts.length < 5) return null;
+            const p = { time: parseInt(parts[0], 10), open: parseFloat(parts[1]), high: parseFloat(parts[2]), low: parseFloat(parts[3]), close: parseFloat(parts[4]) };
+            return Object.values(p).some(isNaN) ? null : p;
+        }).filter(Boolean);
+    }
 
-        function advanceCandle() {
-            if (chart.currentAnimatingCandle) {
-                visibleCandles.push(chart.currentAnimatingCandle);
-            }
-            if (currentIndex >= ohlcData.length - 1) {
-                pauseGame();
-                showEndCard();
-                return;
-            }
-            currentIndex++;
-            const newCandle = ohlcData[currentIndex];
-            const newVisibleCandles = ohlcData.slice(Math.max(0, currentIndex - VISIBLE_CANDLE_COUNT), currentIndex);
-            
-            chart.updateData(newVisibleCandles, newCandle);
-            updatePositions(newCandle.close);
-            updateUI();
-        }
+    function parseDateTimeSpaceSeparated(lines) {
+        return lines.map(line => {
+            const parts = line.trim().split(/\s+/);
+            if (parts.length < 6) return null;
+            const dateString = parts[0].replace(/\./g, '-') + ' ' + parts[1];
+            const time = new Date(dateString).getTime() / 1000;
+            const p = { time, open: parseFloat(parts[2]), high: parseFloat(parts[3]), low: parseFloat(parts[4]), close: parseFloat(parts[5]) };
+            return Object.values(p).some(isNaN) ? null : p;
+        }).filter(Boolean);
+    }
 
-        function playPause() {
-            isPlaying = !isPlaying;
-            document.getElementById('play-pause-btn').textContent = isPlaying ? '❚❚' : '▶';
-            if (isPlaying) {
-                if(chart.animationProgress >= 1) advanceCandle();
-                gameInterval = setInterval(() => {
-                    if(chart.animationProgress >= 1) advanceCandle();
-                }, candleSpeed);
-            } else {
-                clearInterval(gameInterval);
-            }
-        }
-        
-        function pauseGame() {
-            if (isPlaying) {
-                isPlaying = false;
-                document.getElementById('play-pause-btn').textContent = '▶';
-                clearInterval(gameInterval);
-            }
-        }
-
-        function setSpeed(speed) {
-            candleSpeed = parseInt(speed);
-            if (isPlaying) {
-                clearInterval(gameInterval);
-                gameInterval = setInterval(() => {
-                    if(chart.animationProgress >= 1) advanceCandle();
-                }, candleSpeed);
-            }
-        }
-
-        function updateUI() {
-            const currentCandle = chart.currentAnimatingCandle || visibleCandles[visibleCandles.length - 1];
-            if (!currentCandle) return;
-            
-            document.getElementById('current-date').textContent = new Date(currentCandle.time * 1000).toLocaleString();
-            const totalPnl = positions.reduce((sum, pos) => sum + pos.pnl, 0);
-            account.equity = account.balance + totalPnl;
-            document.getElementById('equity-value').textContent = account.equity.toFixed(2);
-            document.getElementById('total-pnl').textContent = totalPnl.toFixed(2);
-            updatePositionsTable();
-        }
-
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-content, .tab-button').forEach(el => el.classList.remove('active'));
-            document.getElementById(tabName).classList.add('active');
-            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-        }
-
-        function openPosition(type) {
-            const currentPrice = (chart.currentAnimatingCandle || visibleCandles[visibleCandles.length-1]).close;
-            const sl = parseFloat(document.getElementById('sl-input').value) || null;
-            const tp = parseFloat(document.getElementById('tp-input').value) || null;
-
-            if (type === 'buy') {
-                if (sl && sl >= currentPrice) { alert('買入停損必須低於進場價'); return; }
-                if (tp && tp <= currentPrice) { alert('買入停利必須高於進場價'); return; }
-            } else {
-                if (sl && sl <= currentPrice) { alert('賣出停損必須高於進場價'); return; }
-                if (tp && tp >= currentPrice) { alert('賣出停利必須低於進場價'); return; }
-            }
-            
-            const newPosition = { id: nextPositionId++, type, entryPrice: currentPrice, sl, tp, pnl: 0 };
-            positions.push(newPosition);
-            chart.addOpenPositionAnimation(currentPrice, type);
-            updateUI();
-        }
-
-        function closePosition(positionId) {
-            const posIndex = positions.findIndex(p => p.id === positionId);
-            if (posIndex > -1) {
-                const pos = positions[posIndex];
-                const closePrice = (chart.currentAnimatingCandle || visibleCandles[visibleCandles.length-1]).close;
-                account.balance += pos.pnl;
-                chart.addClosePositionAnimation(closePrice, pos.pnl);
-                positions.splice(posIndex, 1);
-                updateUI();
-            }
-        }
-
-        function updatePositions(currentPrice) {
-            positions.forEach(pos => {
-                const pnlMultiplier = 100;
-                pos.pnl = pos.type === 'buy' ? (currentPrice - pos.entryPrice) * pnlMultiplier : (pos.entryPrice - currentPrice) * pnlMultiplier;
-                const slHit = (pos.type === 'buy' && pos.sl && currentPrice <= pos.sl) || (pos.type === 'sell' && pos.sl && currentPrice >= pos.sl);
-                const tpHit = (pos.type === 'buy' && pos.tp && currentPrice >= pos.tp) || (pos.type === 'sell' && pos.tp && currentPrice <= pos.tp);
-                if (slHit || tpHit) closePosition(pos.id);
-            });
-        }
-        
-        function updatePositionsTable() {
-            const tableBody = document.getElementById('positions-table').querySelector('tbody');
-            tableBody.innerHTML = '';
-            document.getElementById('position-count').textContent = positions.length;
-            positions.forEach(pos => {
-                const row = tableBody.insertRow();
-                const pnlColor = pos.pnl >= 0 ? 'var(--buy-color)' : 'var(--sell-color)';
-                row.innerHTML = `
-                    <td style="color: ${pos.type === 'buy' ? 'var(--buy-color)' : 'var(--sell-color)'}">${pos.type.toUpperCase()}</td>
-                    <td>${pos.entryPrice.toFixed(2)}</td>
-                    <td>${pos.sl ? pos.sl.toFixed(2) : '--'}</td>
-                    <td>${pos.tp ? pos.tp.toFixed(2) : '--'}</td>
-                    <td style="color: ${pnlColor}">${pos.pnl.toFixed(2)}</td>
-                    <td><button class="close-pos-btn" data-id="${pos.id}">X</button></td>
-                `;
-            });
-            tableBody.querySelectorAll('.close-pos-btn').forEach(btn => btn.onclick = () => closePosition(parseInt(btn.dataset.id)));
-        }
-        
-        function handleStepButtonClick(e) {
-            const target = e.target.closest('.step-button');
-            if (!target) return;
-            const input = document.getElementById(target.dataset.input);
-            const step = parseFloat(target.dataset.step);
-            if (input) {
-                const currentPrice = (chart.currentAnimatingCandle || visibleCandles[visibleCandles.length-1]).close;
-                let currentValue = parseFloat(input.value) || currentPrice;
-                input.value = (currentValue + step * 0.5).toFixed(2);
-            }
-        }
-
-        const tutorialSteps = [
-            { id: 'challenge-info', text: '這裡是您的帳戶資訊，目標是透過交易來增加淨值。' },
-            { id: 'chart-canvas', text: '這是黃金(XAUUSD)的走勢圖，您可以拖曳平移、滾輪縮放。' },
-            { id: 'playback-controls', text: '您可以使用這些按鈕來控制時間流逝，播放、暫停或加速。' },
-            { id: 'bottom-panel', text: '這是交易面板。點擊「下一步」來學習如何下單。' },
-            { id: 'sell-btn', text: '如果您認為價格會下跌，點擊「賣出」。' },
-            { id: 'buy-btn', text: '如果您認為價格會上漲，點擊「買入」。祝您好運！' }
-        ];
-
-        function showTutorialStep(stepIndex) {
-            const overlay = document.getElementById('tutorial-overlay');
-            if (stepIndex >= tutorialSteps.length) {
-                overlay.classList.remove('visible');
-                return;
-            }
-            overlay.classList.add('visible');
-            tutorialStep = stepIndex;
-            const step = tutorialSteps[stepIndex];
-            const element = document.getElementById(step.id);
-            if (!element) {
-                console.error(`Tutorial Error: Element with ID "${step.id}" not found.`);
-                showTutorialStep(stepIndex + 1);
-                return;
-            }
-            positionTutorial(element, step.text);
-        }
-        
-        function positionTutorial(element, text) {
-            const rect = element.getBoundingClientRect();
-            const highlight = document.getElementById('tutorial-highlight');
-            const box = document.getElementById('tutorial-box');
-            highlight.style.top = `${rect.top - 5}px`;
-            highlight.style.left = `${rect.left - 5}px`;
-            highlight.style.width = `${rect.width + 10}px`;
-            highlight.style.height = `${rect.height + 10}px`;
-            document.getElementById('tutorial-text').textContent = text;
-            const boxTop = rect.bottom + 15;
-            box.style.top = `${boxTop}px`;
-            box.style.left = `${rect.left}px`;
-            if (boxTop + box.offsetHeight > window.innerHeight) box.style.top = `${rect.top - box.offsetHeight - 15}px`;
-            if (rect.left + box.offsetWidth > window.innerWidth) box.style.left = `${window.innerWidth - box.offsetWidth - 15}px`;
-        }
-        
-        function showEndCard() {
-            const endCard = document.getElementById('end-card');
-            const finalEquityEl = document.getElementById('final-equity');
-            finalEquityEl.textContent = `$${account.equity.toFixed(2)}`;
-            finalEquityEl.className = `final-profit ${account.equity >= 10000 ? 'profit-positive' : 'profit-negative'}`;
-            endCard.classList.add('visible');
-        }
-
-        // --- INITIALIZATION ---
-        document.addEventListener('DOMContentLoaded', () => {
-            chart = new TradingChart('chart-canvas');
-            document.getElementById('play-pause-btn').addEventListener('click', playPause);
-            document.getElementById('next-candle-btn').addEventListener('click', () => { pauseGame(); if(chart.animationProgress >= 1) advanceCandle(); });
-            document.getElementById('speed-selector').addEventListener('change', (e) => setSpeed(e.target.value));
-            document.getElementById('buy-btn').addEventListener('click', () => openPosition('buy'));
-            document.getElementById('sell-btn').addEventListener('click', () => openPosition('sell'));
-            document.querySelectorAll('.tab-button').forEach(button => button.addEventListener('click', () => switchTab(button.dataset.tab)));
-            document.getElementById('trade-panel').addEventListener('click', handleStepButtonClick);
-            document.getElementById('tutorial-next-btn').addEventListener('click', () => showTutorialStep(tutorialStep + 1));
-            document.getElementById('cta-button').addEventListener('click', (e) => { e.preventDefault(); window.open('https://www.google.com', '_blank'); });
-            loadDataAndStart();
+    function selectRandomMonth(data) {
+        if (!data || data.length === 0) return [];
+        const months = {};
+        data.forEach(d => {
+            const date = new Date(d.time * 1000);
+            if (isNaN(date.getTime())) return;
+            const key = `${date.getFullYear()}-${date.getMonth()}`;
+            if (!months[key]) months[key] = [];
+            months[key].push(d);
         });
+        const keys = Object.keys(months);
+        if (keys.length === 0) return [];
+        const randomKey = keys[Math.floor(Math.random() * keys.length)];
+        return months[randomKey] || [];
+    }
+
+    function resetChallenge() {
+        if (!ohlcData || ohlcData.length === 0) {
+            alert("錯誤：沒有有效的市場數據可以開始挑戰。"); return;
+        }
+        currentIndex = VISIBLE_CANDLE_COUNT;
+        visibleCandles = ohlcData.slice(0, VISIBLE_CANDLE_COUNT);
+        chart.setData(ohlcData, visibleCandles);
+        updateUI();
+        showTutorialStep(0);
+    }
+
+    function nextCandle() {
+        if (currentIndex >= ohlcData.length - 1) {
+            pauseGame(); showEndCard(); return;
+        }
+        currentIndex++;
+        const newCandle = ohlcData[currentIndex];
+        updatePositions(newCandle.close);
+        chart.updateData(ohlcData.slice(Math.max(0, currentIndex - VISIBLE_CANDLE_COUNT), currentIndex + 1));
+        updateUI();
+    }
+
+    function playPause() {
+        isPlaying = !isPlaying;
+        document.getElementById('play-pause-btn').textContent = isPlaying ? '❚❚' : '▶';
+        if (isPlaying) gameInterval = setInterval(nextCandle, candleSpeed);
+        else clearInterval(gameInterval);
+    }
+    
+    function pauseGame() {
+        if (isPlaying) { isPlaying = false; document.getElementById('play-pause-btn').textContent = '▶'; clearInterval(gameInterval); }
+    }
+
+    function setSpeed(speed) {
+        candleSpeed = parseInt(speed);
+        if (isPlaying) { clearInterval(gameInterval); gameInterval = setInterval(nextCandle, candleSpeed); }
+    }
+
+    function updateUI() {
+        const candle = ohlcData[currentIndex];
+        if (!candle) return;
+        document.getElementById('current-date').textContent = new Date(candle.time * 1000).toLocaleString();
+        const totalPnl = positions.reduce((sum, pos) => sum + pos.pnl, 0);
+        account.equity = account.balance + totalPnl;
+        document.getElementById('equity-value').textContent = account.equity.toFixed(2);
+        document.getElementById('total-pnl').textContent = totalPnl.toFixed(2);
+        updatePositionsTable();
+    }
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabName).classList.add('active');
+        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    }
+
+    function openPosition(type) {
+        const price = ohlcData[currentIndex].close;
+        const sl = parseFloat(document.getElementById('sl-input').value) || null;
+        const tp = parseFloat(document.getElementById('tp-input').value) || null;
+        if (type === 'buy' && ((sl && sl >= price) || (tp && tp <= price))) { alert('買入訂單的停損/停利設定無效。'); return; }
+        if (type === 'sell' && ((sl && sl <= price) || (tp && tp >= price))) { alert('賣出訂單的停損/停利設定無效。'); return; }
+        positions.push({ id: nextPositionId++, type, entryPrice: price, sl, tp, pnl: 0 });
+        chart.addOpenPositionAnimation(price, type);
+        updateUI();
+    }
+
+    function closePosition(id) {
+        const index = positions.findIndex(p => p.id === id);
+        if (index > -1) {
+            const pos = positions[index];
+            account.balance += pos.pnl;
+            chart.addClosePositionAnimation(ohlcData[currentIndex].close, pos.pnl);
+            positions.splice(index, 1);
+            updateUI();
+        }
+    }
+
+    function updatePositions(price) {
+        let closed = false;
+        for (let i = positions.length - 1; i >= 0; i--) {
+            const pos = positions[i];
+            pos.pnl = (price - pos.entryPrice) * (pos.type === 'buy' ? 1 : -1) * 100;
+            if ((pos.sl && (pos.type === 'buy' ? price <= pos.sl : price >= pos.sl)) ||
+                (pos.tp && (pos.type === 'buy' ? price >= pos.tp : price <= pos.tp))) {
+                closePosition(pos.id);
+                closed = true;
+            }
+        }
+        if (!closed) updateUI();
+    }
+    
+    function updatePositionsTable() {
+        const body = document.getElementById('positions-table').querySelector('tbody');
+        body.innerHTML = '';
+        document.getElementById('position-count').textContent = positions.length;
+        positions.forEach(pos => {
+            const row = body.insertRow();
+            row.innerHTML = `
+                <td style="color: ${pos.type === 'buy' ? 'var(--buy-color)' : 'var(--sell-color)'}">${pos.type.toUpperCase()}</td>
+                <td>${pos.entryPrice.toFixed(2)}</td>
+                <td>${pos.sl ? pos.sl.toFixed(2) : '--'}</td>
+                <td>${pos.tp ? pos.tp.toFixed(2) : '--'}</td>
+                <td style="color: ${pos.pnl >= 0 ? 'var(--buy-color)' : 'var(--sell-color)'}">${pos.pnl.toFixed(2)}</td>
+                <td><button class="close-pos-btn" data-id="${pos.id}">X</button></td>
+            `;
+            row.querySelector('.close-pos-btn').onclick = () => closePosition(pos.id);
+        });
+    }
+    
+    function handleStepButtonClick(e) {
+        const target = e.target.closest('.step-button');
+        if (!target) return;
+        const input = document.getElementById(target.dataset.input);
+        const step = parseFloat(target.dataset.step);
+        if (input && ohlcData[currentIndex]) {
+            let val = parseFloat(input.value) || ohlcData[currentIndex].close;
+            input.value = (val + step * 0.5).toFixed(2);
+        }
+    }
+
+    const tutorialSteps = [
+        { id: 'challenge-info', text: '這裡是您的帳戶資訊，目標是透過交易來增加淨值。' },
+        { id: 'chart-canvas', text: '這是黃金(XAUUSD)的走勢圖，您可以拖曳平移、滾輪縮放。' },
+        { id: 'playback-controls', text: '您可以使用這些按鈕來控制時間流逝，播放、暫停或加速。' },
+        { id: 'bottom-panel', text: '這是交易面板。點擊「下一步」來學習如何下單。' },
+        { id: 'sell-btn', text: '如果您認為價格會下跌，點擊「賣出」。' },
+        { id: 'buy-btn', text: '如果您認為價格會上漲，點擊「買入」。祝您好運！' }
+    ];
+
+    function showTutorialStep(stepIndex) {
+        const overlay = document.getElementById('tutorial-overlay');
+        if (stepIndex >= tutorialSteps.length) {
+            overlay.style.display = 'none'; return;
+        }
+        tutorialStep = stepIndex;
+        const step = tutorialSteps[stepIndex];
+        const element = document.getElementById(step.id);
+        if (!element) { showTutorialStep(stepIndex + 1); return; }
+        
+        overlay.style.display = 'block';
+        const rect = element.getBoundingClientRect();
+        const highlight = document.getElementById('tutorial-highlight');
+        const box = document.getElementById('tutorial-box');
+        highlight.style.top = `${rect.top - 5}px`;
+        highlight.style.left = `${rect.left - 5}px`;
+        highlight.style.width = `${rect.width + 10}px`;
+        highlight.style.height = `${rect.height + 10}px`;
+        document.getElementById('tutorial-text').textContent = step.text;
+        
+        box.style.top = (rect.bottom + 15 + box.offsetHeight > window.innerHeight) ? `${rect.top - box.offsetHeight - 15}px` : `${rect.bottom + 15}px`;
+        box.style.left = `${Math.max(5, rect.left + rect.width / 2 - box.offsetWidth / 2)}px`;
+    }
+    
+    function showEndCard() {
+        const card = document.getElementById('end-card');
+        const equityEl = document.getElementById('final-equity');
+        equityEl.textContent = `$${account.equity.toFixed(2)}`;
+        equityEl.className = account.equity >= 10000 ? 'final-profit profit-positive' : 'final-profit profit-negative';
+        card.style.display = 'flex';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        chart = new TradingChart('chart-canvas');
+        document.getElementById('play-pause-btn').addEventListener('click', playPause);
+        document.getElementById('next-candle-btn').addEventListener('click', () => { pauseGame(); nextCandle(); });
+        document.getElementById('speed-selector').addEventListener('change', (e) => setSpeed(e.target.value));
+        document.getElementById('buy-btn').addEventListener('click', () => openPosition('buy'));
+        document.getElementById('sell-btn').addEventListener('click', () => openPosition('sell'));
+        document.querySelectorAll('.tab-button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+        document.getElementById('trade-panel').addEventListener('click', handleStepButtonClick);
+        document.getElementById('tutorial-next-btn').addEventListener('click', () => showTutorialStep(tutorialStep + 1));
+        document.getElementById('cta-button').addEventListener('click', (e) => { e.preventDefault(); window.open(e.target.href, '_blank'); });
+        loadDataAndStart();
+    });
     </script>
 </body>
 </html>
