@@ -152,35 +152,22 @@ html, body {
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.5);
   backdrop-filter: blur(4px); z-index: 9997;
-  display: flex; justify-content: center; align-items: flex-end;
+  display: flex; justify-content: center; align-items: center;
   opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
 }
 .modal-overlay.visible { opacity: 1; pointer-events: auto; }
 .modal-content {
-  width: 100%;
-  max-width: 420px;
-  background: var(--panel);
-  border-top-left-radius: 16px;
-  border-top-right-radius: 16px;
-  padding: 16px;
-  transform: translateY(100%);
-  transition: transform 0.3s ease;
+  width: min(90vw, 380px); background: var(--panel);
+  border: 1px solid var(--border-color); border-radius: 16px;
+  padding: 24px; text-align: center;
+  transform: scale(0.9); transition: transform 0.3s ease;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
 }
-.modal-overlay.visible .modal-content { transform: translateY(0); }
-.modal-header { font-weight: bold; margin-bottom: 16px; font-size: 18px; }
+.modal-overlay.visible .modal-content { transform: scale(1); }
+.modal-header { font-weight: bold; margin-bottom: 8px; font-size: 20px; }
 .modal-body .input-group { margin-bottom: 12px; text-align: left; }
-.modal-footer .btn { width: 100%; }
+.modal-footer .btn { width: 100%; margin-top: 8px; }
 
-.event-modal-content {
-    align-items: center;
-    width: min(90vw, 380px);
-    border-radius: 16px;
-    padding: 24px;
-    text-align: center;
-    transform: scale(0.9);
-    transition: transform 0.3s ease;
-}
-.modal-overlay.visible .event-modal-content { transform: scale(1); }
 .event-modal-icon { font-size: 48px; margin-bottom: 12px; }
 .event-modal-desc { color: var(--muted); margin-bottom: 20px; text-align: left; line-height: 1.6; }
 
@@ -270,7 +257,7 @@ html, body {
 const EVENTS = {
   "2025-01-03": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "俗稱「非農」的美國就業數據是市場最關注的指標之一。數據好壞將劇烈影響黃金價格，市場屏息以待！" },
   "2025-01-20": { time: "12:00", title: "🇺🇸 美國總統就職典禮", desc: "新任美國總統將於華盛頓特區宣誓就職。就職演說通常會概述新政府的施政藍圖，內容可能涉及國內外政策、經濟方向等，這些都可能成為市場關注的焦點。" },
-  "2025-01-30": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "歐洲央行管理委員會將召開貨幣政策會議並發布利率決策聲明。市場將關注其對歐元區經濟前景和通膨路徑的最新評估。" },
+  "2025-01-30": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "歐洲央行管理委員會將召開貨幣政策會議並發布利率決策聲明。市場將關注其對歐元区經濟前景和通膨路徑的最新評估。" },
   "2025-02-07": { time: "21:30", title: "�🇸 美國非農就業數據 (NFP)", desc: "本月非農數據公布，將再次考驗市場對美國經濟復甦力度的信心。" },
   "2025-03-05": { time: "10:00", title: "🇨🇳 中國全國人民代表大會年會開幕", desc: "中國將公布當年度的GDP增長目標、財政預算等主要經濟指標，並闡述相關政策方向。" },
   "2025-03-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "連續第三個月的非農數據，市場將尋找勞動力市場是否持續穩定的線索。" },
