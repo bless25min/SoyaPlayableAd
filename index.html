@@ -169,14 +169,14 @@ function makeConfetti(n=40){
 }
 
 function logEvent(kind, payload){
-  state.journal.push({t: state.bars[state.visible-1]?.t || '', kind, ...payload});
+  state.journal.push({t: ((state.bars[state.visible-1]||{}).t) || '', kind, ...payload});
   renderJournal();
 }
 function renderJournal(){
   const box=document.getElementById('journalBody'); if(!box) return;
   box.innerHTML = state.journal.slice(-100).reverse().map(j=>{
     const side = j.side ? (j.side==='LONG'?'多':'空') : '';
-    return \`<tr><td>\${j.t}</td><td>\${j.kind}</td><td>\${side}</td><td>\${j.price?.toFixed?j.price.toFixed(2):''}</td><td>\${j.size||''}</td><td>\${j.note||''}</td></tr>\`;
+    return \`<tr><td>\${j.t}</td><td>\${j.kind}</td><td>\${side}</td><td>\${Number.isFinite(j.price)? j.price.toFixed(2) : ''}</td><td>\${j.size||''}</td><td>\${j.note||''}</td></tr>\`;
   }).join('');
 }
 
@@ -202,7 +202,10 @@ function savePath(){ const s={}; PATH.nodes.forEach(n=> s[n.id]={done:n.done}); 
 function renderPath(){
   const g=document.getElementById('pathGrid'); if(!g) return;
   g.innerHTML = PATH.nodes.map(n=>{
-    const lock = n.dep.some(d=> !PATH.nodes.find(x=>x.id===d)?.done );
+    const lock = n.dep.some(d=> {
+      const node = PATH.nodes.find(x=>x.id===d);
+      return !(node && node.done);
+    });
     const st   = n.done ? '完成' : (lock?'鎖定':'可挑戰');
     return \`<div style="border:1px solid #dbe4ff;border-radius:12px;padding:10px;background:\${n.done?'#e8fff3':(lock?'#f2f5ff':'#ffffff')}">
       <div style="font-weight:700">\${n.title}</div>
@@ -394,7 +397,9 @@ function draw(){
     ctx.strokeStyle=color; ctx.setLineDash([5,4]);
     ctx.beginPath(); ctx.moveTo(0,y(p.entry)); ctx.lineTo(W,y(p.entry)); ctx.stroke();
     ctx.setLineDash([]); ctx.fillStyle=color; ctx.font='12px system-ui';
-    ctx.fillText(\`\${p.side} @ \${p.entry.toFixed(2)} | \${p.pnlR?.toFixed?p.pnlR.toFixed(2):'0.00'}R / $\${p.pnlUsd?.toFixed?p.pnlUsd.toFixed(2):'0.00'}\`, 20, 28+14*idx);
+    const rTxt = Number.isFinite(p.pnlR)   ? p.pnlR.toFixed(2)   : '0.00';
+    const uTxt = Number.isFinite(p.pnlUsd) ? p.pnlUsd.toFixed(2) : '0.00';
+    ctx.fillText(\`\${p.side} @ \${p.entry.toFixed(2)} | \${rTxt}R / $\${uTxt}\`, 20, 28+14*idx);
   });
 }
 
@@ -421,12 +426,12 @@ function goLive(){ state.view.offsetBar=0; state.view.userPanned=false; state.vi
 el('btnPlay').onclick=()=>togglePlay();
 el('btnStep').onclick=()=>stepOnce();
 el('btnLive').onclick=()=>goLive();
-window.addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault();togglePlay();} if(e.code==='ArrowRight'){stepOnce();} if(e.key?.toLowerCase?.()==='f') goLive(); });
+window.addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault();togglePlay();} if(e.code==='ArrowRight'){stepOnce();} if (e.key && typeof e.key.toLowerCase==='function' && e.key.toLowerCase()==='f') goLive(); });
 
 // ========== Inputs & risk preview ==========
 function num(v){ const x=parseFloat(v); return Number.isFinite(x)?x:NaN; }
 function getInputs(){ return { lots:num(el('lots').value), sl:num(el('slPrice').value), tp:num(el('tpPrice').value), pend:num(el('pendPrice').value) }; }
-function lastQuote(){ const mid = state.bars[state.visible-1]?.c ?? 0; const spr = 0.2; return { mid, bid: mid - spr/2, ask: mid + spr/2 }; }
+function lastQuote(){ const bar = state.bars[state.visible-1] || {}; const mid = bar.c ?? 0; const spr = 0.2; return { mid, bid: mid - spr/2, ask: mid + spr/2 }; }
 function computeRiskPreview(){
   const p=getInputs(), q=lastQuote();
   const lots=Number.isFinite(p.lots)?p.lots:0;
@@ -438,19 +443,19 @@ function computeRiskPreview(){
   el('riskSell').textContent = \`賣出停損：$\${rSell.toFixed(2)}\`;
   el('riskPend').textContent = \`掛單停損：$\${rPend.toFixed(2)}\`;
 }
-['lots','slPrice','tpPrice','pendPrice'].forEach(id=> el(id)?.addEventListener('input', computeRiskPreview));
+['lots','slPrice','tpPrice','pendPrice'].forEach(id=>{ const n=el(id); if(n) n.addEventListener('input', computeRiskPreview); });
 
 // ========== Orders / Positions ==========
 function renderPositions(){
   const box=document.getElementById('pane-pos'); if(!box) return;
-  if(!(state.positions?.length)){ box.innerHTML='<div style="color:#5b6b8b">目前無持倉</div>'; return; }
+  if(!(state.positions && state.positions.length)){ box.innerHTML='<div style="color:#5b6b8b">目前無持倉</div>'; return; }
   box.innerHTML = \`
     <table class="table">
       <thead><tr><th>方向</th><th>進場</th><th>SL</th><th>TP</th><th>手數</th><th>損益</th><th></th></tr></thead>
       <tbody>\${state.positions.map((p,i)=>{
         const sl = Number.isFinite(p.sl)?p.sl.toFixed(2):'';
         const tp = Number.isFinite(p.tp)?p.tp.toFixed(2):'';
-        const pnl = p.pnlUsd?.toFixed ? p.pnlUsd.toFixed(2) : '0.00';
+        const pnl = Number.isFinite(p.pnlUsd) ? p.pnlUsd.toFixed(2) : '0.00';
         return \`<tr><td>\${p.side==='LONG'?'多':'空'}</td><td>\${p.entry.toFixed(2)}</td><td>\${sl}</td><td>\${tp}</td><td>\${p.size}</td><td>\${pnl}</td><td><button class="btn" data-i="\${i}">×</button></td></tr>\`;
       }).join('')}</tbody>
     </table>\`;
@@ -471,9 +476,9 @@ function openMarket(side){
   const sl = p.sl, tp = Number.isFinite(p.tp)? p.tp : null;
   const chk=validBrackets(side, entry, sl, tp);
   if(!chk.ok){ if(!chk.okSL) toast('停損價不合理'); if(!chk.okTP) toast('停利價不合理'); return; }
-  state.positions.push({ id:Date.now()+Math.random(), side, entry, sl, tp, size:p.lots, R0:Math.abs(entry-sl), pnlUsd:0, pnlR:0, status:'open', openTime: state.bars[state.visible-1]?.t||'' });
+  state.positions.push({ id:Date.now()+Math.random(), side, entry, sl, tp, size:p.lots, R0:Math.abs(entry-sl), pnlUsd:0, pnlR:0, status:'open', openTime: ((state.bars[state.visible-1]||{}).t)||'' });
   logEvent('開倉',{side,price:entry,size:p.lots});
-  navigator.vibrate?.(10);
+  if(navigator.vibrate) navigator.vibrate(10);
   if(p.lots>0) completeNode('lots');
   if(Number.isFinite(p.sl)) completeNode('setSL');
   completeNode('mktOpen');
@@ -492,19 +497,19 @@ function placePending(side){
   const chk=validBrackets(side, p.pend, sl, tp);
   if(!chk.ok){ if(!chk.okSL) toast('停損價不合理'); if(!chk.okTP) toast('停利價不合理'); return; }
   state.orders.push({ id:Date.now()+Math.random(), side, type, price:p.pend, sl, tp, size:p.lots });
-  navigator.vibrate?.(10);
+  if(navigator.vibrate) navigator.vibrate(10);
   if(p.lots>0) completeNode('lots');
   if(Number.isFinite(p.sl)) completeNode('setSL');
   toast(\`\${side==='LONG'?'掛單買入':'掛單賣出'} \${type} @ \${p.pend.toFixed(2)} 已建立\`);
 }
 function updateOrders(){
-  if(!state.orders?.length) return;
+  if(!(state.orders && state.orders.length)) return;
   const q=lastQuote(); const keep=[];
   for(const o of state.orders){
     const hit = (o.side==='LONG') ? (o.type==='LIMIT' ? q.ask<=o.price : q.ask>=o.price) : (o.type==='LIMIT' ? q.bid>=o.price : q.bid<=o.price);
     if(hit){
       const entry=(o.side==='LONG')?q.ask:q.bid;
-      state.positions.push({ id:Date.now()+Math.random(), side:o.side, entry, sl:o.sl, tp:o.tp, size:o.size, R0:Math.abs(entry-o.sl), pnlUsd:0, pnlR:0, status:'open', openTime: state.bars[state.visible-1]?.t||'' });
+      state.positions.push({ id:Date.now()+Math.random(), side:o.side, entry, sl:o.sl, tp:o.tp, size:o.size, R0:Math.abs(entry-o.sl), pnlUsd:0, pnlR:0, status:'open', openTime: ((state.bars[state.visible-1]||{}).t)||'' });
       logEvent('掛單觸發',{side:o.side,price:entry,size:o.size}); completeNode('pend');
     } else keep.push(o);
   }
@@ -534,9 +539,21 @@ function closePosition(idx, exit, reason='手動'){
   account.balance += pnlUsd; account.equity = account.balance;
   state.positions.splice(idx,1);
   logEvent('平倉',{side:p.side,price:fill,size:p.size,note:reason});
-  navigator.vibrate?.(10);
-  if(pnlUsd>0){ makeConfetti(50); sfx(1200,150); document.querySelector('.orderDock')?.classList.add('profitPulse'); setTimeout(()=>document.querySelector('.orderDock')?.classList.remove('profitPulse'), 900); }
-  else{ const cw=document.getElementById('chartWrap'); cw?.classList.add('lossShake','lossFlash'); setTimeout(()=>cw?.classList.remove('lossShake','lossFlash'), 600); sfx(220,200,.18); }
+  if(navigator.vibrate) navigator.vibrate(10);
+  if(pnlUsd>0){
+    makeConfetti(50); sfx(1200,150);
+    const od=document.querySelector('.orderDock');
+    if(od) od.classList.add('profitPulse');
+    setTimeout(()=>{ const od2=document.querySelector('.orderDock'); if(od2) od2.classList.remove('profitPulse'); }, 900);
+  }
+  else{
+    const cw=document.getElementById('chartWrap');
+    if(cw){
+      cw.classList.add('lossShake','lossFlash');
+      setTimeout(()=>{ cw.classList.remove('lossShake','lossFlash'); }, 600);
+    }
+    sfx(220,200,.18);
+  }
   if(pnlUsd>0) completeNode('profit');
   recalcAccount(); renderPositions();
   if(state.tour.enabled && state.tour.step===3){ state.tour.step++; guideNext();
@@ -575,7 +592,7 @@ function guideNext(){
   document.querySelectorAll('button,input').forEach(e=>{ e.disabled=true; e.classList.add('tour-disabled'); });
   if(s.enable){ s.enable.forEach(sel=>{ document.querySelectorAll(sel).forEach(e=>e.disabled=false); }); }
   document.querySelectorAll('.tour-hi').forEach(e=>e.classList.remove('tour-hi'));
-  const target=document.querySelector(s.el); target?.classList.add('tour-hi');
+  const target=document.querySelector(s.el); if(target) target.classList.add('tour-hi');
   const r = target.getBoundingClientRect();
   m.style.display=t.style.display='block';
   t.style.left=\`\${r.left}px\`; t.style.top=\`\${r.bottom+8}px\`;
