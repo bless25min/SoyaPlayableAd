@@ -143,6 +143,29 @@ html, body {
 .position-item .pnl-down { color: var(--danger); }
 .position-item .close-btn { padding: 6px; font-size: 12px; background: var(--border-color); }
 
+/* --- 彈窗 --- */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.5);
+  backdrop-filter: blur(4px); z-index: 9997;
+  display: flex; justify-content: center; align-items: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+}
+.modal-overlay.visible { opacity: 1; pointer-events: auto; }
+.modal-content {
+  width: min(90vw, 380px); background: var(--panel);
+  border: 1px solid var(--border-color); border-radius: 16px;
+  padding: 24px; text-align: center;
+  transform: scale(0.9); transition: transform 0.3s ease;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+.modal-overlay.visible .modal-content { transform: scale(1); }
+.modal-header { font-weight: bold; margin-bottom: 8px; font-size: 20px; }
+.modal-body .input-group { margin-bottom: 12px; text-align: left; }
+.modal-footer .btn { width: 100%; margin-top: 8px; }
+
+.event-modal-icon { font-size: 48px; margin-bottom: 12px; }
+.event-modal-desc { color: var(--muted); margin-bottom: 20px; text-align: left; line-height: 1.6; }
+
 </style>
 </head>
 <body>
@@ -200,7 +223,12 @@ html, body {
 
 <!-- Event Modal (unchanged) -->
 <div id="eventModal" class="modal-overlay">
-    <!-- ... -->
+    <div class="modal-content event-modal-content">
+      <div class="event-modal-icon">📰</div>
+      <h2 class="modal-header" id="event-title"></h2>
+      <p class="event-modal-desc" id="event-desc"></p>
+      <button class="btn" id="event-continue-btn">繼續</button>
+    </div>
 </div>
 
 <script>
@@ -208,12 +236,12 @@ html, body {
 const EVENTS = {
   "2025-01-03": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "俗稱「非農」的美國就業數據是市場最關注的指標之一。數據好壞將劇烈影響黃金價格，市場屏息以待！" },
   "2025-01-20": { time: "12:00", title: "🇺🇸 美國總統就職典禮", desc: "新任美國總統將於華盛頓特區宣誓就職。就職演說通常會概述新政府的施政藍圖，內容可能涉及國內外政策、經濟方向等，這些都可能成為市場關注的焦點。" },
-  "2025-01-30": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "歐洲央行管理委員會將召開貨幣政策會議並發布利率決策聲明。市場將關注其對歐元區經濟前景和通膨路徑的最新評估。" },
+  "2025-01-30": { time: "20:45", title: "�🇺 歐洲央行 (ECB) 利率決策會議", desc: "歐洲央行管理委員會將召開貨幣政策會議並發布利率決策聲明。市場將關注其對歐元区經濟前景和通膨路徑的最新評估。" },
   "2025-02-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "本月非農數據公布，將再次考驗市場對美國經濟復甦力度的信心。" },
   "2025-03-05": { time: "10:00", title: "🇨🇳 中國全國人民代表大會年會開幕", desc: "中國將公布當年度的GDP增長目標、財政預算等主要經濟指標，並闡述相關政策方向。" },
   "2025-03-07": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "連續第三個月的非農數據，市場將尋找勞動力市場是否持續穩定的線索。" },
   "2025-03-19": { time: "03:00", title: "🇺🇸 聯準會利率決策 (FOMC)", desc: "聯準會將發布利率決策，會議將包含最新的經濟預測摘要 (SEP) 和「點陣圖」，揭示未來利率路徑預期。" },
-  "2025-04-04": { time: "21:30", title: "�🇸 美國非農就業數據 (NFP)", desc: "第二季度的首次非農報告，將為市場對上半年的經濟預測定下基調。" },
+  "2025-04-04": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "第二季度的首次非農報告，將為市場對上半年的經濟預測定下基調。" },
   "2025-04-10": { time: "20:45", title: "🇪🇺 歐洲央行 (ECB) 利率決策會議", desc: "在第一季經濟數據公布之後，市場將關注歐洲央行是否會根據最新數據調整其貨幣政策立場。" },
   "2025-04-21": { time: "09:00", title: "IMF 《世界經濟展望》報告", desc: "國際貨幣基金組織將更新對全球主要經濟體的增長預測，並分析全球面臨的潛在風險。" },
   "2025-05-02": { time: "21:30", title: "🇺🇸 美國非農就業數據 (NFP)", desc: "春季的就業市場表現如何？本次非農數據將提供關鍵答案。" },
@@ -227,10 +255,7 @@ const EVENTS = {
   "2025-08-15": { time: "12:00", title: "🇮🇳 印度獨立紀念日", desc: "印度總理將發表演說，闡述未來政府的施政重點，尤其是在經濟發展和外交政策方面。" }
 };
 
-// ... (CONFIG, state, el, loadData, parseOHLC, 遊戲流程, 交易邏輯, UI 更新, 互動控制等函數與前版相同，此處省略以保持簡潔)
-// ... The full JS code is provided below to ensure completeness
-
-// ===== 完整 JAVASCRIPT =====
+// ===== 遊戲設定 =====
 const CONFIG = {
   gameDurationMonths: 1,
   minBarsInView: 20,
@@ -238,10 +263,12 @@ const CONFIG = {
   initialBalance: 10000,
 };
 
+// ===== 遊戲狀態與 DOM 元素 =====
 let state = {};
 const el = id => document.getElementById(id);
 let canvas, ctx, chartWrap, btnBuy, btnSell, eventModal, eventTitle, eventDesc, priceLinesContainer, priceAxisEl;
 
+// ===== 數據處理 =====
 function loadData() {
   return new Promise(async (resolve) => {
     try {
@@ -274,6 +301,7 @@ function parseOHLC(text) {
   }).filter(Boolean);
 }
 
+// ===== 遊戲流程 =====
 function startGame() {
   if (!state.fullDataset || state.fullDataset.length < 200) {
       alert("市場數據不足或載入失敗，無法開始遊戲。");
@@ -404,6 +432,7 @@ function resumeGame() {
     el('play-pause-btn').textContent = '❚❚';
 }
 
+// ===== 交易邏輯 =====
 function openOrder(side) {
     const lots = parseFloat(el('lots').value);
     const sl = parseFloat(el('slPrice').value) || null;
@@ -443,6 +472,7 @@ function updatePositions() {
     state.account.equity = state.account.balance + totalPnl;
 }
 
+// ===== UI 更新 =====
 function updateHUD() {
     const currentDate = state.gameData[state.currentBarIndex]?.date;
     if(currentDate) el('current-date').textContent = currentDate.toISOString().slice(0, 10);
@@ -492,6 +522,7 @@ function updateUpcomingEvent() {
     }
 }
 
+// ===== 繪圖 =====
 function draw(animationProgress = 1) {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
@@ -512,6 +543,7 @@ function draw(animationProgress = 1) {
   const barWidth = W / state.view.barsInView;
   const y = v => H - ((v - yMin) / (yMax - yMin) * H);
   
+  // 繪製日期分隔線
   let lastDateStr = '';
   for (let i = startIdx; i < endIdx; i++) {
     if (i < 0 || i >= state.currentBarIndex + 1) continue;
@@ -527,12 +559,15 @@ function draw(animationProgress = 1) {
     }
     lastDateStr = currentDateStr;
   }
+
+  // 繪製 K 棒
   for (let i = 0; i < dataInView.length; i++) {
     const barIndex = startIdx + i;
     const b = dataInView[i];
     const x = (barIndex - state.view.offset) * barWidth + barWidth / 2;
     const isLastBar = barIndex === state.currentBarIndex;
     
+    // 動畫邏輯
     const progress = isLastBar ? animationProgress : 1;
     const up = b.c >= b.o;
     const openY = y(b.o);
@@ -564,6 +599,7 @@ function draw(animationProgress = 1) {
     ctx.fillRect(x - w / 2, Math.min(openY, closeY), w, Math.max(1, Math.abs(openY - closeY)));
   }
   
+  // 繪製持倉線
   state.positions.forEach(p => {
     const entryY = y(p.entryPrice);
     ctx.strokeStyle = p.side === 'buy' ? 'var(--good)' : 'var(--danger)';
@@ -575,6 +611,7 @@ function draw(animationProgress = 1) {
   });
 }
 
+// ===== 互動控制 =====
 function setupInteraction() {
     el('zoom-in').onclick = () => handleZoom(1);
     el('zoom-out').onclick = () => handleZoom(-1);
@@ -604,7 +641,10 @@ function clampOffset(isUserAction = false) {
     state.view.offset = Math.max(0, Math.min(state.view.offset, maxOffset));
 }
 
+
+// ===== 初始化 =====
 async function init() {
+  // DOM 元素現在可以安全獲取
   canvas = el('chart');
   ctx = canvas.getContext('2d');
   chartWrap = el('chartWrap');
@@ -618,7 +658,7 @@ async function init() {
   const dataLoaded = await loadData();
   
   if (dataLoaded) {
-    el('btnBuy').addEventListener('click', () => {
+    btnBuy.addEventListener('click', () => {
         pauseGame();
         const orderModal = el('orderModal');
         const orderTitle = el('order-title');
@@ -628,7 +668,7 @@ async function init() {
         confirmOrderBtn.onclick = () => { openOrder('buy'); orderModal.classList.remove('visible'); };
         orderModal.classList.add('visible');
     });
-    el('btnSell').addEventListener('click', () => {
+    btnSell.addEventListener('click', () => {
         pauseGame();
         const orderModal = el('orderModal');
         const orderTitle = el('order-title');
