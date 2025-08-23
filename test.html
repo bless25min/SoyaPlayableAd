@@ -79,7 +79,7 @@ html, body {
   border-top: 1px solid var(--border-color);
 }
 .main-actions {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  display: grid; grid-template-columns: 1fr 1fr 80px; gap: 12px;
 }
 .main-actions .btn {
   padding: 14px; font-size: 16px; font-weight: bold;
@@ -88,6 +88,7 @@ html, body {
 }
 .btn.buy { background: var(--good); color: white; }
 .btn.sell { background: var(--danger); color: white; }
+.btn.manage { background: var(--panel-soft); color: var(--text); }
 .btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -108,23 +109,26 @@ html, body {
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.5);
   backdrop-filter: blur(4px); z-index: 9997;
-  display: flex; justify-content: center; align-items: center;
+  display: flex; justify-content: center; align-items: flex-end;
   opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
 }
 .modal-overlay.visible { opacity: 1; pointer-events: auto; }
 .modal-content {
-  width: min(90vw, 380px); background: var(--panel);
-  border: 1px solid var(--border-color); border-radius: 16px;
-  padding: 24px; text-align: center;
-  transform: scale(0.9); transition: transform 0.3s ease;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 420px;
+  background: var(--panel);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  padding: 16px;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
 }
-.modal-overlay.visible .modal-content { transform: scale(1); }
-.modal-header { font-weight: bold; margin-bottom: 8px; font-size: 20px; }
+.modal-overlay.visible .modal-content { transform: translateY(0); }
+.modal-header { font-weight: bold; margin-bottom: 16px; font-size: 18px; }
 .modal-body .input-group { margin-bottom: 12px; text-align: left; }
 .input-group label { font-size: 12px; color: var(--muted); margin-bottom: 4px; display: block; }
 .input-group input { width: 100%; background: var(--bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; color: var(--text); font-size: 16px; }
-.modal-footer .btn { width: 100%; margin-top: 8px; }
+.modal-footer .btn { width: 100%; }
 
 #positions-list { max-height: 40vh; overflow-y: auto; }
 .position-item { background: var(--panel-soft); padding: 10px; border-radius: 8px; margin-bottom: 8px; display: grid; grid-template-columns: 40px 1fr 1fr 70px; align-items: center; gap: 8px; }
@@ -205,8 +209,46 @@ html, body {
 
 <script>
 // ===== 財經事件數據 =====
-const EVENTS = { /* ... 省略 ... */ };
-const EVENT_DESCRIPTIONS = { /* ... 省略 ... */ };
+const EVENTS = {
+  "2025-01-03": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
+  "2025-01-15": { time: "21:30", text: "🇺🇸 美國消費者物價指數 (CPI)", type: "CPI" },
+  "2025-01-23": { time: "20:45", text: "🇪🇺 歐洲央行利率決議 (ECB)", type: "ECB" },
+  "2025-01-29": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
+  "2025-02-07": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
+  "2025-02-14": { time: "21:30", text: "🇺🇸 美國零售銷售數據", type: "Retail" },
+  "2025-02-27": { time: "21:30", text: "🇺🇸 美國 GDP 數據", type: "GDP" },
+  "2025-03-07": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
+  "2025-03-13": { time: "20:45", text: "🇪🇺 歐洲央行利率決議 (ECB)", type: "ECB" },
+  "2025-03-19": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
+  "2025-04-04": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
+  "2025-04-16": { time: "21:30", text: "🇺🇸 美國消費者物價指數 (CPI)", type: "CPI" },
+  "2025-04-20": { time: "10:00", text: "🌏 G7 財長會議", type: "Geopolitical" },
+  "2025-05-01": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
+  "2025-05-02": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
+  "2025-05-15": { time: "09:30", text: "🇺🇸 白宮宣布對華新一輪關稅清單", type: "Geopolitical" },
+  "2025-06-06": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
+  "2025-06-12": { time: "20:45", text: "🇪🇺 歐洲央行利率決議 (ECB)", type: "ECB" },
+  "2025-06-19": { time: "03:00", text: "�🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
+  "2025-07-04": { time: "00:00", text: "🇺🇸 美國獨立紀念日 (美股休市)", type: "Holiday" },
+  "2025-07-16": { time: "21:30", text: "🇺🇸 美國消費者物價指數 (CPI)", type: "CPI" },
+  "2025-07-22": { time: "22:00", text: "🇺🇸 美國總統發表重要經濟演說", type: "Geopolitical" },
+  "2025-07-31": { time: "03:00", text: "🇺🇸 聯準會利率決議 (FOMC)", type: "FOMC" },
+  "2025-08-01": { time: "21:30", text: "🇺🇸 美國非農就業數據 (NFP)", type: "NFP" },
+  "2025-08-15": { time: "21:30", text: "🇺🇸 美國零售銷售數據", type: "Retail" },
+  "2025-08-28": { time: "22:00", text: "🌏 傑克森霍爾全球央行年會", type: "Geopolitical" },
+};
+
+const EVENT_DESCRIPTIONS = {
+    "NFP": "今晚將公布俗稱「非農」的美國就業數據，這是市場最關注的指標之一。數據好壞將劇烈影響黃金價格，市場屏息以待！",
+    "CPI": "通膨數據 CPI 即將出爐！這個數字將決定聯準會的下一步棋。高於預期可能導致金價下跌，反之則可能上漲。",
+    "FOMC": "凌晨三點，聯準會將宣布最新的利率決策。主席鮑威爾的發言更是焦點中的焦點，任何鷹派或鴿派的暗示都可能引發市場巨震。",
+    "Retail": "零售銷售數據是觀察消費支出的重要窗口，強勁的數據可能提振美元，對金價造成壓力。",
+    "GDP": "美國 GDP 數據公布在即，這是衡量經濟健康狀況的終極指標。結果將影響市場對未來利率路徑的預期。",
+    "ECB": "歐洲央行將舉行利率決策會議。其對歐元區的通膨和經濟展望，將間接影響美元強弱，從而牽動黃金。",
+    "Geopolitical": "地緣政治風險升溫！市場避險情緒高漲，黃金作為傳統避險資產，其價格可能出現劇烈波動。",
+    "Holiday": "今日因市場假日休市，交易量可能較為清淡，但需留意流動性不足可能引發的突發波動。",
+    "DEFAULT": "市場正處於關鍵時刻，多空雙方激烈交戰。請根據眼前的線索，做出你的判斷！"
+};
 
 // ===== 遊戲設定 =====
 const CONFIG = {
@@ -217,34 +259,75 @@ const CONFIG = {
 };
 
 // ===== 遊戲狀態與 DOM 元素 =====
-let state = {};
+let state = {
+    fullDataset: [],
+    gameData: [],
+    currentBarIndex: 0,
+    positions: [],
+    account: { balance: CONFIG.initialBalance, equity: CONFIG.initialBalance },
+    isPaused: true,
+    gameTimer: null,
+    animationSpeed: 25,
+    view: { barsInView: 100, offset: 0 },
+    pan: { isPanning: false, startX: 0, startOffset: 0 }
+};
 const el = id => document.getElementById(id);
 const canvas = el('chart'), ctx = canvas.getContext('2d');
-// ... (省略其他 DOM 元素獲取)
+const chartWrap = el('chartWrap');
+const btnBuy = el('btnBuy'), btnSell = el('btnSell'), btnManage = el('btnManage');
+const orderModal = el('orderModal'), orderTitle = el('order-title'), confirmOrderBtn = el('confirmOrderBtn');
+const positionsModal = el('positionsModal');
 
 // ===== 數據處理 =====
-async function loadData() { /* ... 省略 ... */ }
-function parseOHLC(text) { /* ... 省略 ... */ }
-
-// ===== 遊戲流程 =====
-function resetState() {
-    state = {
-        fullDataset: state.fullDataset,
-        gameData: [],
-        currentBarIndex: 0,
-        positions: [],
-        account: { balance: CONFIG.initialBalance, equity: CONFIG.initialBalance },
-        isPaused: true,
-        gameTimer: null,
-        animationSpeed: 25, // 預設速度
-        view: { barsInView: 100, offset: 0 },
-        pan: { isPanning: false, startX: 0, startOffset: 0 }
-    };
+async function loadData() {
+  try {
+    const response = await fetch('XAUUSD_M15.csv');
+    if (!response.ok) throw new Error('Network response was not ok');
+    const text = await response.text();
+    state.fullDataset = parseOHLC(text);
+  } catch (error) {
+    console.error("無法載入或解析 CSV 數據:", error);
+    el('game-title').textContent = "錯誤";
+    el('game-subtitle').textContent = "無法載入市場數據，請刷新頁面。";
+  }
 }
 
+function parseOHLC(text) {
+  const lines = text.split(/\r?\n/).filter(l => l && !/^\s*$/.test(l));
+  if (lines.length < 2) return [];
+  return lines.slice(1).map(line => {
+    const parts = line.split('\t');
+    if (parts.length < 6) return null;
+    const dateStr = parts[0].replace(/\./g, '-');
+    const timeStr = parts[1];
+    return {
+      date: new Date(`${dateStr}T${timeStr}`),
+      o: parseFloat(parts[2]), h: parseFloat(parts[3]),
+      l: parseFloat(parts[4]), c: parseFloat(parts[5]),
+    };
+  }).filter(Boolean);
+}
+
+// ===== 遊戲流程 =====
 function startGame() {
-  if (state.fullDataset.length < 200) return;
-  resetState();
+  if (!state.fullDataset || state.fullDataset.length < 200) {
+      el('game-title').textContent = "數據錯誤";
+      el('game-subtitle').textContent = "市場數據不足或載入失敗，無法開始遊戲。";
+      console.error("數據不足，無法開始遊戲");
+      return;
+  }
+  
+  // 重置狀態
+  state.gameData = [];
+  state.currentBarIndex = 0;
+  state.positions = [];
+  state.account = { balance: CONFIG.initialBalance, equity: CONFIG.initialBalance };
+  state.isPaused = true;
+  clearInterval(state.gameTimer);
+  state.animationSpeed = 25;
+  state.view = { barsInView: 100, offset: 0 };
+  state.pan = { isPanning: false, startX: 0, startOffset: 0 };
+
 
   const minStartDate = new Date('2025-01-01T00:00:00');
   const maxStartDate = new Date('2025-07-15T00:00:00');
@@ -273,16 +356,17 @@ function startGame() {
 function gameLoop() {
     if (state.isPaused) return;
     
-    // 檢查事件
     const bar = state.gameData[state.currentBarIndex];
-    const dateStr = bar.date.toISOString().slice(0, 10);
-    if (EVENTS[dateStr] && bar.date.getUTCHours() * 60 + bar.date.getUTCMinutes() >= parseInt(EVENTS[dateStr].time.split(':')[0]) * 60) {
+    if (bar) {
+        const dateStr = bar.date.toISOString().slice(0, 10);
         const event = EVENTS[dateStr];
-        if (!event.triggered) {
-            pauseGame();
-            showEventModal(event);
-            event.triggered = true; // 標記已觸發
-            return;
+        if (event && bar.date.getUTCHours() * 60 + bar.date.getUTCMinutes() >= parseInt(event.time.split(':')[0]) * 60) {
+            if (!event.triggered) {
+                pauseGame();
+                showEventModal(event);
+                event.triggered = true;
+                return;
+            }
         }
     }
 
@@ -306,85 +390,12 @@ function pauseGame() {
 
 function resumeGame() {
     state.isPaused = false;
-    clearInterval(state.gameTimer); // 清除舊的以防萬一
+    clearInterval(state.gameTimer);
     state.gameTimer = setInterval(gameLoop, state.animationSpeed);
     el('play-pause-btn').textContent = '❚❚';
 }
 
 // ===== 交易邏輯 =====
-function openOrder(side) { /* ... 省略 ... */ }
-function closePosition(positionId) { /* ... 省略 ... */ }
-function updatePositions() { /* ... 省略 ... */ }
-
-// ===== UI 更新 =====
-function updateHUD() { /* ... 省略 ... */ }
-function updatePositionsList() { /* ... 省略 ... */ }
-function showEventModal(event) {
-    el('event-title').textContent = event.text;
-    el('event-desc').textContent = EVENT_DESCRIPTIONS[event.type] || "";
-    el('eventModal').classList.add('visible');
-}
-
-// ===== 繪圖 =====
-function draw() { /* ... 省略 ... */ }
-
-// ===== 互動控制 =====
-function setupInteraction() {
-    // 播放控制
-    el('play-pause-btn').addEventListener('click', () => {
-        state.isPaused ? resumeGame() : pauseGame();
-    });
-    el('speed-controls').addEventListener('click', (e) => {
-        if (e.target.classList.contains('speed-btn')) {
-            document.querySelector('.speed-btn.active').classList.remove('active');
-            e.target.classList.add('active');
-            state.animationSpeed = parseInt(e.target.dataset.speed);
-            if (!state.isPaused) { // 如果正在播放，則重設計時器以應用新速度
-                resumeGame();
-            }
-        }
-    });
-
-    // 下單時暫停
-    el('btnBuy').addEventListener('click', () => {
-        pauseGame();
-        // ... (原有的下單面板邏輯)
-    });
-    el('btnSell').addEventListener('click', () => {
-        pauseGame();
-        // ... (原有的下單面板邏輯)
-    });
-    el('orderModal').addEventListener('click', (e) => {
-        if (e.target.id === 'confirmOrderBtn' || e.target === el('orderModal')) {
-            // 點擊確認或關閉時，不自動播放，讓玩家手動控制
-            el('orderModal').classList.remove('visible');
-        }
-    });
-    
-    // 事件彈窗
-    el('event-continue-btn').addEventListener('click', () => {
-        el('eventModal').classList.remove('visible');
-        resumeGame();
-    });
-
-    // ... (原有的縮放和拖曳邏輯)
-}
-
-// ===== 初始化 =====
-async function init() {
-  await loadData();
-  setupInteraction();
-  startGame();
-}
-
-init();
-
-// ===== 為了讓程式碼能執行，補上所有省略的函數 =====
-const chartWrap = el('chartWrap');
-const btnBuy = el('btnBuy'), btnSell = el('btnSell'), btnManage = el('btnManage');
-const orderModal = el('orderModal'), orderTitle = el('order-title'), confirmOrderBtn = el('confirmOrderBtn');
-const positionsModal = el('positionsModal');
-
 function openOrder(side) {
     const lots = parseFloat(el('lots').value);
     const sl = parseFloat(el('slPrice').value) || null;
@@ -423,6 +434,8 @@ function updatePositions() {
     }
     state.account.equity = state.account.balance + totalPnl;
 }
+
+// ===== UI 更新 =====
 function updateHUD() {
     const currentDate = state.gameData[state.currentBarIndex]?.date;
     if(currentDate) el('current-date').textContent = currentDate.toISOString().slice(0, 10);
@@ -445,6 +458,13 @@ function updatePositionsList() {
         return `<div class="position-item"><span class="side-${p.side}">${p.side === 'buy' ? '買入' : '賣出'}</span><div>${p.lots} 手 @ ${p.entryPrice.toFixed(2)}</div><div class="${pnlClass}">${p.pnl.toFixed(2)}</div><button class="btn close-btn" onclick="closePosition(${p.id})">平倉</button></div>`;
     }).join('');
 }
+function showEventModal(event) {
+    el('event-title').textContent = event.text;
+    el('event-desc').textContent = EVENT_DESCRIPTIONS[event.type] || "";
+    el('eventModal').classList.add('visible');
+}
+
+// ===== 繪圖 =====
 function draw() {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
@@ -501,6 +521,23 @@ function draw() {
     ctx.setLineDash([]);
   });
 }
+
+// ===== 互動控制 =====
+function setupInteraction() {
+    el('zoom-in').onclick = () => handleZoom(1);
+    el('zoom-out').onclick = () => handleZoom(-1);
+    chartWrap.addEventListener('wheel', e => { e.preventDefault(); handleZoom(e.deltaY < 0 ? 1 : -1); }, { passive: false });
+    const startPan = (x) => { state.pan.isPanning = true; state.pan.startX = x; state.pan.startOffset = state.view.offset; };
+    const movePan = (x) => { if (!state.pan.isPanning) return; const dx = x - state.pan.startX; const barWidth = chartWrap.clientWidth / state.view.barsInView; state.view.offset = state.pan.startOffset - dx / barWidth; clampOffset(); draw(); };
+    const endPan = () => { state.pan.isPanning = false; };
+    chartWrap.addEventListener('mousedown', e => startPan(e.clientX));
+    chartWrap.addEventListener('mousemove', e => movePan(e.clientX));
+    chartWrap.addEventListener('mouseup', endPan);
+    chartWrap.addEventListener('mouseleave', endPan);
+    chartWrap.addEventListener('touchstart', e => startPan(e.touches[0].clientX), { passive: true });
+    chartWrap.addEventListener('touchmove', e => movePan(e.touches[0].clientX), { passive: true });
+    chartWrap.addEventListener('touchend', endPan);
+}
 function handleZoom(direction) {
     const oldBarsInView = state.view.barsInView;
     const newBarsInView = direction > 0 ? Math.max(CONFIG.minBarsInView, oldBarsInView / 1.5) : Math.min(CONFIG.maxBarsInView, oldBarsInView * 1.5);
@@ -514,6 +551,45 @@ function clampOffset() {
     state.view.offset = Math.max(0, Math.min(state.view.offset, state.currentBarIndex - state.view.barsInView / 2));
 }
 
+// ===== 初始化 =====
+async function init() {
+  await loadData();
+  
+  el('btnBuy').addEventListener('click', () => {
+      pauseGame();
+      el('order-title').textContent = '建立買入訂單';
+      el('confirmOrderBtn').className = 'btn buy';
+      el('confirmOrderBtn').onclick = () => { openOrder('buy'); el('orderModal').classList.remove('visible'); };
+      el('orderModal').classList.add('visible');
+  });
+  el('btnSell').addEventListener('click', () => {
+      pauseGame();
+      el('order-title').textContent = '建立賣出訂單';
+      el('confirmOrderBtn').className = 'btn sell';
+      el('confirmOrderBtn').onclick = () => { openOrder('sell'); el('orderModal').classList.remove('visible'); };
+      el('orderModal').classList.add('visible');
+  });
+  el('btnManage').addEventListener('click', () => {
+      pauseGame();
+      updatePositionsList();
+      el('positionsModal').classList.add('visible');
+  });
+  
+  document.querySelectorAll('.modal-overlay').forEach(modal => {
+      modal.addEventListener('click', (e) => {
+          if (e.target === modal) {
+              modal.classList.remove('visible');
+          }
+      });
+  });
+
+  setupInteraction();
+  startGame();
+}
+
+init();
+
 </script>
 </body>
 </html>
+�
