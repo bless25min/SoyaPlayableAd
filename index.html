@@ -471,14 +471,13 @@
         // --- CLASSES ---
 
         class TradingChart {
-            // ... (The rest of your class implementation)
-            // No changes needed inside the class itself.
              constructor(canvasId) {
                 this.canvas = document.getElementById(canvasId);
                 this.ctx = this.canvas.getContext('2d');
 
                 this.ohlcData = [];
                 this.animations = [];
+                this.visibleCandles = []; // *** FIX: Initialize to empty array ***
 
                 this.candleWidth = 8;
                 this.candleSpacing = 4;
@@ -576,6 +575,8 @@
 
 
             drawDateSeparators() {
+                if (!this.visibleCandles || this.visibleCandles.length === 0) return; // Defensive check
+
                 this.ctx.strokeStyle = '#e0e0e0';
                 this.ctx.lineWidth = 1;
                 this.ctx.font = '12px Arial';
@@ -612,6 +613,8 @@
             }
 
             drawCandles() {
+                if (!this.visibleCandles || this.visibleCandles.length === 0) return; // Defensive check
+
                 const totalCandleWidth = (this.candleWidth + this.candleSpacing) * this.zoom;
                 
                 this.visibleCandles.forEach((candle, i) => {
@@ -666,6 +669,8 @@
                 this.ctx.fillStyle = '#333';
                 this.ctx.font = '12px Arial';
                 
+                if (this.maxPrice === -Infinity) return; // Don't draw if no price range
+
                 const priceRange = this.maxPrice - this.minPrice;
                 const numTicks = 8;
                 for (let i = 0; i <= numTicks; i++) {
