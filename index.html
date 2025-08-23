@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>XAUUSD 交易模擬挑戰 (Playable Ad Rework V2)</title>
+    <title>XAUUSD 交易模擬挑戰 (Playable Ad Rework V3)</title>
     <style>
         /* 1. Reset & Variables */
         :root {
@@ -24,8 +24,8 @@
             /* Chart Specific */
             --chart-bg: #ffffff;
             --chart-grid: #f0f0f0;
-            --chart-date-separator: #cccccc; /* Color for date separator lines */
-            --chart-crosshair: #999999;
+            --chart-date-separator: #cccccc;
+            --chart-crosshair: #777777; /* Darker for better visibility */
             --color-bull: #26a69a; /* Green for Up */
             --color-bear: #ef5350; /* Red for Down */
         }
@@ -72,7 +72,7 @@
         }
 
         .sidebar {
-            width: 320px; /* Increased width slightly for new layout */
+            width: 340px; /* Increased width for steppers */
             background-color: var(--color-panel-bg);
             border-left: 1px solid var(--color-border);
             display: flex;
@@ -174,10 +174,10 @@
         .position-line {
             position: absolute;
             left: 0;
-            /* Width will be set dynamically by JS based on CONFIG.CHART_PADDING.right */
+            /* Width set by JS */
             display: flex;
             align-items: center;
-            pointer-events: none; /* Allow interaction with chart below */
+            pointer-events: none;
             transition: opacity 0.2s;
         }
 
@@ -188,6 +188,7 @@
             border-top-width: 1px;
         }
 
+        /* UPDATED: Position labels on the left */
         .position-label {
             padding: 3px 6px;
             font-size: 12px;
@@ -195,6 +196,7 @@
             color: white;
             font-weight: bold;
             margin-left: 5px;
+            margin-right: 5px; /* Added margin-right */
             white-space: nowrap;
         }
 
@@ -281,7 +283,7 @@
         
         /* 6.0 Game Objective */
         .challenge-info {
-            background-color: #e8f4fd; /* Lighter shade of primary color */
+            background-color: #e8f4fd;
             color: var(--color-primary-dark);
             padding: 15px;
             text-align: center;
@@ -320,18 +322,18 @@
             display: none;
             flex-direction: column;
             gap: 15px;
-            flex-grow: 1; /* Allow content to fill remaining space */
+            flex-grow: 1;
         }
 
         .tab-content.active {
             display: flex;
         }
 
-        /* 6.1 Order Panel (Redesigned) */
+        /* 6.1 Order Panel (Redesigned with Steppers) */
         .order-grid {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
-            gap: 10px;
+            gap: 12px;
             margin-bottom: 15px;
         }
 
@@ -348,15 +350,69 @@
         }
 
         .input-field {
-            padding: 10px 5px; /* Adjusted padding for compact view */
+            padding: 10px 5px;
             border: 1px solid var(--color-border);
-            border-radius: var(--radius-main);
             font-size: 16px;
             text-align: center;
             width: 100%;
-             /* Keep native number input appearance as requested */
+             -moz-appearance: textfield; /* Hide native steppers in Firefox */
+        }
+
+        /* Hide native steppers in Chrome, Safari, Edge, Opera */
+        .input-field::-webkit-outer-spin-button,
+        .input-field::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* NEW: Stepper implementation */
+        .input-stepper {
+            display: flex;
+            align-items: stretch; /* Make buttons and input same height */
+        }
+
+        .stepper-btn {
+            width: 30px; /* Compact width */
+            background-color: var(--color-border);
+            border: 1px solid var(--color-border);
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+        .stepper-btn:active {
+            background-color: var(--color-primary);
+            color: white;
+        }
+
+        .stepper-btn:first-child {
+            border-top-left-radius: var(--radius-main);
+            border-bottom-left-radius: var(--radius-main);
+            border-right: none;
+        }
+
+        .stepper-btn:last-child {
+            border-top-right-radius: var(--radius-main);
+            border-bottom-right-radius: var(--radius-main);
+            border-left: none;
+        }
+
+        .input-stepper .input-field {
+            border-radius: 0;
+            flex: 1;
+            min-width: 0; /* Allow shrinking in grid */
         }
         
+        /* NEW: Estimated P/L display */
+        .input-estimate {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            text-align: center;
+            height: 18px; /* Reserve space to prevent layout shift */
+        }
+
 
         .trade-actions-grid {
             display: grid;
@@ -390,7 +446,6 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-            /* Allow lists to scroll if content overflows */
             overflow-y: auto; 
             flex-grow: 1;
         }
@@ -436,7 +491,7 @@
             font-size: 12px;
         }
 
-        /* 7. Modals & Overlays (Tutorial, Events, End Screen) */
+        /* 7. Modals & Overlays */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -450,7 +505,6 @@
             z-index: 1000;
             opacity: 0;
             visibility: hidden;
-            /* Animation: Fade-in */
             transition: opacity 0.3s ease, visibility 0.3s ease;
         }
 
@@ -467,7 +521,6 @@
             max-width: 500px;
             width: 90%;
             text-align: center;
-            /* Animation: Slight zoom-in */
             transform: scale(0.95);
             transition: transform 0.3s ease;
         }
@@ -493,9 +546,8 @@
             color: white;
             padding: 15px 30px;
             font-size: 18px;
-            /* text-transform: uppercase; */
             letter-spacing: 1px;
-            text-decoration: none; /* For <a> tag implementation */
+            text-decoration: none;
         }
 
         /* 7.1 Tutorial Specific */
@@ -503,11 +555,9 @@
             position: absolute;
             border: 3px dashed var(--color-primary);
             border-radius: var(--radius-main);
-            /* Overlay effect using large box-shadow */
             box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
             z-index: 1001;
             pointer-events: none;
-            /* Smooth transition between steps */
             transition: top 0.3s, left 0.3s, width 0.3s, height 0.3s;
         }
 
@@ -623,7 +673,7 @@
                     <button class="speed-btn active" data-speed="1">1x</button>
                     <button class="speed-btn" data-speed="5">5x</button>
                     <button class="speed-btn" data-speed="20">20x</button>
-                    <button class="speed-btn" data-speed="40">40x</button> <!-- Added 40x -->
+                    <button class="speed-btn" data-speed="40">40x</button>
                 </div>
                 <button class="btn btn-secondary" id="btnZoomIn">🔍+</button>
                 <button class="btn btn-secondary" id="btnZoomOut">🔍-</button>
@@ -632,14 +682,13 @@
             <div class="chart-wrap" id="chartWrap">
                 <canvas id="chartCanvas"></canvas>
                 <div class="chart-overlay" id="chartOverlay">
-                    <!-- Position lines (DOM Overlays) will be dynamically generated here -->
+                    <!-- Position lines (DOM Overlays) -->
                 </div>
             </div>
         </div>
 
         <!-- Sidebar (Trading Panel) -->
         <aside class="sidebar">
-            <!-- NEW: Challenge Info -->
             <div class="challenge-info" id="challengeInfo">
                 <h4>🏆 30天交易挑戰</h4>
                 <p>從隨機歷史日期開始，在一個月內盡力獲取最高收益！</p>
@@ -651,42 +700,57 @@
                 <button class="tab-btn" data-target="tabHistory">紀錄</button>
             </div>
 
-            <!-- REDESIGNED: Order Tab -->
+            <!-- UPDATED: Order Tab with Steppers -->
             <div class="tab-content active" id="tabOrder">
                 <div class="order-grid">
+                    
                     <div class="input-group">
-                        <label class="input-label">停損 SL</label>
-                        <input type="number" class="input-field" id="inputSL" placeholder="價格" step="0.1" min="0">
+                        <label class="input-label">停損 (SL)</label>
+                        <div class="input-stepper">
+                            <button class="stepper-btn" id="slDown">−</button>
+                            <input type="number" class="input-field" id="inputSL" placeholder="價格" step="0.1" min="0">
+                            <button class="stepper-btn" id="slUp">+</button>
+                        </div>
+                        <div class="input-estimate" id="estimateSL"></div>
                     </div>
 
                     <div class="input-group">
-                        <label class="input-label">手數</label>
-                        <input type="number" class="input-field" id="inputLots" value="0.10" step="0.01" min="0.01">
+                        <label class="input-label">手數 (Lots)</label>
+                        <div class="input-stepper">
+                            <button class="stepper-btn" id="lotsDown">−</button>
+                            <input type="number" class="input-field" id="inputLots" value="0.10" step="0.01" min="0.01">
+                            <button class="stepper-btn" id="lotsUp">+</button>
+                        </div>
+                        <div class="input-estimate"></div> <!-- Placeholder for layout consistency -->
                     </div>
 
                     <div class="input-group">
-                        <label class="input-label">停利 TP</label>
-                        <input type="number" class="input-field" id="inputTP" placeholder="價格" step="0.1" min="0">
+                        <label class="input-label">停利 (TP)</label>
+                        <div class="input-stepper">
+                            <button class="stepper-btn" id="tpDown">−</button>
+                            <input type="number" class="input-field" id="inputTP" placeholder="價格" step="0.1" min="0">
+                            <button class="stepper-btn" id="tpUp">+</button>
+                        </div>
+                        <div class="input-estimate" id="estimateTP"></div>
                     </div>
                 </div>
 
                 <div class="trade-actions-grid">
-                    <button class="btn btn-trade btn-sell" id="btnSell">Sell</button>
-                    <button class="btn btn-trade btn-close-all" id="btnCloseAllTab">平倉</button>
-                    <button class="btn btn-trade btn-buy" id="btnBuy">Buy</button>
+                    <button class="btn btn-trade btn-sell" id="btnSell">賣出 (Sell)</button>
+                    <button class="btn btn-trade btn-close-all" id="btnCloseAllTab">全部平倉</button>
+                    <button class="btn btn-trade btn-buy" id="btnBuy">買入 (Buy)</button>
                 </div>
             </div>
 
             <div class="tab-content" id="tabPositions">
                 <div class="positions-list" id="positionsList">
-                    <!-- Positions will be dynamically added here -->
+                    <!-- Positions -->
                 </div>
-                <!-- Note: The dedicated Close All button in this tab is removed as per the new design -->
             </div>
 
             <div class="tab-content" id="tabHistory">
                 <div class="history-list" id="historyList">
-                    <!-- History will be dynamically added here -->
+                    <!-- History -->
                 </div>
             </div>
         </aside>
@@ -712,13 +776,13 @@
                 <p id="finalRoR" style="font-size: 20px;"></p>
                 <div id="endGameStats" style="text-align: left; margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--color-border);"></div>
             </div>
-            <!-- UPDATED CTA -->
-            <a href="https://www.fxvic.com.tw/" target="_blank" class="btn cta-button" id="ctaButton">了解如何取得高分</a>
+            <!-- UPDATED CTA LINK -->
+            <a href="https://www.massenlighten.com/soya%E5%A5%B3%E7%A5%9E" target="_blank" class="btn cta-button" id="ctaButton">了解如何取得高分</a>
             <button class="btn btn-secondary" id="restartButton" style="margin-top: 15px;">重新挑戰</button>
         </div>
     </div>
 
-    <!-- Tutorial Elements (Hidden by default, managed by JS) -->
+    <!-- Tutorial Elements -->
     <div class="tutorial-highlight hidden" id="tutorialHighlight"></div>
     <div class="tutorial-message hidden" id="tutorialMessage">
         <p id="tutorialText"></p>
@@ -727,8 +791,8 @@
 
     <script>
         // ============================================================================
-        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V2)
-        // 更新：UI重構, 增加日期分隔線, 優化新手導引, CTA更新
+        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V3)
+        // 更新：互動優化, 資訊顯示增強 (十字線, 預估損益), Steppers, 拖曳反轉
         // ============================================================================
 
         // ----------------------------------------------------------------------------
@@ -737,7 +801,7 @@
 
         const CONFIG = {
             DATA_URL: 'XAUUSD_M15.csv',
-            TICK_INTERVAL: 500, // Base time (ms) for one K bar animation (at 1x speed)
+            TICK_INTERVAL: 500,
             CHART_PADDING: { top: 20, right: 60, bottom: 30, left: 10 },
             CANDLE_WIDTH_DEFAULT: 8,
             CANDLE_SPACING: 3,
@@ -746,31 +810,21 @@
             SIMULATION_DURATION_DAYS: 30,
         };
 
-        // Global State Object
         const state = {
-            // Data
             rawData: [],
             gameData: [],
-            
-            // Game Status
             isLoading: true,
             isPlaying: false,
             isEnded: false,
             speedMultiplier: 1,
             currentIndex: 0,
-            
-            // K-Bar Animation
-            barAnimationProgress: 0, // 0 (Open) to 1 (Close)
-
-            // Account & Trading
+            barAnimationProgress: 0,
             balance: CONFIG.INITIAL_BALANCE,
             equity: CONFIG.INITIAL_BALANCE,
             floatingPL: 0,
             openPositions: [],
             tradeHistory: [],
             orderIdCounter: 1,
-
-            // Chart Viewport
             chart: {
                 canvas: null,
                 ctx: null,
@@ -787,13 +841,9 @@
                 dragStartScroll: 0,
                 scrollOffset: 0, 
             },
-
-            // UI & Interaction
             mouse: { x: -1, y: -1, isOverChart: false },
             tutorialActive: false,
-            tutorialCompletedOnce: false, // NEW: Flag to track tutorial completion
-            
-            // Events
+            tutorialCompletedOnce: false,
             financialEvents: [
                 { triggerDay: 5, title: '美國非農就業數據 (NFP)', description: '非農數據即將公布，市場預期將出現劇烈波動。請注意風險！' },
                 { triggerDay: 15, title: '美國 CPI 公布', description: '消費者物價指數 (CPI) 高於預期，可能引發市場對通膨的擔憂。' },
@@ -802,25 +852,21 @@
             triggeredEvents: new Set(),
         };
 
-        // DOM Element Caching
         const DOM = {};
 
         // ----------------------------------------------------------------------------
-        // 2. 數據處理 (Data Processing) - 包含備援機制
+        // 2. 數據處理 (Data Processing)
+        // (保持 V2 的穩健性，無顯著變化)
         // ----------------------------------------------------------------------------
 
         async function loadData() {
             try {
-                // 嘗試使用 fetch API 自動載入
                 const response = await fetch(CONFIG.DATA_URL);
-                
                 if (!response.ok) {
-                    throw new Error(`HTTP 錯誤! 狀態碼: ${response.status} (檔案可能不存在或伺服器配置錯誤)`);
+                    throw new Error(`HTTP 錯誤! 狀態碼: ${response.status}`);
                 }
-                
                 const csvText = await response.text();
                 processData(csvText);
-
             } catch (error) {
                 console.error("自動載入數據失敗:", error);
                 let errorMessage = error.message;
@@ -839,7 +885,6 @@
             }
             
             const fileInput = document.getElementById('csvFileInput');
-            
             if (fileInput.dataset.listenerAttached) return;
             fileInput.dataset.listenerAttached = true;
 
@@ -853,9 +898,6 @@
                         document.getElementById('loader-status').classList.remove('hidden');
                         processData(csvText);
                     };
-                    reader.onerror = () => {
-                        promptForFileUpload("讀取檔案時發生錯誤。");
-                    };
                     reader.readAsText(file, 'UTF-8');
                 }
             });
@@ -864,17 +906,9 @@
         function processData(csvText) {
             try {
                 state.rawData = parseData(csvText);
-                
                 if (state.rawData.length === 0) {
-                    console.log("原始數據預覽 (前500字元):", csvText.substring(0, 500));
-                    let specificError = "無法解析數據或數據為空。請檢查 CSV 檔案的格式、內容和編碼 (應為 UTF-8)。";
-                    if (csvText.trim().startsWith('<')) {
-                        specificError += " 偵測到 HTML 標籤，您可能下載了網頁而不是原始 CSV 檔案。";
-                    }
-                    throw new Error(specificError);
+                    throw new Error("無法解析數據或數據為空。請檢查 CSV 檔案格式、內容和編碼。");
                 }
-                
-                console.log(`成功載入 ${state.rawData.length} 筆數據。`);
                 startGame();
             } catch (error) {
                 console.error("處理數據失敗:", error);
@@ -883,6 +917,7 @@
         }
 
         function parseData(csvText) {
+            // Remove BOM if present
             if (csvText.charCodeAt(0) === 0xFEFF) {
                 csvText = csvText.substring(1);
             }
@@ -890,25 +925,26 @@
             const lines = csvText.trim().split('\n');
             if (lines.length < 2) return [];
 
+            // Find first valid data line
             const firstLine = lines.find(line => {
                 const lowerLine = line.trim().toLowerCase();
-                return lowerLine !== '' && !lowerLine.includes('time') && !lowerLine.includes('date') && !lowerLine.includes('open') && !lowerLine.includes('volume');
+                return lowerLine !== '' && !lowerLine.includes('time') && !lowerLine.includes('open');
             });
 
             if (!firstLine) return [];
 
+            // Detect delimiter
             let delimiter = ',';
-            if (firstLine.includes('\t')) {
+            if (firstLine.includes('\t') || (firstLine.includes(' ') && !firstLine.includes(','))) {
                 delimiter = /\s+/;
-            } else if (firstLine.includes(';') && !firstLine.includes(',')) {
+            } else if (firstLine.includes(';')) {
                 delimiter = ';';
-            } else if (firstLine.includes(' ') && !firstLine.includes(',')) {
-                 delimiter = /\s+/;
             }
 
             const testParts = firstLine.split(delimiter);
             if (testParts.length < 5) return [];
 
+            // Detect time format
             let timeFormat = 'unknown';
             if (testParts[0].match(/^\d{10,}$/)) {
                 timeFormat = 'timestamp';
@@ -980,58 +1016,53 @@
         }
 
         function cacheDOMElements() {
-            // HUD
-            DOM.hudDate = document.getElementById('hud-date');
-            DOM.hudEquity = document.getElementById('hud-equity');
-            DOM.hudPL = document.getElementById('hud-pl');
-            DOM.hudProgress = document.getElementById('hud-progress');
-            // Controls
-            DOM.btnPlayPause = document.getElementById('btnPlayPause');
-            DOM.btnStepForward = document.getElementById('btnStepForward');
-            DOM.speedSelector = document.getElementById('speedSelector');
-            // Chart
-            DOM.chartWrap = document.getElementById('chartWrap');
-            DOM.chartCanvas = document.getElementById('chartCanvas');
-            DOM.chartOverlay = document.getElementById('chartOverlay');
-            // Sidebar
-            DOM.inputLots = document.getElementById('inputLots');
-            DOM.inputSL = document.getElementById('inputSL');
-            DOM.inputTP = document.getElementById('inputTP');
-            DOM.positionsList = document.getElementById('positionsList');
-            DOM.historyList = document.getElementById('historyList');
-            DOM.positionsCount = document.getElementById('positionsCount');
-            DOM.btnCloseAllTab = document.getElementById('btnCloseAllTab'); // NEW: Close All button in Trade tab
-            // Modals & Loader
-            DOM.loader = document.getElementById('loader');
-            DOM.eventModal = document.getElementById('eventModal');
-            DOM.endGameModal = document.getElementById('endGameModal');
-            // Tutorial
-            DOM.tutorialHighlight = document.getElementById('tutorialHighlight');
-            DOM.tutorialMessage = document.getElementById('tutorialMessage');
-            DOM.tutorialText = document.getElementById('tutorialText');
-            DOM.tutorialNextBtn = document.getElementById('tutorialNextBtn');
+            // HUD, Controls, Chart (Canvas/Wrap/Overlay)
+            Object.assign(DOM, {
+                hudDate: document.getElementById('hud-date'),
+                hudEquity: document.getElementById('hud-equity'),
+                hudPL: document.getElementById('hud-pl'),
+                hudProgress: document.getElementById('hud-progress'),
+                btnPlayPause: document.getElementById('btnPlayPause'),
+                btnStepForward: document.getElementById('btnStepForward'),
+                speedSelector: document.getElementById('speedSelector'),
+                chartWrap: document.getElementById('chartWrap'),
+                chartCanvas: document.getElementById('chartCanvas'),
+                chartOverlay: document.getElementById('chartOverlay'),
+            });
+            // Sidebar Inputs & Lists
+            Object.assign(DOM, {
+                inputLots: document.getElementById('inputLots'),
+                inputSL: document.getElementById('inputSL'),
+                inputTP: document.getElementById('inputTP'),
+                estimateSL: document.getElementById('estimateSL'), // NEW
+                estimateTP: document.getElementById('estimateTP'), // NEW
+                positionsList: document.getElementById('positionsList'),
+                historyList: document.getElementById('historyList'),
+                positionsCount: document.getElementById('positionsCount'),
+                btnCloseAllTab: document.getElementById('btnCloseAllTab'),
+            });
+            // Modals & Tutorial
+            Object.assign(DOM, {
+                loader: document.getElementById('loader'),
+                eventModal: document.getElementById('eventModal'),
+                endGameModal: document.getElementById('endGameModal'),
+                tutorialHighlight: document.getElementById('tutorialHighlight'),
+                tutorialMessage: document.getElementById('tutorialMessage'),
+                tutorialText: document.getElementById('tutorialText'),
+                tutorialNextBtn: document.getElementById('tutorialNextBtn'),
+            });
         }
 
         function startGame() {
-            if (state.rawData.length === 0) {
-                console.error("Raw data is empty. Cannot start game.");
-                return;
-            }
+            if (state.rawData.length === 0) return;
 
-            console.log("Starting new game...");
-            // 關閉可能打開的結束畫面 Modal
             DOM.endGameModal.classList.remove('active');
             
             resetState();
             selectRandomDataSegment();
 
-            if (state.gameData.length === 0) {
-                console.error("Game data segment is empty.");
-                promptForFileUpload("無法從原始數據中選取足夠的模擬區間。");
-                return;
-            }
+            if (state.gameData.length === 0) return;
             
-            // Initialize chart view
             const initialVisibleCandles = calculateVisibleCandles();
             state.currentIndex = Math.min(Math.floor(initialVisibleCandles * 0.8), state.gameData.length - 1);
             
@@ -1041,12 +1072,14 @@
             updateUI();
             requestAnimationFrame(draw);
 
-            // UPDATED: Start tutorial only if it hasn't been completed before
+            // Start tutorial only if it hasn't been completed before
             if (!state.tutorialCompletedOnce) {
                 startTutorial();
             }
         }
 
+        // (resetState, selectRandomDataSegment, gameLoop, finalizeCurrentBar, advanceSimulation, endGame 保持不變)
+        
         function resetState() {
             state.balance = CONFIG.INITIAL_BALANCE;
             state.equity = CONFIG.INITIAL_BALANCE;
@@ -1059,28 +1092,27 @@
             state.currentIndex = 0;
             state.barAnimationProgress = 0;
             state.triggeredEvents.clear();
-            // Reset chart view settings
             state.chart.candleWidth = CONFIG.CANDLE_WIDTH_DEFAULT;
             state.chart.candleSpacing = CONFIG.CANDLE_SPACING;
             state.chart.scrollOffset = 0;
-            // Clear DOM overlays
             DOM.chartOverlay.innerHTML = '';
+            // Reset inputs
+            DOM.inputLots.value = "0.10";
+            DOM.inputSL.value = "";
+            DOM.inputTP.value = "";
         }
 
         function selectRandomDataSegment() {
             const totalDurationMs = CONFIG.SIMULATION_DURATION_DAYS * 24 * 60 * 60 * 1000;
-            
             const dataDuration = state.rawData[state.rawData.length - 1].time - state.rawData[0].time;
 
             if (dataDuration < totalDurationMs) {
-                console.warn("數據總長度不足以滿足模擬期間。使用所有可用數據。");
                 state.gameData = [...state.rawData];
                 return;
             }
 
             const latestStartTime = state.rawData[state.rawData.length - 1].time - totalDurationMs;
             const earliestStartTime = state.rawData[0].time;
-
             const randomStartTime = earliestStartTime + Math.random() * (latestStartTime - earliestStartTime);
 
             let startIndex = state.rawData.findIndex(d => d.time >= randomStartTime);
@@ -1090,10 +1122,7 @@
             const endTime = startTime + totalDurationMs;
 
             state.gameData = state.rawData.filter(d => d.time >= startTime && d.time <= endTime);
-            
-            console.log(`選取數據區間: ${state.gameData.length} 根 K 棒。從 ${new Date(startTime).toLocaleDateString()} 開始。`);
         }
-
 
         let lastTickTime = 0;
         let animationFrameId;
@@ -1105,9 +1134,7 @@
             }
 
             const effectiveInterval = CONFIG.TICK_INTERVAL / state.speedMultiplier;
-            
             if (lastTickTime === 0) lastTickTime = timestamp;
-
             const deltaTime = timestamp - lastTickTime;
 
              if (deltaTime > 0) { 
@@ -1127,6 +1154,7 @@
                     state.barAnimationProgress = 0;
                     checkForEvents();
                     
+                    // Auto-scroll logic
                     if (state.chart.scrollOffset > 0) {
                         state.chart.scrollOffset++;
                     }
@@ -1153,7 +1181,6 @@
         }
 
         function endGame() {
-            console.log("挑戰結束。");
             state.isPlaying = false;
             state.isEnded = true;
             cancelAnimationFrame(animationFrameId);
@@ -1161,8 +1188,7 @@
             if (state.gameData.length > 0) {
                  const closePrice = state.gameData[state.currentIndex].close;
                 while(state.openPositions.length > 0) {
-                    const position = state.openPositions[0];
-                    closeOrder(position.id, closePrice);
+                    closeOrder(state.openPositions[0].id, closePrice);
                 }
             }
 
@@ -1181,6 +1207,8 @@
             state.chart.ctx = state.chart.canvas.getContext('2d');
             resizeCanvas();
         }
+
+        // (resizeCanvas, draw, calculateVisibleCandles, calculateViewport 保持不變)
 
         function resizeCanvas() {
             const dpr = window.devicePixelRatio || 1;
@@ -1215,7 +1243,7 @@
             calculateViewport();
 
             drawBackground(ctx);
-            drawGrid(ctx); // UPDATED: Now includes date separators
+            drawGrid(ctx);
             drawCandles(ctx);
             drawYAxis(ctx);
             drawXAxis(ctx);
@@ -1252,6 +1280,7 @@
             state.chart.viewStartIndex = startIndex;
             state.chart.viewEndIndex = endIndex;
 
+            // Calculate Price Range
             let minPrice = Infinity;
             let maxPrice = -Infinity;
 
@@ -1270,6 +1299,7 @@
                 }
             }
 
+            // Add padding to price range
             const priceRange = maxPrice - minPrice;
             if (priceRange <= 0 || !isFinite(priceRange)) {
                 const centerPrice = (minPrice === Infinity) ? (state.gameData[0]?.close || 1900) : minPrice;
@@ -1283,6 +1313,8 @@
             }
         }
 
+
+        // 座標轉換工具
         function priceToY(price) {
             const { height, minPrice, maxPrice } = state.chart;
             const { top, bottom } = CONFIG.CHART_PADDING;
@@ -1295,6 +1327,23 @@
             return Math.max(top, Math.min(height - bottom, y));
         }
 
+        // NEW: Y 座標轉價格 (用於十字準心)
+        function yToPrice(y) {
+            const { height, minPrice, maxPrice } = state.chart;
+            const { top, bottom } = CONFIG.CHART_PADDING;
+            const chartAreaHeight = height - top - bottom;
+            const priceRange = maxPrice - minPrice;
+
+            if (chartAreaHeight <= 0) return (minPrice + maxPrice) / 2;
+
+            // 限制 Y 在圖表區域內
+            const constrainedY = Math.max(top, Math.min(height - bottom, y));
+            
+            // 反向計算
+            const price = minPrice + priceRange * (1 - (constrainedY - top) / chartAreaHeight);
+            return price;
+        }
+
         function indexToX(index) {
             const { viewStartIndex, candleWidth, candleSpacing } = state.chart;
             const { left } = CONFIG.CHART_PADDING;
@@ -1302,18 +1351,17 @@
             return left + (index - viewStartIndex) * candleUnitWidth + candleWidth / 2;
         }
 
+        // (drawBackground, drawGrid, getAnimatedBar, drawCandles, calculateYAxisTicks, drawYAxis, calculateXAxisTicks, drawXAxis 保持 V2 邏輯)
+
         function drawBackground(ctx) {
             ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-bg').trim();
             ctx.fillRect(0, 0, state.chart.width, state.chart.height);
         }
 
-        // UPDATED: 繪製網格線和日期分隔線
         function drawGrid(ctx) {
             const gridColor = getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim();
             const dateSeparatorColor = getComputedStyle(document.documentElement).getPropertyValue('--chart-date-separator').trim();
             const { left, right, top, bottom } = CONFIG.CHART_PADDING;
-
-            
 
             // 1. 水平網格線
             ctx.strokeStyle = gridColor;
@@ -1333,10 +1381,9 @@
                 const x = indexToX(tick.index);
                 if (x >= left && x <= state.chart.width - right) {
                     
-                    // NEW: 根據是否為日期分隔線設置樣式
                     if (tick.isDateSeparator) {
                         ctx.strokeStyle = dateSeparatorColor;
-                        ctx.lineWidth = 1.5; // 稍微加粗
+                        ctx.lineWidth = 1.5;
                     } else {
                         ctx.strokeStyle = gridColor;
                         ctx.lineWidth = 1;
@@ -1349,7 +1396,6 @@
                 }
             });
             
-            // 重置線寬
             ctx.lineWidth = 1;
         }
 
@@ -1413,9 +1459,7 @@
         function calculateYAxisTicks() {
             const { minPrice, maxPrice, height } = state.chart;
             const priceRange = maxPrice - minPrice;
-            
             if (priceRange <= 0) return [];
-
             const targetCount = Math.max(2, Math.floor(height / 50));
             const rawSpacing = priceRange / targetCount;
             const magnitude = Math.pow(10, Math.floor(Math.log10(rawSpacing)));
@@ -1445,6 +1489,7 @@
             const { right } = CONFIG.CHART_PADDING;
             const axisX = width - right;
 
+            // Draw axis background and border
             ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-bg').trim();
             ctx.fillRect(axisX, 0, right, height);
             ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-border').trim();
@@ -1453,6 +1498,7 @@
             ctx.lineTo(axisX, height);
             ctx.stroke();
 
+            // Draw ticks
             ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-secondary').trim();
             ctx.font = '12px sans-serif';
             ctx.textAlign = 'left';
@@ -1464,7 +1510,8 @@
                 ctx.fillText(tick.price.toFixed(2), axisX + 5, y);
             });
 
-            if (state.currentIndex < state.gameData.length && state.chart.scrollOffset === 0) {
+            // Draw current price indicator (Only if crosshair is NOT active)
+            if (state.currentIndex < state.gameData.length && state.chart.scrollOffset === 0 && !state.mouse.isOverChart) {
                 const currentPrice = getCurrentPrice();
                 const currentY = priceToY(currentPrice);
                 
@@ -1480,7 +1527,6 @@
             }
         }
 
-        // UPDATED: 計算 X 軸刻度並標記日期分隔線
         function calculateXAxisTicks() {
             const { viewStartIndex, viewEndIndex, width } = state.chart;
             if (viewEndIndex <= viewStartIndex || viewStartIndex >= state.gameData.length) return [];
@@ -1495,20 +1541,15 @@
             for (let i = viewStartIndex; i < viewEndIndex; i++) {
                 const time = state.gameData[i].time;
                 const currentDate = new Date(time);
-                // 獲取日期的字串表示 (例如 "Mon Jan 01 2024")
                 const currentDateStr = currentDate.toDateString(); 
 
-                // NEW: 檢查日期是否改變 (用於日期分隔線)
                 let isDateSeparator = false;
                 if (lastDateStr !== null && currentDateStr !== lastDateStr) {
                     isDateSeparator = true;
                 }
                 lastDateStr = currentDateStr;
 
-                // 添加刻度 (基於間隔或日期分隔)
-                // 如果是日期分隔線，強制添加；否則按間隔添加
                 if (isDateSeparator || (i - viewStartIndex) % interval === 0) {
-                     // 避免在同一位置重複添加 (如果間隔刻度剛好是日期分隔)
                      if (!ticks.some(t => t.index === i)) {
                         ticks.push({ index: i, time: time, isDateSeparator: isDateSeparator });
                      }
@@ -1517,12 +1558,12 @@
             return ticks;
         }
 
-        // UPDATED: 繪製 X 軸，並對日期分隔線的標籤加粗
         function drawXAxis(ctx) {
             const { width, height } = state.chart;
             const { bottom, right, left } = CONFIG.CHART_PADDING;
             const axisY = height - bottom;
 
+            // Draw axis background and border
             ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-bg').trim();
             ctx.fillRect(0, axisY, width, bottom);
             ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-border').trim();
@@ -1531,6 +1572,7 @@
             ctx.lineTo(width - right, axisY);
             ctx.stroke();
 
+            // Draw ticks
             ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-secondary').trim();
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
@@ -1549,13 +1591,11 @@
                     
                     let label;
                     
-                    // NEW: 如果是日期分隔線，強制顯示日期並加粗
                     if (tick.isDateSeparator) {
                          label = date.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
                          ctx.font = 'bold 12px sans-serif'; 
                     } else {
                         ctx.font = '12px sans-serif';
-                        // 否則根據時間跨度決定格式
                         if (timeDiff < 48 * 3600 * 1000) {
                             label = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                         } else {
@@ -1568,6 +1608,7 @@
             });
         }
 
+        // UPDATED: 繪製十字準心和價格標籤
         function drawCrosshair(ctx) {
             if (!state.mouse.isOverChart || state.chart.isDragging) return;
 
@@ -1577,23 +1618,42 @@
 
             if (x < left || x > width - right || y < top || y > height - bottom) return;
 
-            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-crosshair').trim();
+            const crosshairColor = getComputedStyle(document.documentElement).getPropertyValue('--chart-crosshair').trim();
+            ctx.strokeStyle = crosshairColor;
             ctx.lineWidth = 1;
             ctx.setLineDash([5, 5]);
 
+            // 水平線
             ctx.beginPath();
             ctx.moveTo(left, y);
             ctx.lineTo(width - right, y);
             ctx.stroke();
 
+            // 垂直線
             ctx.beginPath();
             ctx.moveTo(x, top);
             ctx.lineTo(x, height - bottom);
             ctx.stroke();
 
             ctx.setLineDash([]);
+
+            // NEW: 繪製價格標籤
+            const crosshairPrice = yToPrice(y);
+            const axisX = width - right;
+
+            ctx.fillStyle = crosshairColor;
+            // 繪製背景塊 (+1 避免覆蓋軸線)
+            ctx.fillRect(axisX + 1, y - 10, right - 1, 20);
+            
+            // 繪製價格文字
+            ctx.fillStyle = 'white'; 
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(crosshairPrice.toFixed(2), axisX + 5, y);
         }
 
+        // UPDATED: 更新 DOM 疊加層 (持倉線佈局和內容)
         function updatePositionOverlays() {
             const overlay = DOM.chartOverlay;
             const linesToKeep = new Set();
@@ -1603,17 +1663,27 @@
                 const slId = `line-sl-${pos.id}`;
                 const tpId = `line-tp-${pos.id}`;
                 
+                // 進場線
                 const entryColor = pos.type === 'BUY' ? 'var(--color-bull)' : 'var(--color-bear)';
-                createOrUpdatePositionLine(overlay, entryId, pos.entryPrice, entryColor, `Entry ${pos.entryPrice.toFixed(2)}`, pos);
+                // UPDATED Localization
+                createOrUpdatePositionLine(overlay, entryId, pos.entryPrice, entryColor, `進場價 ${pos.entryPrice.toFixed(2)}`, pos);
                 linesToKeep.add(entryId);
 
+                // SL 線
                 if (pos.sl) {
-                    createOrUpdatePositionLine(overlay, slId, pos.sl, 'var(--color-danger)', `SL ${pos.sl.toFixed(2)}`);
+                    // NEW: 計算潛在損益
+                    const potentialPL = calculateProfit(pos, pos.sl);
+                    // UPDATED Localization
+                    createOrUpdatePositionLine(overlay, slId, pos.sl, 'var(--color-danger)', `停損 ${pos.sl.toFixed(2)}`, null, potentialPL);
                     linesToKeep.add(slId);
                 }
 
+                // TP 線
                 if (pos.tp) {
-                    createOrUpdatePositionLine(overlay, tpId, pos.tp, 'var(--color-success)', `TP ${pos.tp.toFixed(2)}`);
+                    // NEW: 計算潛在損益
+                    const potentialPL = calculateProfit(pos, pos.tp);
+                    // UPDATED Localization
+                    createOrUpdatePositionLine(overlay, tpId, pos.tp, 'var(--color-success)', `停利 ${pos.tp.toFixed(2)}`, null, potentialPL);
                     linesToKeep.add(tpId);
                 }
             });
@@ -1625,36 +1695,44 @@
             });
         }
 
-        function createOrUpdatePositionLine(container, id, price, color, labelText, position = null) {
+        // UPDATED: 創建或更新持倉線 (新佈局和參數)
+        function createOrUpdatePositionLine(container, id, price, color, labelText, position = null, potentialPL = null) {
             let line = document.getElementById(id);
             if (!line) {
                 line = document.createElement('div');
                 line.id = id;
                 line.className = 'position-line';
                 
-                const dash = document.createElement('div');
-                dash.className = 'position-line-dash';
-                line.appendChild(dash);
+                // NEW Layout: [Label] [P/L Display] [Dash]
 
                 const label = document.createElement('div');
                 label.className = 'position-label';
-                line.appendChild(label);
+                line.appendChild(label); // 1. Label
+
+                const plDisplay = document.createElement('div');
+                plDisplay.className = 'position-pl';
+                line.appendChild(plDisplay); // 2. P/L Display
+
+                const dash = document.createElement('div');
+                dash.className = 'position-line-dash';
+                line.appendChild(dash); // 3. Dash
 
                 container.appendChild(line);
             }
 
             const y = priceToY(price);
             
+            // Visibility check
             if (y < CONFIG.CHART_PADDING.top || y > state.chart.height - CONFIG.CHART_PADDING.bottom) {
                 line.style.opacity = 0;
             } else {
                 line.style.opacity = 1;
-                line.style.top = `${y - 10}px`; 
+                line.style.top = `${y - 10}px`; // Center vertically
             }
             
             line.style.width = `calc(100% - ${CONFIG.CHART_PADDING.right}px)`;
 
-
+            // 更新內容和樣式
             const dash = line.querySelector('.position-line-dash');
             dash.style.borderTopColor = color;
 
@@ -1662,18 +1740,28 @@
             label.style.backgroundColor = color;
             label.textContent = labelText;
 
+            // 更新損益顯示 (處理即時損益或潛在損益)
+            const plDisplay = line.querySelector('.position-pl');
+            let displayValue = null;
+
             if (position) {
-                let plDisplay = line.querySelector('.position-pl');
-                if (!plDisplay) {
-                    plDisplay = document.createElement('div');
-                    plDisplay.className = 'position-pl';
-                    line.insertBefore(plDisplay, dash);
-                }
-                plDisplay.textContent = `$${position.profit.toFixed(2)}`;
-                plDisplay.style.color = position.profit >= 0 ? 'var(--color-success)' : 'var(--color-danger';
+                // 進場線使用即時損益
+                displayValue = position.profit;
+            } else if (potentialPL !== null) {
+                // SL/TP 線使用潛在損益
+                displayValue = potentialPL;
+            }
+
+            if (displayValue !== null) {
+                plDisplay.textContent = `$${displayValue.toFixed(2)}`;
+                plDisplay.style.color = displayValue >= 0 ? 'var(--color-success)' : 'var(--color-danger';
+                plDisplay.style.display = 'block';
+            } else {
+                plDisplay.style.display = 'none';
             }
         }
 
+        // (drawTradeAnimations, addTradeAnimation 保持不變)
         const tradeAnimations = [];
 
         function addTradeAnimation(type, price, index, profit = 0) {
@@ -1764,6 +1852,8 @@
         // 5. 交易邏輯與帳戶管理 (Trading Logic & Account Management)
         // ----------------------------------------------------------------------------
 
+        // (getCurrentPrice, openOrder, closeOrder, calculateProfit, updatePositions, updateAccount 保持不變)
+
         function getCurrentPrice() {
             if (state.gameData.length === 0 || state.currentIndex >= state.gameData.length) return 0;
             const currentBar = state.gameData[state.currentIndex];
@@ -1777,6 +1867,7 @@
 
             if (entryPrice <= 0) return;
 
+            // Validation
             if (type === 'BUY') {
                 if (sl && sl >= entryPrice) {
                     alert("買單 (BUY) 的停損價格 (SL) 必須低於進場價格。");
@@ -1872,6 +1963,7 @@
             state.openPositions.forEach(pos => {
                 pos.profit = calculateProfit(pos, currentPrice);
 
+                // Check SL/TP
                 if (pos.type === 'BUY') {
                     if (pos.sl && currentLow <= pos.sl) {
                         positionsToClose.push({ id: pos.id, price: pos.sl, reason: 'SL' });
@@ -1908,17 +2000,55 @@
             updatePositionsPanel();
             updateHistoryPanel();
             updateControls();
-            updateOrderPanel(); // NEW: Update specific elements in Order Panel
+            updateOrderPanel(); // Includes P/L estimation update
         }
 
-        // NEW: 更新下單面板狀態
+        // NEW: 更新下單面板狀態和預估損益
         function updateOrderPanel() {
-            // 根據是否有持倉決定「平倉」按鈕的啟用狀態
             const hasPositions = state.openPositions.length > 0;
             DOM.btnCloseAllTab.disabled = !hasPositions || state.isEnded;
+            
+            // 即時更新預估損益
+            updateEstimatedPL();
+        }
+
+        // NEW: 計算並顯示預估損益
+        function updateEstimatedPL() {
+            const lots = parseFloat(DOM.inputLots.value);
+            const slPrice = parseFloat(DOM.inputSL.value);
+            const tpPrice = parseFloat(DOM.inputTP.value);
+            // 必須使用當前市價進行估算
+            const currentPrice = getCurrentPrice();
+
+            // 清除先前的估算
+            DOM.estimateSL.textContent = '';
+            DOM.estimateTP.textContent = '';
+
+            // 檢查必要條件
+            if (isNaN(lots) || lots <= 0 || currentPrice <= 0) {
+                return;
+            }
+
+            // SL 估算
+            if (!isNaN(slPrice) && slPrice > 0) {
+                const slDistance = Math.abs(currentPrice - slPrice);
+                const slPL = slDistance * CONFIG.CONTRACT_SIZE * lots;
+                // 顯示為負值 (損失)
+                DOM.estimateSL.textContent = `預估損失: -$${slPL.toFixed(2)}`;
+            }
+
+            // TP 估算
+            if (!isNaN(tpPrice) && tpPrice > 0) {
+                const tpDistance = Math.abs(currentPrice - tpPrice);
+                const tpPL = tpDistance * CONFIG.CONTRACT_SIZE * lots;
+                // 顯示為正值 (獲利)
+                DOM.estimateTP.textContent = `預估獲利: +$${tpPL.toFixed(2)}`;
+            }
         }
 
 
+        // (updateHUD, updatePositionsPanel, updateHistoryPanel, updateControls 保持不變，但包含中文化更新)
+        
         function updateHUD() {
             if (state.gameData.length === 0) return;
 
@@ -1944,9 +2074,7 @@
         }
 
         function updatePositionsPanel() {
-            
             DOM.positionsCount.textContent = state.openPositions.length;
-            
             DOM.positionsList.innerHTML = '';
 
             state.openPositions.forEach(pos => {
@@ -1956,9 +2084,10 @@
                 
                 const profitColor = pos.profit >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
                 
+                // UPDATED Localization
                 item.innerHTML = `
                     <div class="trade-header">
-                        <span class="trade-type ${pos.type}">#${pos.id} ${pos.type} ${pos.lots.toFixed(2)}手</span>
+                        <span class="trade-type ${pos.type}">#${pos.id} ${pos.type === 'BUY' ? '買入' : '賣出'} ${pos.lots.toFixed(2)}手</span>
                         <span style="color: ${profitColor}">$${pos.profit.toFixed(2)}</span>
                     </div>
                     <div class="trade-details">
@@ -1967,11 +2096,11 @@
                             <div>${pos.entryPrice.toFixed(2)}</div>
                         </div>
                         <div>
-                            <div class="trade-detail-label">SL</div>
+                            <div class="trade-detail-label">停損(SL)</div>
                             <div>${pos.sl ? pos.sl.toFixed(2) : 'N/A'}</div>
                         </div>
                         <div>
-                            <div class="trade-detail-label">TP</div>
+                            <div class="trade-detail-label">停利(TP)</div>
                             <div>${pos.tp ? pos.tp.toFixed(2) : 'N/A'}</div>
                         </div>
                     </div>
@@ -2012,9 +2141,10 @@
                 
                 const profitColor = trade.profit >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
 
+                // UPDATED Localization
                 item.innerHTML = `
                     <div class="trade-header">
-                        <span class="trade-type ${trade.type}">#${trade.id} ${trade.type} ${trade.lots.toFixed(2)}手</span>
+                        <span class="trade-type ${trade.type}">#${trade.id} ${trade.type === 'BUY' ? '買入' : '賣出'} ${trade.lots.toFixed(2)}手</span>
                         <span style="color: ${profitColor}">$${trade.profit.toFixed(2)}</span>
                     </div>
                     <div class="trade-details">
@@ -2059,11 +2189,23 @@
                 btn.addEventListener('click', handleTabSwitch);
             });
 
+            // NEW: Order Inputs (Steppers)
+            setupInputStepper('lotsUp', 'inputLots', 0.01);
+            setupInputStepper('lotsDown', 'inputLots', -0.01);
+            setupInputStepper('slUp', 'inputSL', 0.1);
+            setupInputStepper('slDown', 'inputSL', -0.1);
+            setupInputStepper('tpUp', 'inputTP', 0.1);
+            setupInputStepper('tpDown', 'inputTP', -0.1);
+
+            // NEW: Bind input change listeners for P/L estimation
+            DOM.inputLots.addEventListener('input', updateEstimatedPL);
+            DOM.inputSL.addEventListener('input', updateEstimatedPL);
+            DOM.inputTP.addEventListener('input', updateEstimatedPL);
+
+
             // Trade Buttons
             document.getElementById('btnBuy').addEventListener('click', () => handleTrade('BUY'));
             document.getElementById('btnSell').addEventListener('click', () => handleTrade('SELL'));
-            
-            // UPDATED: Bind the new Close All button
             DOM.btnCloseAllTab.addEventListener('click', closeAllOrders);
 
 
@@ -2086,7 +2228,8 @@
             document.getElementById('restartButton').addEventListener('click', startGame);
         }
         
-        // Event Handlers
+        // (togglePlayPause, stepForward, handleSpeedChange, handleTabSwitch, handleTrade, closeAllOrders, modifyOrder 保持不變)
+
         function togglePlayPause() {
             if (state.isEnded) return;
             state.isPlaying = !state.isPlaying;
@@ -2165,7 +2308,6 @@
         function closeAllOrders() {
             if (state.openPositions.length === 0 || state.isEnded) return;
             
-            // 在「交易」分頁點擊時不需確認，直接平倉 (Playable Ad UX)
             const currentPrice = getCurrentPrice();
             while(state.openPositions.length > 0) {
                 closeOrder(state.openPositions[0].id, currentPrice);
@@ -2179,6 +2321,7 @@
             const currentSL = position.sl ? position.sl.toFixed(2) : '';
             const currentTP = position.tp ? position.tp.toFixed(2) : '';
 
+            // UPDATED Localization
             const newSLInput = prompt(`修改訂單 #${id} 停損 (SL)。\n進場價: ${position.entryPrice.toFixed(2)}\n留空則取消 SL。目前值: ${currentSL}`, currentSL);
             
             if (newSLInput === null) return;
@@ -2230,6 +2373,9 @@
 
         
         // Chart Interaction Handlers (Mouse & Touch)
+        
+        // (handleMouseMove, handleMouseLeave, handleMouseWheel, zoomChart 保持不變)
+
         function handleMouseMove(e) {
             const rect = DOM.chartWrap.getBoundingClientRect();
             state.mouse.x = e.clientX - rect.left;
@@ -2268,6 +2414,7 @@
                 requestAnimationFrame(draw);
             }
         }
+
 
         // Panning (Dragging) Logic
         function handleDragStart(e) {
@@ -2312,6 +2459,7 @@
             DOM.chartWrap.style.cursor = 'grabbing';
         }
 
+        // UPDATED: 反轉拖曳方向邏輯 (Natural Scrolling)
         function performDrag(clientX) {
             const dx = clientX - state.chart.dragStartX;
             const candleUnitWidth = state.chart.candleWidth + state.chart.candleSpacing;
@@ -2320,7 +2468,9 @@
 
             const candlesDragged = Math.round(dx / candleUnitWidth);
             
-            state.chart.scrollOffset = state.chart.dragStartScroll - candlesDragged;
+            // UPDATED: 反轉方向，使其符合 TradingView 風格 (拖曳背景)
+            // 向右拖動 (dx > 0) -> 圖表向右移動 (顯示更舊數據) -> scrollOffset 增加
+            state.chart.scrollOffset = state.chart.dragStartScroll + candlesDragged;
 
             validateScrollOffset();
 
@@ -2351,6 +2501,8 @@
         // ----------------------------------------------------------------------------
         // 7. 遊戲化功能 (Gamification Features)
         // ----------------------------------------------------------------------------
+
+        // (checkForEvents, showEventModal, continueFromEvent, showEndGameModal 保持不變)
 
         function checkForEvents() {
             if (state.isEnded || state.gameData.length === 0) return;
@@ -2403,6 +2555,7 @@
             
             const totalProfit = state.tradeHistory.reduce((sum, t) => sum + t.profit, 0);
 
+            // UPDATED Localization
             const statsHTML = `
                 <p><strong>交易統計：</strong></p>
                 <ul style="list-style-position: inside; padding-left: 10px;">
@@ -2418,13 +2571,13 @@
         }
 
         // 7.3 新手導引 (Tutorial)
-        // UPDATED: 移除了強迫點擊 (action: 'click') 的步驟，全部改為 'next'
+        // UPDATED Localization for V3 features
         const TUTORIAL_STEPS = [
             { selector: '#challengeInfo', message: '歡迎！首先請了解本次挑戰的目標：在隨機的30天內取得最高收益。', action: 'next' },
-            { selector: '.chart-container', message: '這裡是 K 線圖表區域。您可以拖曳平移圖表，或使用滾輪/按鈕縮放。注意圖表上的日期分隔線。', action: 'next' },
+            { selector: '.chart-container', message: '這裡是 K 線圖表。向右拖曳查看歷史數據，向左拖曳返回。滑鼠懸停可看到十字準心價格。', action: 'next' },
             { selector: '.controls', message: '使用這些按鈕控制模擬的播放/暫停、速度，或逐根 K 棒前進。', action: 'next' },
-            { selector: '.order-grid', message: '在這裡設定您的停損 (SL)、手數和停利 (TP)。', action: 'next' },
-            { selector: '.trade-actions-grid', message: '點擊 Sell 或 Buy 進行交易。如果有持倉，可以點擊「平倉」關閉所有訂單。', action: 'next' },
+            { selector: '.order-grid', message: '設定停損(SL)、手數和停利(TP)。使用 +/- 按鈕可快速從當前市價開始調整。注意下方的預估損益。', action: 'next' },
+            { selector: '.trade-actions-grid', message: '點擊「賣出」或「買入」進行交易。點擊「全部平倉」可快速關閉所有訂單。', action: 'next' },
             { selector: '[data-target="tabPositions"]', message: '點擊「持倉」分頁來查看和管理您當前的訂單。', action: 'next' },
             { selector: '.header', message: '頂部的 HUD 會即時顯示您的帳戶狀態和挑戰進度。祝您交易順利！', action: 'next' },
         ];
@@ -2447,7 +2600,6 @@
             const element = document.querySelector(step.selector);
 
             if (!element) {
-                console.warn("Tutorial element not found:", step.selector);
                 setTimeout(showTutorialStep, 100);
                 return;
             }
@@ -2455,26 +2607,20 @@
             highlightElement(element);
             DOM.tutorialText.textContent = step.message;
 
-            // UPDATED: 現在所有步驟都顯示「下一步」按鈕
-            // 確保按鈕可見並綁定事件
+            // Ensure "Next" button is visible and bound
             DOM.tutorialNextBtn.classList.remove('hidden');
             DOM.tutorialNextBtn.onclick = completeTutorialStep;
         }
 
         function completeTutorialStep() {
             if (!state.tutorialActive) return;
-            
-            const expectedStep = currentTutorialStep;
             currentTutorialStep++;
-            
-            if (currentTutorialStep > expectedStep) {
-                 showTutorialStep();
-            }
+            showTutorialStep();
         }
 
         function endTutorial() {
             state.tutorialActive = false;
-            state.tutorialCompletedOnce = true; // NEW: 標記導引已完成
+            state.tutorialCompletedOnce = true; // Mark tutorial as completed
             DOM.tutorialHighlight.classList.add('hidden');
             DOM.tutorialMessage.classList.add('hidden');
         }
@@ -2496,9 +2642,8 @@
 
             const messageRect = DOM.tutorialMessage.getBoundingClientRect();
 
-            // 邊界檢查
+            // Boundary checks
             if (messageTop + messageRect.height > window.innerHeight + window.scrollY) {
-                 // 確保上方位置不會小於螢幕頂部
                 messageTop = Math.max(10 + window.scrollY, rect.top + window.scrollY - messageRect.height - padding - 15);
             }
             
@@ -2507,7 +2652,6 @@
             }
             
             messageLeft = Math.max(10 + window.scrollX, messageLeft);
-
 
             DOM.tutorialMessage.style.top = `${messageTop}px`;
             DOM.tutorialMessage.style.left = `${messageLeft}px`;
@@ -2518,7 +2662,53 @@
         // 8. 輔助函式 (Utility Functions)
         // ----------------------------------------------------------------------------
 
-        // (formatDuration 保持不變)
+        // NEW: 設置輸入框的步進按鈕邏輯 (包含初始化)
+        function setupInputStepper(buttonId, inputId, step) {
+            const button = document.getElementById(buttonId);
+            if (!button) return;
+
+            button.addEventListener('click', () => {
+                const input = document.getElementById(inputId);
+                let currentValue = parseFloat(input.value);
+
+                // 初始化邏輯
+                if (isNaN(currentValue) || (currentValue <= 0 && inputId !== 'inputLots')) {
+                    if (inputId === 'inputSL' || inputId === 'inputTP') {
+                        const currentPrice = getCurrentPrice();
+                        if (currentPrice > 0) {
+                            // 從當前市價開始
+                            currentValue = currentPrice; 
+                        } else {
+                            return; // 市價不可用則不操作
+                        }
+                    } else if (inputId === 'inputLots') {
+                        currentValue = 0;
+                    }
+                }
+                
+                let newValue = currentValue + step;
+                
+                // 精度處理
+                const decimalPlaces = (step.toString().split('.')[1] || []).length;
+                newValue = parseFloat(newValue.toFixed(decimalPlaces));
+
+                // 邊界檢查
+                if (inputId === 'inputLots') {
+                     if (newValue < 0.01) newValue = 0.01;
+                } else {
+                    // SL/TP 必須大於 0
+                    if (newValue <= 0) {
+                        input.value = '';
+                        updateEstimatedPL(); // 更新預估損益
+                        return;
+                    }
+                }
+               
+                input.value = newValue.toFixed(decimalPlaces);
+                updateEstimatedPL(); // 更新預估損益
+            });
+        }
+
         function formatDuration(ms) {
             if (ms < 0) ms = 0;
             const minutes = Math.floor(ms / 60000);
