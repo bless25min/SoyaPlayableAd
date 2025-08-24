@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>XAUUSD 交易模擬挑戰 (Playable Ad Rework V6.1)</title>
+    <title>XAUUSD 交易模擬挑戰 (Playable Ad Rework V6.2)</title>
     <style>
         /* 1. Reset & Variables */
         :root {
@@ -978,7 +978,7 @@
 
     <script>
         // ============================================================================
-        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V6.1 - LAYOUT FIX)
+        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V6.2 - INTERACTION & TUTORIAL FIX)
         // ============================================================================
 
         // ----------------------------------------------------------------------------
@@ -2449,45 +2449,95 @@
             DOM.hudProgress.style.width = `${Math.min(100, progress)}%`;
         }
 
+        // FIX V6.2: Optimized updatePositionsPanel to prevent DOM thrashing
+        // This ensures buttons remain clickable even during rapid updates.
         function updatePositionsPanel() {
             DOM.positionsCount.textContent = state.openPositions.length;
-            DOM.positionsList.innerHTML = '';
 
+            // 1. Get existing DOM elements
+            const existingItems = DOM.positionsList.children;
+            
+            // 2. Identify current position IDs
+            const currentIds = new Set(state.openPositions.map(p => p.id));
+
+            // 3. Remove DOM elements for closed positions
+            // Iterate backwards to safely remove elements while iterating
+            for (let i = existingItems.length - 1; i >= 0; i--) {
+                const item = existingItems[i];
+                const id = parseInt(item.dataset.id);
+                if (!currentIds.has(id)) {
+                    DOM.positionsList.removeChild(item);
+                }
+            }
+
+            // 4. Add new positions or Update existing ones
+            // We iterate through state.openPositions to maintain order if needed, although order isn't strictly guaranteed here.
             state.openPositions.forEach(pos => {
-                const item = document.createElement('div');
-                item.className = 'trade-item';
-                item.dataset.id = pos.id; 
-                
+                let item = DOM.positionsList.querySelector(`[data-id="${pos.id}"]`);
+
+                if (!item) {
+                    // Create new item if it doesn't exist
+                    item = document.createElement('div');
+                    item.className = 'trade-item';
+                    item.dataset.id = pos.id;
+
+                    // Initial HTML structure with placeholders for dynamic data
+                    // We add specific classes (trade-profit, trade-sl, trade-tp) for easy selection later.
+                    item.innerHTML = `
+                        <div class="trade-header">
+                            <span class="trade-type ${pos.type}">#${pos.id} ${pos.type === 'BUY' ? '買入' : '賣出'} ${pos.lots.toFixed(2)}手</span>
+                            <span class="trade-profit"></span> <!-- Placeholder for profit -->
+                        </div>
+                        <div class="trade-details">
+                            <div>
+                                <div class="trade-detail-label">進場價</div>
+                                <div>${pos.entryPrice.toFixed(2)}</div>
+                            </div>
+                            <div>
+                                <div class="trade-detail-label">停損(SL)</div>
+                                <div class="trade-sl"></div> <!-- Placeholder for SL -->
+                            </div>
+                            <div>
+                                <div class="trade-detail-label">停利(TP)</div>
+                                <div class="trade-tp"></div> <!-- Placeholder for TP -->
+                            </div>
+                        </div>
+                        <div class="trade-actions">
+                            <button class="btn btn-small btn-secondary btn-modify">修改</button>
+                            <button class="btn btn-small btn-danger btn-close">平倉</button>
+                        </div>
+                    `;
+                    // Append the new item. If we needed strict ordering (e.g., newest first), we'd adjust insertion logic.
+                    DOM.positionsList.appendChild(item);
+                }
+
+                // Update dynamic parts (Profit, SL, TP)
+                const profitElement = item.querySelector('.trade-profit');
+                const slElement = item.querySelector('.trade-sl');
+                const tpElement = item.querySelector('.trade-tp');
+
                 const profitColor = pos.profit >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
                 
-                item.innerHTML = `
-                    <div class="trade-header">
-                        <span class="trade-type ${pos.type}">#${pos.id} ${pos.type === 'BUY' ? '買入' : '賣出'} ${pos.lots.toFixed(2)}手</span>
-                        <span style="color: ${profitColor}">$${pos.profit.toFixed(2)}</span>
-                    </div>
-                    <div class="trade-details">
-                        <div>
-                            <div class="trade-detail-label">進場價</div>
-                            <div>${pos.entryPrice.toFixed(2)}</div>
-                        </div>
-                        <div>
-                            <div class="trade-detail-label">停損(SL)</div>
-                            <div>${pos.sl ? pos.sl.toFixed(2) : 'N/A'}</div>
-                        </div>
-                        <div>
-                            <div class="trade-detail-label">停利(TP)</div>
-                            <div>${pos.tp ? pos.tp.toFixed(2) : 'N/A'}</div>
-                        </div>
-                    </div>
-                    <div class="trade-actions">
-                        <button class="btn btn-small btn-secondary btn-modify">修改</button>
-                        <button class="btn btn-small btn-danger btn-close">平倉</button>
-                    </div>
-                `;
-                DOM.positionsList.appendChild(item);
+                // Only update if changed (minor optimization)
+                const newProfitText = `$${pos.profit.toFixed(2)}`;
+                if (profitElement.textContent !== newProfitText) {
+                    profitElement.textContent = newProfitText;
+                    profitElement.style.color = profitColor;
+                }
+                
+                const newSLText = pos.sl ? pos.sl.toFixed(2) : 'N/A';
+                if (slElement.textContent !== newSLText) {
+                    slElement.textContent = newSLText;
+                }
+
+                const newTPText = pos.tp ? pos.tp.toFixed(2) : 'N/A';
+                if (tpElement.textContent !== newTPText) {
+                    tpElement.textContent = newTPText;
+                }
             });
 
-            // FIX: Removed direct event listeners. Now handled by Event Delegation in setupEventListeners (Bug 3).
+            // Note: Event listeners are handled by Event Delegation in setupEventListeners (Bug 3 fix from V6.1), 
+            // so we don't need to re-attach them here.
         }
 
         function updateHistoryPanel() {
@@ -2573,6 +2623,7 @@
             DOM.btnCloseAllTab.addEventListener('click', closeAllOrders);
 
             // FIX: Event Delegation for Positions List (Bug 3)
+            // This mechanism works correctly with the optimized updatePositionsPanel.
             DOM.positionsList.addEventListener('click', (e) => {
                 const target = e.target;
                 const tradeItem = target.closest('.trade-item');
@@ -2670,6 +2721,7 @@
             }
         }
 
+        // FIX: Updated function to re-evaluate tutorial highlight on tab switch (V6.2)
         function handleTabSwitch(e) {
             const target = e.target.closest('.tab-btn');
             if (!target) return;
@@ -2678,6 +2730,13 @@
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             target.classList.add('active');
             document.getElementById(target.dataset.target).classList.add('active');
+
+            // FIX: Re-evaluate the tutorial highlight after the layout changes (V6.2)
+            // This prevents the overlay from blocking the UI if the target element is now hidden.
+            if (state.tutorialActive) {
+                // Use a slight delay to ensure the DOM is updated (CSS transitions finished) before recalculating bounds
+                setTimeout(showTutorialStep, 50); 
+            }
         }
 
         function handleTrade(type) {
@@ -3067,6 +3126,7 @@
             const element = document.querySelector(step.selector);
 
             if (!element) {
+                // If element isn't ready yet, wait a bit and try again
                 setTimeout(showTutorialStep, 100);
                 return;
             }
@@ -3075,8 +3135,11 @@
             DOM.tutorialText.textContent = step.message;
 
             // Ensure "Next" button is visible and bound
-            DOM.tutorialNextBtn.classList.remove('hidden');
-            DOM.tutorialNextBtn.onclick = completeTutorialStep;
+            // Check added because highlightElement might hide the message if the element is hidden (V6.2)
+            if (!DOM.tutorialMessage.classList.contains('hidden')) {
+                DOM.tutorialNextBtn.classList.remove('hidden');
+                DOM.tutorialNextBtn.onclick = completeTutorialStep;
+            }
         }
 
         function completeTutorialStep() {
@@ -3094,10 +3157,22 @@
             document.getElementById('challengeInfo').style.display = 'none';
         }
 
+        // FIX: Updated function to handle hidden elements gracefully (V6.2)
         function highlightElement(element) {
             const rect = element.getBoundingClientRect();
             const padding = 10;
 
+            // FIX: Check if the element is hidden (e.g., in an inactive tab) (V6.2)
+            // If the element has 0 width/height (or is otherwise not displayed), it's effectively hidden.
+            if (rect.width === 0 && rect.height === 0) {
+                // If the target element is hidden, we must hide the highlight and message,
+                // otherwise the overlay (box-shadow) will block interaction with the visible UI.
+                DOM.tutorialHighlight.classList.add('hidden');
+                DOM.tutorialMessage.classList.add('hidden');
+                return; // Exit early
+            }
+
+            // If visible, proceed as normal
             DOM.tutorialHighlight.classList.remove('hidden');
             DOM.tutorialHighlight.style.top = `${rect.top + window.scrollY - padding}px`;
             DOM.tutorialHighlight.style.left = `${rect.left + window.scrollX - padding}px`;
