@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>XAUUSD 交易模擬挑戰 (Playable Ad Rework V6)</title>
+    <title>XAUUSD 交易模擬挑戰 (Playable Ad Rework V6.1)</title>
     <style>
         /* 1. Reset & Variables */
         :root {
@@ -63,6 +63,8 @@
             display: flex;
             flex: 1;
             overflow: hidden;
+            /* NEW FIX: Crucial for flex children in column layout to handle overflow correctly */
+            min-height: 0; 
         }
 
         .chart-container {
@@ -73,16 +75,16 @@
             overflow: hidden;
         }
 
-        /* FIX: Sidebar Layout Rework (Bug 2) */
+        /* FIX: Sidebar Layout Rework (V6.1) */
         .sidebar {
             width: 340px;
             background-color: var(--color-panel-bg);
             border-left: 1px solid var(--color-border);
             display: flex;
             flex-direction: column;
-            overflow: hidden; /* Handled by tabs-wrapper */
+            /* overflow: hidden; // REMOVED: Let the content handle its own overflow */
             flex-shrink: 0;
-            height: 100%;
+            /* height: 100%; // REMOVED: Flexbox handles height within main-content */
         }
         
         /* Footer */
@@ -142,6 +144,7 @@
         }
 
         /* 3. Header (HUD) Components */
+        /* ... (Styles for HUD remain unchanged) ... */
         .hud {
             display: flex;
             gap: 20px;
@@ -192,6 +195,7 @@
         }
 
         /* 4. Chart Components */
+        /* ... (Styles for Chart remain unchanged) ... */
         .chart-wrap {
             position: relative;
             flex: 1;
@@ -374,12 +378,14 @@
             border-bottom: 2px solid var(--color-primary);
         }
 
-        /* FIX: Wrapper for tab content to manage overflow (Bug 2) */
+        /* FIX: Wrapper for tab content to manage overflow (V6.1) */
         .tabs-wrapper {
             flex: 1;
-            overflow: hidden;
+            overflow: hidden; /* Constrains the tab-content within the wrapper */
             display: flex;
             flex-direction: column;
+            /* NEW FIX: Crucial for flex children with overflow in complex layouts */
+            min-height: 0; 
         }
 
         .tab-content {
@@ -390,7 +396,7 @@
             /* FIX: Fill the wrapper and allow internal scrolling */
             flex-grow: 1;
             overflow-y: auto; 
-            height: 100%;
+            /* height: 100%; // REMOVED: Redundant and conflicting */
         }
 
         .tab-content.active {
@@ -398,6 +404,7 @@
         }
 
         /* 6.1 Order Panel */
+        /* ... (Styles for Order Panel remain unchanged) ... */
         .order-grid {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
@@ -509,6 +516,7 @@
 
 
         /* 6.2 Positions & History */
+        /* ... (Styles for Positions & History remain unchanged) ... */
         .positions-list, .history-list {
             display: flex;
             flex-direction: column;
@@ -559,6 +567,7 @@
         }
 
         /* 7. Modals & Overlays */
+        /* ... (Styles for Modals remain unchanged) ... */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -969,7 +978,7 @@
 
     <script>
         // ============================================================================
-        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V6 - FIXES & ACHIEVEMENTS)
+        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V6.1 - LAYOUT FIX)
         // ============================================================================
 
         // ----------------------------------------------------------------------------
@@ -1095,7 +1104,6 @@
 
         // ----------------------------------------------------------------------------
         // 2. 數據處理 (Data Processing)
-        // (Functions: loadData, promptForFileUpload, processData, parseData remain unchanged)
         // ----------------------------------------------------------------------------
 
         async function loadData() {
@@ -1373,7 +1381,6 @@
         }
 
         function selectRandomDataSegment() {
-            // ... (Function remains unchanged) ...
             const totalDurationMs = CONFIG.SIMULATION_DURATION_DAYS * 24 * 60 * 60 * 1000;
             
             if (state.rawData.length === 0) return;
@@ -1491,7 +1498,6 @@
         }
 
         // Timer Functions
-        // ... (Functions: startTimer, updateTimer, stopTimer remain unchanged) ...
         function startTimer() {
             state.gameStartTime = Date.now();
             if (state.timerIntervalId) {
@@ -1519,7 +1525,6 @@
 
         // ----------------------------------------------------------------------------
         // 4. 圖表繪製與渲染 (Chart Drawing & Rendering)
-        // (Functions in this section remain largely unchanged, focusing on drawing logic)
         // ----------------------------------------------------------------------------
         
         function initChart() {
@@ -1572,7 +1577,6 @@
         }
 
          function calculateVisibleCandles() {
-            // ... (Function remains unchanged) ...
             const { width, candleWidth, candleSpacing } = state.chart;
             const { left, right } = CONFIG.CHART_PADDING;
             const chartAreaWidth = width - left - right;
@@ -1582,7 +1586,6 @@
         }
 
         function calculateViewport() {
-            // ... (Function remains unchanged) ...
             const visibleCandles = calculateVisibleCandles();
 
             let endIndex = state.currentIndex + 1 - state.chart.scrollOffset;
@@ -1636,7 +1639,6 @@
 
         // 座標轉換工具
         function priceToY(price) {
-            // ... (Function remains unchanged) ...
             const { height, minPrice, maxPrice } = state.chart;
             const { top, bottom } = CONFIG.CHART_PADDING;
             const chartAreaHeight = height - top - bottom;
@@ -1649,7 +1651,6 @@
         }
 
         function yToPrice(y) {
-            // ... (Function remains unchanged) ...
             const { height, minPrice, maxPrice } = state.chart;
             const { top, bottom } = CONFIG.CHART_PADDING;
             const chartAreaHeight = height - top - bottom;
@@ -1664,7 +1665,6 @@
         }
 
         function indexToX(index) {
-            // ... (Function remains unchanged) ...
             const { viewStartIndex, candleWidth, candleSpacing } = state.chart;
             const { left } = CONFIG.CHART_PADDING;
             const candleUnitWidth = candleWidth + candleSpacing;
@@ -1672,7 +1672,6 @@
         }
 
         // Drawing Functions Implementation
-        // ... (Functions: drawBackground, drawGrid, getAnimatedBar, drawCandles, calculateYAxisTicks remain unchanged) ...
         function drawBackground(ctx) {
             ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-bg').trim();
             ctx.fillRect(0, 0, state.chart.width, state.chart.height);
@@ -1805,7 +1804,6 @@
         }
 
         function drawYAxis(ctx) {
-            // ... (Function remains unchanged) ...
             const { width, height } = state.chart;
             const { right } = CONFIG.CHART_PADDING;
             const axisX = width - right;
@@ -1851,7 +1849,6 @@
         }
 
         function calculateXAxisTicks() {
-            // ... (Function remains unchanged) ...
             const { viewStartIndex, viewEndIndex, width } = state.chart;
             if (viewEndIndex <= viewStartIndex || viewStartIndex >= state.gameData.length) return [];
 
@@ -1885,7 +1882,6 @@
         }
 
         function drawXAxis(ctx) {
-            // ... (Function remains unchanged) ...
             const { width, height } = state.chart;
             const { bottom, right, left } = CONFIG.CHART_PADDING;
             const axisY = height - bottom;
@@ -1943,7 +1939,6 @@
 
         // Draw Crosshair (Handles both mouse hover and pinned touch)
         function drawCrosshair(ctx) {
-            // ... (Function remains unchanged) ...
             if (state.chart.isDragging) return;
 
             let x, y;
@@ -1999,7 +1994,6 @@
         }
 
         function updatePositionOverlays() {
-            // ... (Function remains unchanged) ...
             const overlay = DOM.chartOverlay;
             const linesToKeep = new Set();
 
@@ -2036,7 +2030,6 @@
         }
 
         function createOrUpdatePositionLine(container, id, price, color, labelText, position = null, potentialPL = null) {
-            // ... (Function remains unchanged) ...
             let line = document.getElementById(id);
             if (!line) {
                 line = document.createElement('div');
@@ -2102,7 +2095,6 @@
         const tradeAnimations = [];
 
         function addTradeAnimation(type, price, index, profit = 0) {
-            // ... (Function remains unchanged) ...
             tradeAnimations.push({
                 type,
                 price,
@@ -2117,7 +2109,6 @@
         }
 
         function drawTradeAnimations(ctx) {
-            // ... (Function remains unchanged) ...
             const now = performance.now();
             let animationsRunning = false;
 
@@ -2323,8 +2314,9 @@
 
             // Iterate over a copy because closeOrder modifies state.openPositions if triggered
             [...state.openPositions].forEach(pos => {
-                // Check if position still exists
-                if (!state.openPositions.includes(pos)) return;
+                // Check if position still exists (might have been closed by SL/TP already in this loop)
+                // We use find by ID because the 'pos' object reference might be stale if updates happened
+                if (!state.openPositions.find(p => p.id === pos.id)) return;
 
                 pos.profit = calculateProfit(pos, currentPrice);
 
@@ -2345,7 +2337,7 @@
                     if (pos.sl && currentLow <= pos.sl) {
                         positionsToClose.push({ id: pos.id, price: pos.sl, reason: 'SL' });
                     } 
-                    // Use 'else if' to prevent SL and TP triggering on the same tick
+                    // Use 'else if' to prevent SL and TP triggering on the same tick if they are very close
                     else if (pos.tp && currentHigh >= pos.tp) {
                         positionsToClose.push({ id: pos.id, price: pos.tp, reason: 'TP' });
                     }
@@ -2359,8 +2351,13 @@
                 }
             });
 
+            // Process closures uniquely
+            const closedIds = new Set();
             positionsToClose.forEach(order => {
-                closeOrder(order.id, order.price);
+                if (!closedIds.has(order.id)) {
+                    closeOrder(order.id, order.price);
+                    closedIds.add(order.id);
+                }
             });
         }
 
@@ -2399,7 +2396,6 @@
         }
 
          function updateEstimatedPL() {
-            // ... (Function remains unchanged) ...
             const lots = parseFloat(DOM.inputLots.value);
             const slPrice = parseFloat(DOM.inputSL.value);
             const tpPrice = parseFloat(DOM.inputTP.value);
@@ -2428,7 +2424,6 @@
         }
         
         function updateHUD() {
-            // ... (Function remains unchanged) ...
             if (state.gameData.length === 0) return;
 
             let displayIndex = state.currentIndex;
@@ -2496,7 +2491,6 @@
         }
 
         function updateHistoryPanel() {
-            // ... (Function remains unchanged) ...
             if (DOM.historyList.children.length === state.tradeHistory.length) return;
 
             DOM.historyList.innerHTML = '';
@@ -2586,6 +2580,9 @@
 
                 const id = parseInt(tradeItem.dataset.id);
 
+                // Check if the ID is still valid (position exists)
+                if (!state.openPositions.find(p => p.id === id)) return;
+
                 if (target.classList.contains('btn-close')) {
                     const currentPrice = getCurrentPrice();
                     closeOrder(id, currentPrice);
@@ -2629,7 +2626,6 @@
 
         // Event Handlers Implementation
          function togglePlayPause() {
-            // ... (Function remains unchanged) ...
             if (state.isEnded) return;
             state.isPlaying = !state.isPlaying;
             
@@ -2666,7 +2662,6 @@
         }
         
         function handleSpeedChange(e) {
-            // ... (Function remains unchanged) ...
             if (e.target.classList.contains('speed-btn')) {
                 document.querySelectorAll('.speed-btn').forEach(btn => btn.classList.remove('active'));
                 e.target.classList.add('active');
@@ -2676,7 +2671,6 @@
         }
 
         function handleTabSwitch(e) {
-            // ... (Function remains unchanged) ...
             const target = e.target.closest('.tab-btn');
             if (!target) return;
 
@@ -2687,7 +2681,6 @@
         }
 
         function handleTrade(type) {
-            // ... (Function remains unchanged) ...
             const lots = parseFloat(DOM.inputLots.value);
             const sl = DOM.inputSL.value ? parseFloat(DOM.inputSL.value) : null;
             const tp = DOM.inputTP.value ? parseFloat(DOM.inputTP.value) : null;
@@ -2720,7 +2713,6 @@
         }
 
         function modifyOrder(id) {
-            // ... (Function remains unchanged) ...
             const position = state.openPositions.find(p => p.id === id);
             if (!position) return;
 
@@ -2814,7 +2806,6 @@
         }
 
         function zoomChart(factor) {
-            // ... (Function remains unchanged) ...
             const newWidth = state.chart.candleWidth * factor;
             const newSpacing = state.chart.candleSpacing * factor;
 
@@ -2948,7 +2939,6 @@
         }
 
         function validateScrollOffset() {
-            // ... (Function remains unchanged) ...
             if (state.gameData.length === 0) {
                 state.chart.scrollOffset = 0;
                 return;
@@ -2987,7 +2977,6 @@
         }
 
          function showEventModal(event) {
-            // ... (Function remains unchanged) ...
             if (state.isPlaying) {
                 state.wasPlayingBeforeEvent = true;
                 state.isPlaying = false;
@@ -3003,7 +2992,6 @@
         }
 
          function continueFromEvent() {
-            // ... (Function remains unchanged) ...
             DOM.eventModal.classList.remove('active');
             if (state.wasPlayingBeforeEvent) {
                 togglePlayPause();
@@ -3012,7 +3000,6 @@
 
         
         function showEndGameModal() {
-            // ... (Function remains unchanged) ...
             const finalRoR = ((state.equity - CONFIG.INITIAL_BALANCE) / CONFIG.INITIAL_BALANCE) * 100;
             
             document.getElementById('finalScore').textContent = `$${state.equity.toFixed(2)}`;
@@ -3063,7 +3050,6 @@
         let currentTutorialStep = 0;
 
         function startTutorial() {
-            // ... (Function remains unchanged) ...
             state.tutorialActive = true;
             currentTutorialStep = 0;
             // Temporarily show the hidden challenge info for the tutorial
@@ -3072,7 +3058,6 @@
         }
 
         function showTutorialStep() {
-            // ... (Function remains unchanged) ...
             if (currentTutorialStep >= TUTORIAL_STEPS.length) {
                 endTutorial();
                 return;
@@ -3101,7 +3086,6 @@
         }
 
         function endTutorial() {
-            // ... (Function remains unchanged) ...
             state.tutorialActive = false;
             state.tutorialCompletedOnce = true;
             DOM.tutorialHighlight.classList.add('hidden');
@@ -3111,7 +3095,6 @@
         }
 
         function highlightElement(element) {
-            // ... (Function remains unchanged) ...
             const rect = element.getBoundingClientRect();
             const padding = 10;
 
@@ -3265,7 +3248,6 @@
         }
 
         function checkDurationAchievements() {
-            // ... (Function remains unchanged) ...
             // Ensure gameData access is safe
             if (!state.gameData || state.gameData.length === 0 || state.currentIndex >= state.gameData.length) return;
 
@@ -3300,7 +3282,6 @@
         }
 
         function displayAchievements() {
-            // ... (Function remains unchanged) ...
             const listElement = document.getElementById('achievementsList');
             const sectionElement = document.getElementById('achievementsSection');
             listElement.innerHTML = '';
@@ -3402,7 +3383,13 @@
                             return; // 市價不可用則不操作
                         }
                     } else if (inputId === 'inputLots') {
-                        newValue = step;
+                        // Ensure initialization respects the step (e.g., if step is 0.1, initialize to 0.1)
+                        // If pressing down from empty, initialize to minimum lot size
+                        if (step > 0) {
+                             newValue = Math.abs(step);
+                        } else {
+                            newValue = 0.01;
+                        }
                     }
                 } else {
                      newValue = currentValue + step;
@@ -3410,6 +3397,8 @@
                 
                 // 浮點數校正
                 const precisionFactor = Math.pow(10, Math.max(decimalPlaces, displayDecimalPlaces));
+                // Safety check if newValue somehow became undefined
+                if (newValue === undefined) return; 
                 newValue = Math.round(newValue * precisionFactor) / precisionFactor;
 
 
