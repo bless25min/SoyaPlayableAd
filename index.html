@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>XAUUSD 交易模擬挑戰 (UI Redesign V8.0)</title>
+    <title>XAUUSD 交易模擬挑戰 (UI Redesign V8.0.1)</title>
     <style>
         /* 1. Reset & Variables */
         :root {
@@ -270,7 +270,8 @@
             position: absolute;
             top: 10px;
             left: 10px;
-            right: 70px;
+            /* V8.0.1: Adjusted right padding for better responsiveness */
+            right: 10px;
             z-index: 5;
             display: flex;
             justify-content: space-between;
@@ -640,11 +641,149 @@
         }
 
         /* V8.0: Mobile adjustments for Side Panel */
+        /* V8.0.1: Major Mobile Optimization Overhaul */
         @media (max-width: 900px) {
             .btn-toggle-panel {
                 display: block; /* Visible on mobile */
             }
+
+            /* V8.0.1: Vertical Chart Controls on Mobile */
+            .controls-overlay-container {
+                /* Adjust padding for mobile */
+                top: 5px;
+                left: 5px;
+                right: 5px;
+                align-items: flex-start; 
+            }
+
+            /* Apply reduced padding/gap to all control groups */
+            .controls {
+                 padding: 5px;
+                 gap: 5px;
+            }
+
+            .controls-left {
+                flex-direction: column;
+                align-items: stretch; /* Make buttons same width */
+            }
+
+            .collapsible-controls {
+                flex-direction: column;
+                /* Reset horizontal styles */
+                padding-left: 0;
+                margin-left: 0;
+                border-left: none;
+                /* Add a top border when stacked vertically */
+                border-top: 1px solid var(--color-border);
+                padding-top: 5px;
+                margin-top: 5px;
+                
+                /* Adjust transition for vertical collapse (using max-height instead of max-width) */
+                transition: max-height 0.4s ease, opacity 0.4s ease, margin-top 0.4s ease, padding-top 0.4s ease, border-top-width 0.4s ease;
+                max-width: none; /* Remove max-width constraint */
+                max-height: 500px; /* Set a large max-height for animation */
+            }
+
+            .controls-collapsed .collapsible-controls {
+                /* Adjust collapse properties for vertical animation */
+                max-width: none; 
+                max-height: 0;
+                opacity: 0;
+                margin-top: 0;
+                padding-top: 0;
+                border-top-width: 0;
+            }
+
+            /* Keep speed selector horizontal for better usability */
+            .speed-selector {
+                display: flex;
+            }
+
+            .speed-btn {
+                flex: 1; /* Distribute space evenly */
+            }
+            
+            .btn {
+                font-size: 12px; /* Smaller buttons on mobile */
+                padding: 6px 8px;
+                min-height: 28px;
+            }
         }
+
+        /* V8.0.1: Optimization for small mobile devices (Fixes Header overlap and Bottom bar clipping) */
+        @media (max-width: 480px) {
+            /* Header Fix: Stack vertically */
+            .header {
+                padding: 4px 8px;
+                flex-direction: column; /* Stack HUD and HUD-right vertically */
+                align-items: stretch;
+                gap: 5px;
+            }
+            
+            .hud, .hud-right {
+                justify-content: space-between; /* Distribute items evenly within their containers */
+                gap: 5px;
+            }
+
+            .hud-label {
+                font-size: 10px;
+            }
+
+            .hud-value {
+                font-size: 13px;
+            }
+
+            /* Hide Date on very small screens to prevent overlap in the top row */
+            .hud .hud-item:first-child {
+               display: none;
+            }
+            
+            .progress-container {
+                width: auto; /* Allow progress bar to adapt */
+                flex: 1; /* Allow it to grow in the hud-right container */
+                max-width: 120px;
+            }
+
+            /* Bottom Bar Fix: Reduce sizes */
+            .bottom-bar {
+                padding: 5px;
+                gap: 5px;
+                padding-bottom: max(5px, env(safe-area-inset-bottom));
+            }
+
+            .order-controls {
+                gap: 5px;
+            }
+            
+            .input-group-horizontal label {
+                font-size: 12px;
+            }
+
+            .input-field {
+                width: 60px; /* Further reduced width */
+                font-size: 12px;
+                padding: 5px 3px;
+            }
+
+            .trade-actions {
+                gap: 5px;
+            }
+
+            .btn-trade, .btn-open-panel {
+                font-size: 14px;
+                padding: 8px 5px;
+            }
+            
+            .order-info-bar {
+                padding-top: 4px;
+            }
+
+            .estimates {
+                font-size: 10px;
+                gap: 8px;
+            }
+        }
+
 
         /* 7. Modals & Overlays */
         .modal-overlay {
@@ -779,10 +918,18 @@
 
         @media (max-width: 900px) {
             #notification-container {
-                top: 60px;
+                /* V8.0.1: Adjust top position dynamically based on header height might be needed via JS, but use a safe default */
+                top: 60px; 
                 right: 10px;
                 left: 10px;
                 align-items: center;
+            }
+        }
+
+         @media (max-width: 480px) {
+            #notification-container {
+                /* V8.0.1: Further adjustment for stacked header */
+                top: 85px; 
             }
         }
 
@@ -1062,7 +1209,7 @@
             SIMULATION_DURATION_DAYS: 30,
         };
         
-        // (PERFORMANCE_BENCHMARKS and ACHIEVEMENTS constants remain the same as V7.3)
+        // (PERFORMANCE_BENCHMARKS and ACHIEVEMENTS constants remain the same)
         const PERFORMANCE_BENCHMARKS = {
             GENERAL: [
                 { ror: -Infinity, text: "你現在是市場裡的苦主之一，還比不上 21% 的股民", beat: 0 },
@@ -1169,7 +1316,7 @@
         // ----------------------------------------------------------------------------
         // 2. 數據處理 (Data Processing)
         // ----------------------------------------------------------------------------
-        // (Data Processing functions remain the same as V7.3)
+        // (Data Processing functions remain the same)
 
         async function loadData() {
             try {
@@ -1380,7 +1527,7 @@
             });
         }
 
-        // (Remaining Game Initialization & Flow Control functions remain the same as V7.3)
+        // (Remaining Game Initialization & Flow Control functions remain the same)
         function startGame() {
             if (state.rawData.length === 0) return;
             DOM.endGameModal.classList.remove('active');
@@ -1588,7 +1735,7 @@
         // 4. 圖表繪製與渲染 (Chart Drawing & Rendering)
         // ----------------------------------------------------------------------------
         
-        // (All chart drawing functions remain the same as V7.3, except resizeCanvas updated for V8.0)
+        // (All chart drawing functions remain the same)
         
         function initChart() {
             state.chart.canvas = DOM.chartCanvas;
@@ -2274,7 +2421,7 @@
         // 5. 交易邏輯與帳戶管理 (Trading Logic & Account Management)
         // ----------------------------------------------------------------------------
         
-        // (All trading logic functions remain the same as V7.3)
+        // (All trading logic functions remain the same)
         
         function getCurrentPrice() {
             if (state.gameData.length === 0 || state.currentIndex >= state.gameData.length) return 0;
@@ -2631,7 +2778,7 @@
             }
         }
 
-        // (Remaining Interaction functions remain the same as V7.3)
+        // (Remaining Interaction functions remain the same)
         
         function handleEndGameClick() {
             if (state.isEnded) return;
@@ -2892,7 +3039,7 @@
         // 7. 遊戲化功能 (Gamification Features)
         // ----------------------------------------------------------------------------
         
-        // (Event and Modal functions remain the same as V7.3)
+        // (Event and Modal functions remain the same)
 
         function checkForEvents() {
             if (state.isEnded || state.gameData.length === 0) return;
@@ -3150,7 +3297,7 @@
         // 8. 成就係統與市場監控 (Achievement System & Market Monitoring)
         // ----------------------------------------------------------------------------
         
-        // (All achievement and monitoring functions remain the same as V7.3)
+        // (All achievement and monitoring functions remain the same)
 
         const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
         function calculate7DayRange() {
