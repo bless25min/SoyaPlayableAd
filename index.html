@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>XAUUSD 交易模擬挑戰 (Playable Ad Rework V6.2)</title>
+    <title>XAUUSD 交易模擬挑戰 (Playable Ad Rework V7.0 - Urgency & Feedback)</title>
     <style>
         /* 1. Reset & Variables */
         :root {
@@ -353,6 +353,7 @@
         /* 6.0 Game Objective (Now hidden by default) */
         .challenge-info {
             display: none; /* Hidden as requested */
+            padding: 15px; /* Added padding for better visibility during tutorial */
         }
 
         .panel-tabs {
@@ -652,7 +653,7 @@
             transition: top 0.3s, left 0.3s;
         }
         
-        /* 7.2 Achievements */
+        /* 7.2 Achievements & Feedback */
         .achievements-section {
             margin-top: 25px;
             border-top: 1px solid var(--color-border);
@@ -954,7 +955,8 @@
                 <p id="finalRoR" style="font-size: 20px;"></p>
                 <p id="finalTime" style="font-size: 16px; color: var(--color-text-secondary);"></p>
                 
-                <div id="endGameStats" style="text-align: left; margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--color-border);"></div>
+                <!-- MODIFIED: Content managed by JS, removed inline styles -->
+                <div id="endGameStats"></div>
                 
                 <div class="achievements-section" id="achievementsSection">
                     <h3>🏆 已解鎖成就</h3>
@@ -978,7 +980,7 @@
 
     <script>
         // ============================================================================
-        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V6.2 - INTERACTION & TUTORIAL FIX)
+        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V7.0 - URGENCY & FEEDBACK)
         // ============================================================================
 
         // ----------------------------------------------------------------------------
@@ -996,41 +998,47 @@
             SIMULATION_DURATION_DAYS: 30,
         };
 
+        // NEW V7.0: Performance comparison data (RoR represented as fractions, e.g., 0.10 = 10%)
+        const PERFORMANCE_BENCHMARKS = {
+            // 台灣一般人（綜合投資人群，使用混合法估算）
+            GENERAL: [
+                { ror: -Infinity, text: "你現在是市場裡的苦主之一，還比不上 21% 的股民", beat: 0 },
+                { ror: -0.20, text: "雖然不理想，但你已勝過約 21% 的股民", beat: 21 },
+                { ror: 0.00, text: "至少沒賠！你已超越了約 38% 的市場參與者", beat: 38 },
+                { ror: 0.02, text: "表現穩健，勝過了將近一半的投資人", beat: 46 },
+                { ror: 0.05, text: "穩中帶強，已領先市場上超過六成的股民", beat: 52 },
+                { ror: 0.10, text: "你是市場上的前段班，勝過約 58% 的投資人", beat: 58 },
+            ],
+            // 基金投資人（有基金經驗者，SFI 2021 年報酬自評）
+            FUND: [
+                { ror: -Infinity, text: "目前表現略遜一籌，但仍有進步空間", beat: 15 }, // Beat < 15%
+                { ror: 0.03, text: "表現與大多數基金投資人相當", beat: 15 },
+                { ror: 0.06, text: "穩定中求勝，你已勝過一半以上的基金參與者", beat: 46 },
+                { ror: 0.11, text: "表現亮眼，超越近七成基金投資人", beat: 75 },
+                { ror: 0.16, text: "這水準讓你進入基金界前 10% 精英行列", beat: 90 },
+                { ror: 0.21, text: "你是極少數的績效大師，已勝過 95% 基金投資人", beat: 95 },
+            ]
+        };
+
+
         // UPDATED: New Achievements List (Feature 6)
         const ACHIEVEMENTS = {
-            // 1. 新手上路
+            // ... (Achievements list remains the same)
             FIRST_TRADE: { title: "新手上路", description: "剛開戶就上車，駕照還在影印中", icon: "🚗" },
-            // 2. 荷包滿滿
             BIG_WIN: { title: "荷包滿滿", description: "一根長紅，帳戶變胖了！ (單筆獲利>$3000)", icon: "💰" },
-            // 3. 忍痛停損
             BIG_LOSS: { title: "忍痛停損", description: "對帳單一打開，我直接見祖先 (單筆虧損>$3000)", icon: "💔" },
-            // 4. 財神保佑
             WIN_STREAK_3: { title: "財神保佑", description: "三連紅，今天有神明附身 (連勝3筆)", icon: "🙏" },
-            // 5. 這人急了
             LOSS_STREAK_3: { title: "這人急了", description: "每根K棒都能解讀成希望 (連虧3筆)", icon: "😰" },
-            // 6. 凹單大師
             HOLD_LOSS_7D: { title: "凹單大師", description: "主力洗我我不怕，我有信仰 (持虧損倉>7天)", icon: "🧱" },
-            // 7. 佛系操盤
             HOLD_WIN_7D: { title: "佛系操盤", description: "放著讓它噴，天命流最會賺 (持獲利倉>7天)", icon: "🧘" },
-            // 8. 積少成多
             TRADER_10: { title: "積少成多", description: "韭菜每天割一點，主力都感動了 (累計10筆)", icon: "👨‍🌾" },
-            // 9. 快槍俠 (Updated condition: 1 hour)
             QUICK_DRAW: { title: "快槍俠", description: "一敲就出場，我盤感來了 (1小時內獲利平倉)", icon: "⚡" },
-            // 10. 翻倍！
             DOUBLE_UP: { title: "翻倍！", description: "阿嬤都說你該辭職全職操盤了 (淨值>$20000)", icon: "🚀" },
-            // 11. 破產邊緣 (Updated condition: $2000)
             MARGIN_CALL: { title: "破產邊緣", description: "再跌我就要賣腎了啦！(淨值曾低於$2000)", icon: "📉" },
-            // 12. 穩健獲利
             CONSISTENT: { title: "穩健獲利", description: "不當沖、不飆股，照樣噴到天花板 (結束時勝率>60%，且至少10筆)", icon: "🎯" },
-            
-            // NEW ACHIEVEMENTS
-            // 13. 信仰之力
             DIAMOND_HANDS_LOSS: { title: "信仰之力", description: "就算跌停，我還是幫它按愛心 (單一虧損部位抱超過 30%虧損還沒出場)", icon: "💖" },
-            // 14. 拉回買點
             AVERAGE_DOWN: { title: "拉回買點", description: "每次攤平，內心都默唸老師有交代 (對同一方向加碼 3 次以上)", icon: "📉📈" },
-            // 15. 今天盤不好
             BAD_DAY: { title: "今天盤不好", description: "明明賠錢卻能講到像賺錢 (單日虧損交易三次)", icon: "🌧️" },
-            // 16. 盤中抽筋
             RUG_PULL: { title: "盤中抽筋", description: "開高進場，收盤哭著關機 (同日內由獲利轉為虧損超過 $2000)", icon: "😱" },
         };
 
@@ -1063,14 +1071,14 @@
                 candleSpacing: CONFIG.CANDLE_SPACING,
                 isDragging: false,
                 dragStartX: 0,
-                dragStartY: 0, // NEW: For mobile touch distance calculation
+                dragStartY: 0, 
                 dragStartScroll: 0,
                 scrollOffset: 0, 
-                isCrosshairPinned: false, // NEW: For mobile touch interaction
-                pinnedCrosshairPos: { x: 0, y: 0 }, // NEW
+                isCrosshairPinned: false,
+                pinnedCrosshairPos: { x: 0, y: 0 },
             },
             mouse: { x: -1, y: -1, isOverChart: false },
-            isMobile: false, // NEW: Detect mobile/touch device
+            isMobile: false,
             tutorialActive: false,
             tutorialCompletedOnce: false,
             
@@ -1079,6 +1087,11 @@
             elapsedTime: 0,
             timerIntervalId: null,
 
+            // NEW V7.0: 7-Day Breakout Tracking
+            current7DayRange: { high: null, low: null },
+            lastAlertedHigh: null,
+            lastAlertedLow: null,
+
             // Achievements
             unlockedAchievements: new Set(),
             achievementStats: {
@@ -1086,10 +1099,9 @@
                 consecutiveLosses: 0,
                 maxEquity: CONFIG.INITIAL_BALANCE,
                 minEquity: CONFIG.INITIAL_BALANCE,
-                // NEW TRACKERS (Feature 6)
                 currentDay: null,
                 dailyLossCount: 0,
-                dailyMaxPL: 0, // Tracks the maximum P/L (equity - initial balance) reached during the day
+                dailyMaxPL: 0,
             },
 
             financialEvents: [
@@ -1098,6 +1110,7 @@
                 { triggerDay: 25, title: 'FOMC 利率決議', description: '聯準會即將宣布利率決議。市場普遍預期將維持現有利率。' },
             ],
             triggeredEvents: new Set(),
+            wasPlayingBeforeEvent: false, // NEW V7.0: Track state before event modal
         };
 
         const DOM = {};
@@ -1106,6 +1119,7 @@
         // 2. 數據處理 (Data Processing)
         // ----------------------------------------------------------------------------
 
+        // ... (loadData, promptForFileUpload, processData, parseData remain the same) ...
         async function loadData() {
             try {
                 const response = await fetch(CONFIG.DATA_URL);
@@ -1246,6 +1260,7 @@
             return parsedData.sort((a, b) => a.time - b.time);
         }
 
+
         // ----------------------------------------------------------------------------
         // 3. 遊戲初始化與流程控制 (Game Initialization & Flow Control)
         // ----------------------------------------------------------------------------
@@ -1317,6 +1332,10 @@
             // Initialize daily stats based on the starting point
             updateDailyStats();
 
+            // NEW V7.0: Initialize 7-day range
+            state.current7DayRange = calculate7DayRange();
+
+
             state.isLoading = false;
             DOM.loader.classList.add('hidden');
             
@@ -1365,6 +1384,11 @@
             state.gameStartTime = null;
             state.elapsedTime = 0;
             DOM.hudTimer.textContent = "00:00";
+
+            // NEW V7.0: Reset Breakout Tracking
+            state.current7DayRange = { high: null, low: null };
+            state.lastAlertedHigh = null;
+            state.lastAlertedLow = null;
 
             // Reset Achievements
             state.unlockedAchievements.clear();
@@ -1423,13 +1447,17 @@
                  const progressIncrement = deltaTime / effectiveInterval;
                  state.barAnimationProgress = Math.min(1, state.barAnimationProgress + progressIncrement);
                  
-                 updateDailyStats(); // NEW: Update stats continuously
+                 updateDailyStats(); 
                  updatePositions();
+
+                 // NEW V7.0: Check for breakouts in real-time during animation
+                 check7DayBreakout(); 
+
                  updateAccount();
                  updateUI(); 
 
                  checkDurationAchievements();
-                 checkDrawdownAchievement(); // NEW: Check RUG_PULL continuously
+                 checkDrawdownAchievement(); 
 
                  if (state.barAnimationProgress >= 1) {
                     finalizeCurrentBar();
@@ -1460,7 +1488,11 @@
         function advanceSimulation() {
             if (state.currentIndex < state.gameData.length - 1) {
                 state.currentIndex++;
-                updateDailyStats(); // NEW: Update stats on step forward
+                updateDailyStats(); 
+                
+                // NEW V7.0: Update 7-day range when moving to the next bar
+                state.current7DayRange = calculate7DayRange();
+
                 return true;
             }
             return false;
@@ -1497,7 +1529,7 @@
             showEndGameModal();
         }
 
-        // Timer Functions
+        // Timer Functions (Remain the same)
         function startTimer() {
             state.gameStartTime = Date.now();
             if (state.timerIntervalId) {
@@ -1527,6 +1559,7 @@
         // 4. 圖表繪製與渲染 (Chart Drawing & Rendering)
         // ----------------------------------------------------------------------------
         
+        // ... (initChart, resizeCanvas remain the same) ...
         function initChart() {
             state.chart.canvas = DOM.chartCanvas;
             state.chart.ctx = state.chart.canvas.getContext('2d');
@@ -1557,6 +1590,7 @@
             }
         }
 
+
         function draw() {
             if (state.isLoading || state.gameData.length === 0) return;
 
@@ -1573,9 +1607,13 @@
             drawCrosshair(ctx);
             drawTradeAnimations(ctx);
             
+            // NEW V7.0: Draw chart alert animations (Breakouts)
+            drawChartAlertAnimations(ctx);
+
             updatePositionOverlays();
         }
 
+         // ... (calculateVisibleCandles, calculateViewport, priceToY, yToPrice, indexToX remain the same) ...
          function calculateVisibleCandles() {
             const { width, candleWidth, candleSpacing } = state.chart;
             const { left, right } = CONFIG.CHART_PADDING;
@@ -1672,6 +1710,7 @@
         }
 
         // Drawing Functions Implementation
+        // ... (drawBackground, drawGrid, getAnimatedBar, drawCandles, calculateYAxisTicks, drawYAxis, calculateXAxisTicks, drawXAxis, drawCrosshair, updatePositionOverlays, createOrUpdatePositionLine remain the same) ...
         function drawBackground(ctx) {
             ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--chart-bg').trim();
             ctx.fillRect(0, 0, state.chart.width, state.chart.height);
@@ -2092,7 +2131,9 @@
             }
         }
 
+
         const tradeAnimations = [];
+        const chartAlertAnimations = []; // NEW V7.0: Array for chart alerts (Breakouts)
 
         function addTradeAnimation(type, price, index, profit = 0) {
             tradeAnimations.push({
@@ -2107,6 +2148,102 @@
                 requestAnimationFrame(draw);
             }
         }
+
+        // NEW V7.0: Function to add chart alert animations (Breakouts/Breakdowns)
+        function addChartAlertAnimation(type, price, index) {
+            chartAlertAnimations.push({
+                type, // BREAKOUT or BREAKDOWN
+                price,
+                index,
+                startTime: performance.now(),
+                duration: 2500, // 2.5 seconds animation
+            });
+            if (!state.isPlaying) {
+                requestAnimationFrame(draw);
+            }
+        }
+
+        // NEW V7.0: Function to draw chart alert animations
+        function drawChartAlertAnimations(ctx) {
+            const now = performance.now();
+            let animationsRunning = false;
+            const { left, right } = CONFIG.CHART_PADDING;
+            const { width } = state.chart;
+
+
+            for (let i = chartAlertAnimations.length - 1; i >= 0; i--) {
+                const anim = chartAlertAnimations[i];
+                const elapsed = now - anim.startTime;
+                const progress = Math.min(1, elapsed / anim.duration);
+                
+                // Fade out in the last phase
+                const opacity = progress < 0.8 ? 1 : 1 - ((progress - 0.8) / 0.2);
+
+                const y = priceToY(anim.price);
+
+                // Define colors and text
+                let color, text;
+                if (anim.type === 'BREAKOUT') {
+                    // Using a bright color for breakout/attention
+                    color = '#FFD700'; // Gold color 
+                    text = '💥 突破 7 日新高！';
+                } else { // BREAKDOWN
+                    color = getComputedStyle(document.documentElement).getPropertyValue('--color-danger').trim();
+                    text = '🔻 跌破 7 日新低！';
+                }
+
+                ctx.globalAlpha = opacity * 0.8;
+
+                // 1. Flashing Line across the chart
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2 + Math.sin(progress * Math.PI * 10) * 1; // Pulsating effect
+                ctx.beginPath();
+                ctx.moveTo(left, y);
+                ctx.lineTo(width - right, y);
+                ctx.stroke();
+
+                ctx.globalAlpha = opacity;
+
+                // 2. Floating Text Alert near the breakout point
+                const x = indexToX(anim.index);
+                
+                // If the breakout point is off-screen, clamp the text position horizontally
+                const textX = Math.max(left + 100, Math.min(width - right - 100, x));
+
+                // Float upwards
+                const floatY = y - progress * 50 - 30; 
+
+                ctx.font = 'bold 20px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                
+                // Add a background rectangle for better visibility
+                const textMetrics = ctx.measureText(text);
+                const padding = 10;
+                // Background color slightly darker/transparent
+                ctx.fillStyle = `rgba(50, 50, 50, ${opacity * 0.7})`;
+                ctx.fillRect(textX - textMetrics.width/2 - padding, floatY - 25 - padding, textMetrics.width + padding*2, 25 + padding*2);
+
+                // Text color
+                ctx.fillStyle = color;
+                ctx.fillText(text, textX, floatY);
+                
+
+                ctx.globalAlpha = 1;
+                ctx.lineWidth = 1;
+
+                if (progress >= 1) {
+                    chartAlertAnimations.splice(i, 1);
+                } else {
+                    animationsRunning = true;
+                }
+            }
+
+            if (animationsRunning && !state.isPlaying) {
+                requestAnimationFrame(draw); 
+            }
+        }
+
 
         function drawTradeAnimations(ctx) {
             const now = performance.now();
@@ -2182,6 +2319,7 @@
         // 5. 交易邏輯與帳戶管理 (Trading Logic & Account Management)
         // ----------------------------------------------------------------------------
 
+        // ... (getCurrentPrice, openOrder, closeOrder, calculateProfit, updatePositions, updateAccount remain the same) ...
         function getCurrentPrice() {
             if (state.gameData.length === 0 || state.currentIndex >= state.gameData.length) return 0;
             const currentBar = state.gameData[state.currentIndex];
@@ -2376,10 +2514,12 @@
             checkEquityAchievements();
         }
 
+
         // ----------------------------------------------------------------------------
         // 6. UI 更新與互動 (UI Updates & Interaction)
         // ----------------------------------------------------------------------------
 
+         // ... (updateUI, updateOrderPanel, updateEstimatedPL, updateHUD, updatePositionsPanel, updateHistoryPanel, updateControls, setupEventListeners remain the same) ...
          function updateUI() {
             updateHUD();
             updatePositionsPanel();
@@ -2699,6 +2839,8 @@
             } else {
                 state.barAnimationProgress = 1; 
                 updatePositions();
+                // NEW V7.0: Check breakout on manual step as well
+                check7DayBreakout(); 
                 updateAccount();
                 checkDurationAchievements(); // Check achievements on manual step
                 checkDrawdownAchievement(); // NEW
@@ -2712,6 +2854,7 @@
             }
         }
         
+        // ... (handleSpeedChange, handleTabSwitch, handleTrade, closeAllOrders, modifyOrder remain the same) ...
         function handleSpeedChange(e) {
             if (e.target.classList.contains('speed-btn')) {
                 document.querySelectorAll('.speed-btn').forEach(btn => btn.classList.remove('active'));
@@ -2776,6 +2919,7 @@
             if (!position) return;
 
             // Pause game when modifying order
+            // Note: Although `prompt` is blocking, explicitly pausing ensures UI consistency (e.g., Pause button updates)
             if (state.isPlaying) {
                 togglePlayPause();
             }
@@ -2834,6 +2978,7 @@
 
         
         // Chart Interaction Handlers (Mouse & Touch)
+        // ... (handleMouseMove, handleMouseLeave, handleMouseWheel, zoomChart, handleDragStart, handleDragging, handleDragEnd, handleTouchStart, handleTouchMove, handleTouchEnd, startDrag, performDrag, endDrag, validateScrollOffset remain the same) ...
         
         function handleMouseMove(e) {
             const rect = DOM.chartWrap.getBoundingClientRect();
@@ -3052,17 +3197,64 @@
 
          function continueFromEvent() {
             DOM.eventModal.classList.remove('active');
+            // NEW V7.0: Automatically resume playing if it was playing before (Urgency)
             if (state.wasPlayingBeforeEvent) {
                 togglePlayPause();
             }
         }
 
         
+        // NEW V7.0: Get performance feedback based on RoR
+        function getPerformanceFeedback(ror, benchmarkType = 'GENERAL') {
+            const benchmarks = PERFORMANCE_BENCHMARKS[benchmarkType];
+            if (!benchmarks) return null;
+
+            // Benchmarks are sorted by RoR ascending. Find the highest benchmark RoR that the user's RoR exceeds.
+            let feedback = benchmarks[0]; 
+            for (const benchmark of benchmarks) {
+                if (ror >= benchmark.ror) {
+                    feedback = benchmark;
+                } else {
+                    // Since it's sorted, we can stop once the user's RoR is less than the benchmark
+                    break;
+                }
+            }
+            return feedback;
+        }
+
+        
         function showEndGameModal() {
-            const finalRoR = ((state.equity - CONFIG.INITIAL_BALANCE) / CONFIG.INITIAL_BALANCE) * 100;
+            // Calculate RoR (Using 0-1 scale for calculations)
+            const finalRoR = ((state.equity - CONFIG.INITIAL_BALANCE) / CONFIG.INITIAL_BALANCE);
             
+            // Calculate simulation duration dynamically
+            let simulationDays = CONFIG.SIMULATION_DURATION_DAYS; // Default fallback
+            if (state.gameData.length > 1) {
+                simulationDays = (state.gameData[state.gameData.length-1].time - state.gameData[0].time) / (1000 * 60 * 60 * 24);
+            }
+
+            // NEW V7.0: Calculate Annualized RoR (Using compounding formula for better accuracy)
+            // Formula: (1 + Period RoR) ^ (365 / Period Days) - 1
+            let annualizedRoR = 0;
+            if (simulationDays > 0) {
+                const annualizationFactor = 365 / simulationDays;
+                // Ensure (1 + finalRoR) is positive before applying exponentiation
+                if (1 + finalRoR > 0) {
+                    annualizedRoR = Math.pow(1 + finalRoR, annualizationFactor) - 1;
+                } else {
+                    // Handle total loss or worse
+                    annualizedRoR = -1; 
+                }
+            }
+
+
             document.getElementById('finalScore').textContent = `$${state.equity.toFixed(2)}`;
-            document.getElementById('finalRoR').textContent = `回報率 (RoR): ${finalRoR.toFixed(2)}%`;
+            
+            // NEW V7.0: Updated RoR display
+            document.getElementById('finalRoR').innerHTML = `
+                回報率 (RoR): ${(finalRoR * 100).toFixed(2)}% <br>
+                <small style="font-size: 14px; color: var(--color-text-secondary);">(年化報酬率估算: ${(annualizedRoR * 100).toFixed(2)}%)</small>
+            `;
             document.getElementById('finalRoR').style.color = finalRoR >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
 
             // Display final time
@@ -3071,22 +3263,45 @@
             const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             document.getElementById('finalTime').textContent = `總花費時間: ${timeString}`;
 
+            // --- NEW V7.0: Performance Feedback ---
+            const feedbackGeneral = getPerformanceFeedback(annualizedRoR, 'GENERAL');
+            const feedbackFund = getPerformanceFeedback(annualizedRoR, 'FUND');
+
+            let feedbackHTML = '';
+            if (feedbackGeneral && feedbackFund) {
+                feedbackHTML = `
+                    <div class="performance-feedback" style="text-align: left; margin-top: 20px; padding: 15px; background-color: var(--color-bg); border-radius: var(--radius-main);">
+                        <h3 style="text-align: center; margin-bottom: 10px;">📊 你的表現如何？</h3>
+                        <p style="margin-top: 10px;"><strong>對比一般投資人：</strong><br>${feedbackGeneral.text}</p>
+                        <p style="margin-top: 10px;"><strong>對比基金投資人：</strong><br>${feedbackFund.text}</p>
+                    </div>
+                `;
+            }
+            
+
             // Stats Calculation
             const totalTrades = state.tradeHistory.length;
             const winningTrades = state.tradeHistory.filter(t => t.profit > 0).length;
             const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
             const totalProfit = state.tradeHistory.reduce((sum, t) => sum + t.profit, 0);
 
+            // NEW V7.0: Updated Stats HTML structure
+            const endGameStatsContainer = document.getElementById('endGameStats');
+            endGameStatsContainer.style.textAlign = "left"; 
+
             const statsHTML = `
-                <p><strong>交易統計：</strong></p>
-                <ul style="list-style-position: inside; padding-left: 10px;">
-                    <li>總交易次數: ${totalTrades}</li>
-                    <li>勝率: ${winRate.toFixed(2)}%</li>
-                    <li>總損益: $${totalProfit.toFixed(2)}</li>
-                    <li>模擬期間: 約 ${CONFIG.SIMULATION_DURATION_DAYS} 天</li>
-                </ul>
+                ${feedbackHTML}
+                <div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--color-border);">
+                    <p><strong>交易統計：</strong></p>
+                    <ul style="list-style-position: inside; padding-left: 10px;">
+                        <li>總交易次數: ${totalTrades}</li>
+                        <li>勝率: ${winRate.toFixed(2)}%</li>
+                        <li>總損益: $${totalProfit.toFixed(2)}</li>
+                        <li>模擬期間: 約 ${Math.round(simulationDays)} 天</li>
+                    </ul>
+                </div>
             `;
-            document.getElementById('endGameStats').innerHTML = statsHTML;
+            endGameStatsContainer.innerHTML = statsHTML;
 
             // Display Achievements
             displayAchievements();
@@ -3109,6 +3324,11 @@
         let currentTutorialStep = 0;
 
         function startTutorial() {
+            // Ensure the game is paused when the tutorial starts
+            if (state.isPlaying) {
+                togglePlayPause();
+            }
+            
             state.tutorialActive = true;
             currentTutorialStep = 0;
             // Temporarily show the hidden challenge info for the tutorial
@@ -3155,6 +3375,11 @@
             DOM.tutorialMessage.classList.add('hidden');
             // Hide the challenge info again after tutorial ends
             document.getElementById('challengeInfo').style.display = 'none';
+
+            // NEW V7.0: Automatically start the simulation after the tutorial ends (Urgency)
+            if (!state.isPlaying && !state.isEnded) {
+                togglePlayPause();
+            }
         }
 
         // FIX: Updated function to handle hidden elements gracefully (V6.2)
@@ -3207,9 +3432,77 @@
 
 
         // ----------------------------------------------------------------------------
-        // 8. 成就係統 (Achievement System)
+        // 8. 成就係統與市場監控 (Achievement System & Market Monitoring)
         // ----------------------------------------------------------------------------
 
+        // NEW V7.0: 7-Day Range Calculation (Used for breakout detection)
+        const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+        function calculate7DayRange() {
+            if (state.gameData.length === 0 || state.currentIndex <= 0) {
+                return { high: null, low: null };
+            }
+
+            // We want the range of the *previous* 7 days, excluding the current forming bar (currentIndex).
+            const endTime = state.gameData[state.currentIndex].time; 
+            const startTime = endTime - SEVEN_DAYS_MS;
+
+            let high = -Infinity;
+            let low = Infinity;
+
+            // Iterate backwards starting from the last closed bar (currentIndex - 1)
+            for (let i = state.currentIndex - 1; i >= 0; i--) {
+                const bar = state.gameData[i];
+                
+                // Optimization: If the bar's time is older than the start time, we can stop.
+                if (bar.time < startTime) {
+                   // We must ensure we have at least some data points if the simulation just started
+                   if (i < state.currentIndex - 1) {
+                       break;
+                   }
+                }
+                
+                high = Math.max(high, bar.high);
+                low = Math.min(low, bar.low);
+            }
+
+            return { 
+                high: high === -Infinity ? null : high, 
+                low: low === Infinity ? null : low 
+            };
+        }
+
+        // NEW V7.0: Check for 7-Day Breakouts/Breakdowns in real-time
+        function check7DayBreakout() {
+            if (state.currentIndex === 0) return;
+
+            const range = state.current7DayRange;
+            if (!range || range.high === null || range.low === null) return;
+
+            const currentBar = state.gameData[state.currentIndex];
+            const animatedBar = getAnimatedBar(currentBar);
+
+            // Check for Breakout (High)
+            if (animatedBar.high > range.high) {
+                // Only trigger if we haven't alerted for this specific level yet
+                // This prevents spamming animations while the price hovers above the line
+                if (range.high !== state.lastAlertedHigh) {
+                    addChartAlertAnimation('BREAKOUT', range.high, state.currentIndex);
+                    state.lastAlertedHigh = range.high; // Update the alerted level
+                }
+            }
+
+            // Check for Breakdown (Low)
+            if (animatedBar.low < range.low) {
+                // Only trigger if we haven't alerted for this specific level yet
+                if (range.low !== state.lastAlertedLow) {
+                    addChartAlertAnimation('BREAKDOWN', range.low, state.currentIndex);
+                    state.lastAlertedLow = range.low; // Update the alerted level
+                }
+            }
+        }
+
+
+        // ... (unlockAchievement, updateDailyStats, updateAchievementStats, checkTradeAchievements, checkEquityAchievements, checkDrawdownAchievement remain the same) ...
         function unlockAchievement(key) {
             if (!state.unlockedAchievements.has(key)) {
                 state.unlockedAchievements.add(key);
@@ -3328,7 +3621,7 @@
 
             // Use simulation time
             const currentTime = state.gameData[state.currentIndex].time;
-            const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+            // SEVEN_DAYS_MS is now defined in Section 8.
 
             state.openPositions.forEach(pos => {
                 const duration = currentTime - pos.entryTime;
@@ -3344,6 +3637,7 @@
             });
         }
 
+        // ... (checkFinalAchievements, displayAchievements, showNotification remain the same) ...
         function checkFinalAchievements() {
             // 12. 穩健獲利 (CONSISTENT)
             const totalTrades = state.tradeHistory.length;
@@ -3417,6 +3711,7 @@
         // 9. 輔助函式 (Utility Functions)
         // ----------------------------------------------------------------------------
 
+         // ... (setupInputStepper, formatDuration remain the same) ...
          // 設置輸入框的步進按鈕邏輯 (包含初始化)
          // FIX: Updated logic for initialization and stepping (Feature 5)
         function setupInputStepper(buttonId, inputId, step) {
