@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>XAUUSD 交易模擬挑戰 (Playable Ad Rework V7.0 - Urgency & Feedback)</title>
+    <title>XAUUSD 交易模擬挑戰 (Playable Ad Rework V7.1 - Animation Position Fix)</title>
     <style>
         /* 1. Reset & Variables */
         :root {
@@ -980,7 +980,7 @@
 
     <script>
         // ============================================================================
-        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V7.0 - URGENCY & FEEDBACK)
+        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V7.1 - Animation Position Fix)
         // ============================================================================
 
         // ----------------------------------------------------------------------------
@@ -2163,7 +2163,7 @@
             }
         }
 
-        // NEW V7.0: Function to draw chart alert animations
+        // NEW V7.1: Updated function to draw chart alert animations (Position Fix)
         function drawChartAlertAnimations(ctx) {
             const now = performance.now();
             let animationsRunning = false;
@@ -2194,7 +2194,7 @@
 
                 ctx.globalAlpha = opacity * 0.8;
 
-                // 1. Flashing Line across the chart
+                // 1. Flashing Line across the chart (Remains the same)
                 ctx.strokeStyle = color;
                 ctx.lineWidth = 2 + Math.sin(progress * Math.PI * 10) * 1; // Pulsating effect
                 ctx.beginPath();
@@ -2204,17 +2204,16 @@
 
                 ctx.globalAlpha = opacity;
 
-                // 2. Floating Text Alert near the breakout point
-                const x = indexToX(anim.index);
+                // 2. Floating Text Alert (FIX V7.1: Moved to the left side)
                 
-                // If the breakout point is off-screen, clamp the text position horizontally
-                const textX = Math.max(left + 100, Math.min(width - right - 100, x));
+                // Position text near the left edge of the chart area
+                const textX = left + 15; // Slightly more padding from the edge
 
                 // Float upwards
                 const floatY = y - progress * 50 - 30; 
 
                 ctx.font = 'bold 20px sans-serif';
-                ctx.textAlign = 'center';
+                ctx.textAlign = 'left'; // Changed from 'center' to 'left'
                 ctx.textBaseline = 'bottom';
                 
                 // Add a background rectangle for better visibility
@@ -2222,7 +2221,9 @@
                 const padding = 10;
                 // Background color slightly darker/transparent
                 ctx.fillStyle = `rgba(50, 50, 50, ${opacity * 0.7})`;
-                ctx.fillRect(textX - textMetrics.width/2 - padding, floatY - 25 - padding, textMetrics.width + padding*2, 25 + padding*2);
+                
+                // FIX V7.1: Updated fillRect coordinates for left alignment
+                ctx.fillRect(textX - padding, floatY - 25 - padding, textMetrics.width + padding*2, 25 + padding*2);
 
                 // Text color
                 ctx.fillStyle = color;
