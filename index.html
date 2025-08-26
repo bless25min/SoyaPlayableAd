@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>XAUUSD 交易模擬挑戰 (UI Redesign V9.0)</title>
+    <title>XAUUSD 交易模擬挑戰 (UI Redesign V10.0)</title>
     <style>
         /* 1. Reset & Variables */
         :root {
@@ -16,7 +16,8 @@
             --color-primary-dark: #2980b9;
             --color-success: #2ecc71;
             --color-danger: #e74c3c;
-            --color-neutral: #95a5a6;
+            /* V10.0: Define neutral color for Close All button */
+            --color-neutral-bg: #95a5a6;
             --color-warning: #f1c40f;
             --font-main: 'Helvetica Neue', Arial, sans-serif;
             --shadow-main: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -47,11 +48,16 @@
             /* V9.0: Ensure body takes full height and is structured for the app layout */
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            /* V10.0: Use dvh for better mobile viewport handling, fallback to 100vh */
+            height: 100dvh;
+            /* Fallback for older browsers */
+            @supports not (height: 100dvh) {
+                height: 100vh;
+            }
             overflow: hidden;
         }
 
-        /* 2. Layout Structure (V9.0 Overhaul - App Style) */
+        /* 2. Layout Structure (V10.0 Overhaul - Dynamic Grid/Flex Hybrid) */
         .header {
             background-color: var(--color-panel-bg);
             padding: 8px 15px; 
@@ -66,48 +72,56 @@
             gap: 5px 15px; /* row-gap column-gap */
         }
 
-        /* V9.0: New main container structure */
+        /* V10.0: New main container structure */
         .main-container-v9 {
-            display: flex;
-            /* V9.0 Mobile (Default): Stack chart and bottom content vertically */
-            flex-direction: column; 
+            /* V10.0 Mobile (Default): Use Grid for dynamic chart height */
+            /* Chart Row: flexible (1fr), minimum 200px. Bottom Content Row: auto height */
+            display: grid;
+            grid-template-rows: minmax(200px, 1fr) auto;
+            /* flex-direction: column; <-- Removed */
             flex: 1;
             overflow: hidden;
             min-height: 0; 
         }
 
-        /* V9.0: Chart container takes flexible space */
+        /* V10.0: Chart container takes flexible space (within grid track) */
         .chart-container-v9 {
-            flex: 1; /* Takes available space */
+            /* flex: 1; <-- Removed, managed by grid */
             display: flex;
             flex-direction: column;
             overflow: hidden;
             padding: 10px;
-            min-height: 200px; /* Minimum height for the chart */
+            /* min-height: 200px; <-- Managed by grid minmax */
         }
         
-        /* V9.0: Bottom Content Area (Tabs content) */
+        /* V10.0: Bottom Content Area (Tabs content) */
         .bottom-content-v9 {
             background-color: var(--color-panel-bg);
             border-top: 1px solid var(--color-border);
             display: flex;
             flex-direction: column;
-            flex-shrink: 0;
-            /* V9.0 Mobile (Default): Define a height for the bottom content area */
-            height: 35vh; 
-            max-height: 400px;
+            /* flex-shrink: 0; <-- Removed, managed by grid */
+            /* V10.0 Mobile (Default): Height is 'auto' based on grid track */
+            /* height: 35vh; <-- Removed */
+            /* max-height: 400px; <-- Removed */
+        }
+
+        /* V10.0: Ensure the Positions/History tab doesn't become excessively tall on mobile when active */
+        #tabPositionsHistory {
+             /* Limit height on mobile to ensure chart visibility, allows internal scrolling */
+             max-height: 50vh;
         }
         
         /* V9.0: Bottom Navigation Bar */
         .bottom-nav-bar-v9 {
             background-color: var(--color-panel-bg);
-            border-top: 1px solid var(--color-border);
+            /* border-top: 1px solid var(--color-border); <-- Moved to bottom-content-v9 */
             flex-shrink: 0;
             z-index: 30;
             display: flex;
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
-            /* Ensure bottom bar is visible on iOS devices with safe area */
-            padding-bottom: env(safe-area-inset-bottom);
+            /* box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05); <-- Removed shadow as it's no longer floating */
+            /* Safe area padding moved to the new footer */
+            /* padding-bottom: env(safe-area-inset-bottom); <-- Removed */
         }
 
         .nav-btn-v9 {
@@ -137,7 +151,7 @@
         .tab-content-v9 {
             display: none;
             flex-direction: column;
-            flex: 1;
+            /* flex: 1; <-- Removed by default in V10.0 for content-based height on mobile */
             overflow: hidden;
         }
 
@@ -150,37 +164,64 @@
             /* V9.0 Mobile (Default): Padding and centering */
             padding: 10px;
             gap: 8px;
-            justify-content: center; 
+            /* justify-content: center; <-- Removed in V10.0 as height is now content-based */
+        }
+
+        /* V10.0: Footer Advertisement Styling */
+        .footer-ad {
+            background-color: var(--color-panel-bg);
+            color: var(--color-text-secondary);
+            text-align: center;
+            padding: 5px 10px;
+            font-size: 12px;
+            border-top: 1px solid var(--color-border);
+            flex-shrink: 0; /* Prevent shrinking */
+            /* Ensure visibility on iOS devices with safe area, combining padding and safe area */
+            padding-bottom: max(5px, env(safe-area-inset-bottom));
         }
 
         /* ------------------------------------------------- */
-        /* Desktop Responsiveness Adjustments (V9.0 Overhaul) */
+        /* Desktop Responsiveness Adjustments (V10.0 Overhaul) */
         /* ------------------------------------------------- */
         @media (min-width: 901px) {
-            /* V9.0 Desktop: Switch to a side-by-side layout */
+            /* V10.0 Desktop: Switch to a side-by-side layout (Using Flex) */
             .main-container-v9 {
+                display: flex;
                 flex-direction: row; 
+                /* Reset grid properties */
+                grid-template-rows: unset;
             }
 
             .chart-container-v9 {
                 padding-right: 0; /* No padding on the right side where the panel is */
+                /* Restore flex behavior for desktop */
+                flex: 1;
             }
 
-            /* V9.0 Desktop: Bottom Content becomes the Side Panel */
+            /* V10.0 Desktop: Bottom Content becomes the Side Panel */
             .bottom-content-v9 {
                 width: var(--side-panel-width);
                 height: auto; /* Full height of the container */
-                max-height: none;
+                /* max-height: none; */
                 border-top: none;
                 border-left: 1px solid var(--color-border);
                 padding: 10px 0;
+                /* Restore flex-shrink for desktop */
+                flex-shrink: 0;
+            }
+
+            #tabPositionsHistory {
+                /* Reset mobile constraint */
+                max-height: none;
+                /* Allow it to fill the side panel height */
+                flex: 1;
             }
 
             /* V9.0 Desktop: Bottom Nav Bar becomes Top Tab Selector in the Side Panel */
             .bottom-nav-bar-v9 {
                 /* Reset bottom bar styles */
                 box-shadow: none;
-                padding-bottom: 0;
+                /* padding-bottom: 0; */
                 border-top: none;
                 /* Apply styles similar to the existing panel-tabs */
                 border-bottom: 1px solid var(--color-border);
@@ -199,7 +240,7 @@
                 box-shadow: inset 0 -2px 0 0 var(--color-primary);
             }
 
-            /* V9.0 Desktop: Adjust ordering tab padding and alignment */
+            /* V10.0 Desktop: Adjust ordering tab padding and alignment */
             #tabOrder {
                 padding: 20px;
                 gap: 15px;
@@ -447,6 +488,12 @@
             color: white;
         }
 
+        /* V10.0: New style for the neutral Close All button */
+        .btn-neutral {
+            background-color: var(--color-neutral-bg);
+            color: white;
+        }
+
         .btn-end-game {
              background-color: var(--color-panel-bg);
              color: var(--color-danger);
@@ -481,7 +528,7 @@
             border-right: 1px solid var(--color-border);
         }
 
-        /* 6. Trading Interface (V9.0 Adjustments) */
+        /* 6. Trading Interface (V10.0 Adjustments) */
         
         /* 6.1 Ordering Controls (Adjusted for V9.0 layout flexibility) */
         
@@ -537,7 +584,7 @@
         }
 
         .btn-trade {
-            padding: 12px 15px;
+            padding: 12px 10px; /* Reduced horizontal padding slightly in V10.0 for the 3-button layout */
             font-size: 18px;
             color: white;
             flex: 1;
@@ -552,10 +599,11 @@
         }
         
 
-        /* Info bar for estimates and global close all */
+        /* Info bar for estimates */
         .order-info-bar {
             display: flex;
-            justify-content: space-between;
+            /* V10.0: Center the estimates now that the button is moved */
+            justify-content: center;
             align-items: center;
             border-top: 1px solid var(--color-border);
             padding-top: 8px;
@@ -594,12 +642,15 @@
             }
             .btn-trade {
                 font-size: 16px;
-                padding: 10px 12px;
+                /* V10.0: Adjusted padding for 3-button layout on mobile */
+                padding: 10px 8px;
             }
 
             .order-info-bar {
                  padding-top: 6px;
                  margin-top: 0;
+                 /* V10.0: Ensure centering on mobile too */
+                 justify-content: center;
             }
             .estimates {
                 gap: 10px;
@@ -818,7 +869,7 @@
                 max-width: 120px;
             }
 
-            /* V9.0: Bottom Content Area Fixes (Ordering Tab) */
+            /* V10.0: Bottom Content Area Fixes (Ordering Tab) */
 
             #tabOrder {
                 padding: 5px;
@@ -846,7 +897,8 @@
 
             .btn-trade {
                 font-size: 14px;
-                padding: 8px 5px;
+                /* V10.0: Further reduced padding for 3-button layout on very small screens */
+                padding: 8px 3px;
             }
             
             .order-info-bar {
@@ -1187,8 +1239,11 @@
                        <input type="number" class="input-field scrubbable" id="inputTP" placeholder="價格" step="0.1" min="0" data-scrub-step="0.5">
                    </div>
                </div>
+               <!-- V10.0: Modified trade-actions for 3-button layout -->
                <div class="trade-actions">
                    <button class="btn btn-trade btn-sell" id="btnSell">賣出</button>
+                   <!-- Moved btnCloseAllGlobal here and updated style -->
+                   <button class="btn btn-trade btn-neutral" id="btnCloseAllGlobal">全部平倉</button>
                    <button class="btn btn-trade btn-buy" id="btnBuy">買入</button>
                </div>
                <div class="order-info-bar">
@@ -1196,7 +1251,7 @@
                        <span id="estimateSL"></span>
                        <span id="estimateTP"></span>
                    </div>
-                   <button class="btn btn-small btn-danger" id="btnCloseAllGlobal">全部平倉</button>
+                   <!-- btnCloseAllGlobal removed from here -->
                </div>
             </div>
 
@@ -1230,6 +1285,11 @@
 
         </div>
     </div>
+
+    <!-- V10.0: Footer for advertisement -->
+    <footer class="footer-ad">
+        本遊戲廣告由 眾曜智庫 提供
+    </footer>
     
 
     <!-- Modals -->
@@ -1273,7 +1333,7 @@
 
     <script>
         // ============================================================================
-        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V9.0 - Responsive App-Style Redesign)
+        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V10.0 - Dynamic Layout & UI Polish)
         // ============================================================================
 
         // ----------------------------------------------------------------------------
@@ -2928,7 +2988,7 @@
             target.classList.add('active');
             document.getElementById(targetId).classList.add('active');
 
-            // Trigger resize when switching tabs as layout might change (especially on mobile rotation)
+            // V10.0: Trigger resize when switching tabs. Crucial for the Grid/Flex hybrid layout.
             setTimeout(resizeCanvas, 50);
 
             if (state.tutorialActive) setTimeout(showTutorialStep, 50); 
@@ -2961,6 +3021,10 @@
 
         function closeAllOrders() {
             if (state.openPositions.length === 0 || state.isEnded) return;
+
+            // V10.0: Added confirmation for closing all orders (Good practice)
+            if (!confirm(`確定要關閉所有 ${state.openPositions.length} 個持倉嗎？`)) return;
+
             const currentPrice = getCurrentPrice();
             // Iterate over a copy of the array as closeOrder modifies the original array
             [...state.openPositions].forEach(pos => closeOrder(pos.id, currentPrice));
@@ -3223,7 +3287,7 @@
             DOM.endGameModal.classList.add('active');
         }
 
-        // V9.0: Updated Tutorial Steps for new UI (Bottom Tabs, Responsive Design, and R3)
+        // V10.0: Updated Tutorial Steps for new UI
         // Define steps dynamically to handle mobile/desktop differences correctly
         const TUTORIAL_STEPS = [
             { selector: '.header', message: '歡迎！本次挑戰目標是在30天內取得最高收益。您可以在頂部追蹤帳戶狀態和進度。', action: 'next' },
@@ -3242,9 +3306,11 @@
             },
             // V9.0: Ensure 'Order' tab is active before highlighting controls
             { selector: '#tabOrder', message: '下單介面集中在此。', action: 'ensureActiveTabOrder', skipDraw: true },
-            { selector: '.order-controls', message: '設定停損(SL)、手數和停利(TP)。在輸入框上按住並左右拖動 (Scrubbing) 可快速調整數值。', action: 'next' }, 
-            { selector: '.trade-actions', message: '點擊「賣出」或「買入」進行交易。', action: 'next' },
-            { selector: '#btnCloseAllGlobal', message: '需要快速出場時，點擊「全部平倉」可關閉所有訂單。祝您交易順利！', action: 'next' },
+            { selector: '.order-controls', message: '設定停損(SL)、手數和停利(TP)。在輸入框上按住並左右拖動 (Scrubbing) 可快速調整數值。', action: 'next' },
+            // V10.0: Updated message for 3-button layout
+            { selector: '.trade-actions', message: '點擊「賣出」、「全部平倉」或「買入」進行交易。', action: 'next' },
+            // V10.0: Updated final step as the button is moved.
+            { selector: '.order-info-bar', message: '您可以在此查看預估的停損/停利金額。祝您交易順利！', action: 'next' },
         ];
         let currentTutorialStep = 0;
 
