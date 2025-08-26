@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>XAUUSD 交易模擬挑戰 (UI Redesign V8.0.3)</title>
+    <title>XAUUSD 交易模擬挑戰 (UI Redesign V9.0)</title>
     <style>
         /* 1. Reset & Variables */
         :root {
@@ -30,7 +30,7 @@
             --color-bull: #26a69a;
             --color-bear: #ef5350;
 
-            /* V8.0: New layout variables */
+            /* V9.0: Layout variables */
             --side-panel-width: 320px;
         }
 
@@ -44,16 +44,16 @@
             font-family: var(--font-main);
             background-color: var(--color-bg);
             color: var(--color-text-primary);
+            /* V9.0: Ensure body takes full height and is structured for the app layout */
             display: flex;
             flex-direction: column;
             height: 100vh;
             overflow: hidden;
         }
 
-        /* 2. Layout Structure (V8.0 Overhaul) */
+        /* 2. Layout Structure (V9.0 Overhaul - App Style) */
         .header {
             background-color: var(--color-panel-bg);
-            /* V8.0: Reduced padding for compactness */
             padding: 8px 15px; 
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             z-index: 10;
@@ -61,78 +61,158 @@
             justify-content: space-between;
             align-items: center;
             flex-shrink: 0; /* Prevent shrinking */
+            /* V9.0 (R1): Implement flex-wrap for natural responsiveness */
+            flex-wrap: wrap;
+            gap: 5px 15px; /* row-gap column-gap */
         }
 
-        /* V8.0: New main container structure */
-        .main-container {
+        /* V9.0: New main container structure */
+        .main-container-v9 {
             display: flex;
+            /* V9.0 Mobile (Default): Stack chart and bottom content vertically */
+            flex-direction: column; 
             flex: 1;
             overflow: hidden;
             min-height: 0; 
         }
 
-        .chart-container {
-            flex: 1;
+        /* V9.0: Chart container takes flexible space */
+        .chart-container-v9 {
+            flex: 1; /* Takes available space */
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            /* V8.0: Add padding around the chart wrap for aesthetics */
             padding: 10px;
-            padding-right: 0; /* No padding on the right side where the panel is (Desktop) */
+            min-height: 200px; /* Minimum height for the chart */
         }
         
-        /* V8.0: Side Panel (Positions/History) - Replaces old sidebar */
-        .side-panel {
-            width: var(--side-panel-width);
-            background-color: var(--color-panel-bg);
-            border-left: 1px solid var(--color-border);
-            display: flex;
-            flex-direction: column;
-            flex-shrink: 0;
-            /* V8.0: Add padding top/bottom matching the chart container padding for visual balance */
-            padding: 10px 0;
-        }
-        
-        /* V8.0: Bottom Bar (Ordering) - New component */
-        .bottom-bar {
+        /* V9.0: Bottom Content Area (Tabs content) */
+        .bottom-content-v9 {
             background-color: var(--color-panel-bg);
             border-top: 1px solid var(--color-border);
-            padding: 10px 15px;
-            flex-shrink: 0;
-            z-index: 20;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            flex-shrink: 0;
+            /* V9.0 Mobile (Default): Define a height for the bottom content area */
+            height: 35vh; 
+            max-height: 400px;
+        }
+        
+        /* V9.0: Bottom Navigation Bar */
+        .bottom-nav-bar-v9 {
+            background-color: var(--color-panel-bg);
+            border-top: 1px solid var(--color-border);
+            flex-shrink: 0;
+            z-index: 30;
+            display: flex;
             box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
             /* Ensure bottom bar is visible on iOS devices with safe area */
-            padding-bottom: max(10px, env(safe-area-inset-bottom));
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .nav-btn-v9 {
+            flex: 1;
+            padding: 12px 10px;
+            text-align: center;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 16px;
+            color: var(--color-text-secondary);
+            transition: color 0.2s, background-color 0.2s;
+        }
+
+        .nav-btn-v9.active {
+            color: var(--color-primary);
+            font-weight: bold;
+            /* V9.0 Mobile (Default): Top border indicator */
+            box-shadow: inset 0 2px 0 0 var(--color-primary);
+        }
+
+        .nav-btn-v9:hover {
+            background-color: var(--color-bg);
+        }
+
+        /* V9.0: Tab Content Management */
+        .tab-content-v9 {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .tab-content-v9.active {
+            display: flex;
+        }
+
+        /* V9.0: Specific styles for Ordering Tab content */
+        #tabOrder {
+            /* V9.0 Mobile (Default): Padding and centering */
+            padding: 10px;
+            gap: 8px;
+            justify-content: center; 
+        }
+
+        /* ------------------------------------------------- */
+        /* Desktop Responsiveness Adjustments (V9.0 Overhaul) */
+        /* ------------------------------------------------- */
+        @media (min-width: 901px) {
+            /* V9.0 Desktop: Switch to a side-by-side layout */
+            .main-container-v9 {
+                flex-direction: row; 
+            }
+
+            .chart-container-v9 {
+                padding-right: 0; /* No padding on the right side where the panel is */
+            }
+
+            /* V9.0 Desktop: Bottom Content becomes the Side Panel */
+            .bottom-content-v9 {
+                width: var(--side-panel-width);
+                height: auto; /* Full height of the container */
+                max-height: none;
+                border-top: none;
+                border-left: 1px solid var(--color-border);
+                padding: 10px 0;
+            }
+
+            /* V9.0 Desktop: Bottom Nav Bar becomes Top Tab Selector in the Side Panel */
+            .bottom-nav-bar-v9 {
+                /* Reset bottom bar styles */
+                box-shadow: none;
+                padding-bottom: 0;
+                border-top: none;
+                /* Apply styles similar to the existing panel-tabs */
+                border-bottom: 1px solid var(--color-border);
+            }
+
+            .nav-btn-v9 {
+                /* Adjust button styles to look like tabs */
+                padding: 12px;
+                font-size: 14px;
+                background-color: var(--color-bg);
+            }
+            
+            .nav-btn-v9.active {
+                background-color: var(--color-panel-bg);
+                /* Switch indicator from top border to bottom border */
+                box-shadow: inset 0 -2px 0 0 var(--color-primary);
+            }
+
+            /* V9.0 Desktop: Adjust ordering tab padding and alignment */
+            #tabOrder {
+                padding: 20px;
+                gap: 15px;
+                justify-content: flex-start;
+            }
         }
 
 
-        /* Mobile Responsiveness Adjustments (V8.0 Overhaul) */
-        /* Breakpoint 1: Tablet/Large Phone (Layout Shift) */
+        /* Mobile Responsiveness Adjustments (V9.0 Inherited from V8.0) */
         @media (max-width: 900px) {
-            /* V8.0: Side Panel becomes an overlay drawer on mobile */
-            .side-panel {
-                position: fixed;
-                top: 0;
-                right: 0;
-                bottom: 0;
-                width: 90%;
-                max-width: var(--side-panel-width);
-                z-index: 100;
-                box-shadow: -5px 0 15px rgba(0, 0, 0, 0.2);
-                transform: translateX(100%);
-                transition: transform 0.3s ease-in-out;
-                padding: 0; /* Remove padding for mobile drawer */
-            }
-            
-            .side-panel.open {
-                transform: translateX(0);
-            }
 
-            .chart-container {
-                /* V8.0: Chart takes full width on mobile, reduced padding */
+            .chart-container-v9 {
+                /* V9.0: Chart takes full width on mobile, reduced padding */
                 padding: 5px;
             }
 
@@ -140,22 +220,23 @@
                 padding: 6px 10px;
             }
             .hud, .hud-right {
-                gap: 12px;
+                gap: 10px;
             }
             .hud-value {
                 font-size: 14px;
             }
             .progress-container {
-                width: 80px; 
+                width: 80px;
             }
         }
 
-        /* 3. Header (HUD) Components (V8.0 Compactness) */
+        /* 3. Header (HUD) Components (V9.0 R1 Update) */
         .hud {
             display: flex;
-            /* V8.0: Reduced gap */
             gap: 15px; 
             align-items: center;
+            /* V9.0 (R1): Allow wrapping */
+            flex-wrap: wrap;
         }
 
         .hud-item {
@@ -164,12 +245,12 @@
         }
 
         .hud-label {
-            font-size: 11px; /* V8.0: Reduced font size */
+            font-size: 11px;
             color: var(--color-text-secondary);
         }
 
         .hud-value {
-            font-size: 15px; /* V8.0: Reduced font size */
+            font-size: 15px;
             font-weight: bold;
         }
 
@@ -178,16 +259,18 @@
 
         .hud-right {
             display: flex;
-            gap: 15px; /* V8.0: Reduced gap */
+            gap: 15px;
             align-items: center;
+            /* V9.0 (R1): Allow wrapping */
+            flex-wrap: wrap;
         }
 
         .progress-container {
-            width: 120px; /* V8.0: Reduced width */
+            width: 120px;
         }
 
         .progress-bar {
-            height: 6px; /* V8.0: Reduced height */
+            height: 6px;
             background-color: var(--color-border);
             border-radius: 3px;
             overflow: hidden;
@@ -201,12 +284,11 @@
             transition: width 0.3s ease;
         }
 
-        /* 4. Chart Components */
+        /* 4. Chart Components (Inherited from V8.0) */
         .chart-wrap {
             position: relative;
             flex: 1;
             background-color: var(--chart-bg);
-            /* V8.0: Add radius/shadow as it's now padded inside the container */
             border-radius: var(--radius-main);
             box-shadow: var(--shadow-main);
             overflow: hidden;
@@ -265,13 +347,12 @@
             box-shadow: var(--shadow-main);
         }
 
-        /* 5. Controls & Toolbar (Overlay controls kept from V7.3) */
+        /* 5. Controls & Toolbar (Inherited from V8.0) */
         
         .controls-overlay-container {
             position: absolute;
             top: 10px;
             left: 10px;
-            /* V8.0.1: Adjusted right padding for better responsiveness */
             right: 10px;
             z-index: 5;
             display: flex;
@@ -299,6 +380,10 @@
             overflow: hidden;
             max-width: 500px;
             opacity: 1;
+            /* V9.0: Added separator only when expanded */
+        }
+
+        .controls-left:not(.controls-collapsed) .collapsible-controls {
             border-left: 1px solid var(--color-border); 
             padding-left: 10px;
             margin-left: 5px;
@@ -396,28 +481,30 @@
             border-right: 1px solid var(--color-border);
         }
 
-        /* 6. Trading Interface (V8.0 Overhaul - Bottom Bar & Side Panel) */
+        /* 6. Trading Interface (V9.0 Adjustments) */
         
-        /* 6.1 Bottom Bar - Ordering Controls */
+        /* 6.1 Ordering Controls (Adjusted for V9.0 layout flexibility) */
         
         .order-controls {
             display: flex;
             gap: 15px;
-            align-items: center;
-            justify-content: center;
+            /* V9.0 Desktop (Default): Vertical stack */
+            flex-direction: column; 
+            align-items: stretch;
         }
         
-        /* V8.0: New horizontal input group style */
         .input-group-horizontal {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 10px;
         }
         
         .input-group-horizontal label {
             font-size: 14px;
             color: var(--color-text-secondary);
             white-space: nowrap;
+            /* V9.0 Desktop (Default): Define width for labels in vertical stack */
+            width: 50px; 
         }
 
         .input-field {
@@ -425,9 +512,9 @@
             border: 1px solid var(--color-border);
             font-size: 16px;
             text-align: center;
-            /* V8.0: Define width for inputs in bottom bar */
-            width: 100px; 
-            /* V8.0.2: Add explicit height to prevent clipping */
+            /* V9.0: Remove fixed width, allow it to fill the container */
+            width: auto; 
+            flex: 1;
             height: 36px;
              -moz-appearance: textfield;
              border-radius: var(--radius-main); 
@@ -450,13 +537,10 @@
         }
 
         .btn-trade {
-            padding: 12px 15px; /* V8.0: Increased padding for better touch targets */
+            padding: 12px 15px;
             font-size: 18px;
             color: white;
-            flex: 1; /* V8.0: Allow buttons to grow */
-            max-width: 200px; /* V8.0: Limit max width on desktop */
-            /* V8.0.3: Add min-height to prevent clipping */
-            min-height: 44px;
+            flex: 1;
         }
 
         .btn-buy {
@@ -467,20 +551,15 @@
             background-color: var(--color-bear);
         }
         
-        /* V8.0: Button to open panel on mobile */
-        .btn-open-panel {
-            display: none; /* Hidden on desktop */
-            flex: 0.5;
-        }
 
-        /* V8.0: New info bar for estimates and global close all */
+        /* Info bar for estimates and global close all */
         .order-info-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            /* V8.0: Added top border for separation */
             border-top: 1px solid var(--color-border);
             padding-top: 8px;
+            margin-top: 5px;
         }
         
         .estimates {
@@ -490,36 +569,37 @@
             gap: 15px;
         }
         
-        /* V8.0: Mobile adjustments for Bottom Bar */
+        /* V9.0: Mobile adjustments for Ordering Controls (Reverting to Horizontal) */
         @media (max-width: 900px) {
-            .bottom-bar {
-                padding: 8px 10px;
-                padding-bottom: max(8px, env(safe-area-inset-bottom));
-            }
+
             .order-controls {
+                /* V9.0 Mobile: Horizontal layout */
+                flex-direction: row;
                 gap: 10px;
                 justify-content: space-between;
+                align-items: center;
             }
+
+            .input-group-horizontal label {
+                /* V9.0 Mobile: Remove fixed width for labels */
+                width: auto;
+            }
+
             .input-field {
-                width: 80px; /* Smaller width on mobile */
+                /* V9.0 Mobile: Apply fixed width as space is limited */
+                width: 80px; 
                 font-size: 14px;
                 padding: 6px 5px;
-                /* V8.0.2: Adjust height for this breakpoint */
                 height: 32px;
             }
             .btn-trade {
                 font-size: 16px;
                 padding: 10px 12px;
-                /* V8.0.3: Adjust min-height */
-                min-height: 40px;
             }
-            .btn-open-panel {
-                display: block; /* Visible on mobile */
-                /* V8.0.3: Match height */
-                min-height: 40px;
-            }
+
             .order-info-bar {
                  padding-top: 6px;
+                 margin-top: 0;
             }
             .estimates {
                 gap: 10px;
@@ -527,9 +607,8 @@
             }
         }
 
-        /* 6.2 Side Panel - Tabs (Positions & History) */
+        /* 6.2 Positions & History (Inherited from V8.0, now inside V9.0 structure) */
 
-        /* V8.0: Hidden element used only for tutorial visualization if needed */
         .challenge-info {
             display: none; 
         }
@@ -556,16 +635,6 @@
             border-bottom: 2px solid var(--color-primary);
         }
 
-        /* V8.0: Button to close panel on mobile */
-        .btn-toggle-panel {
-            display: none; /* Hidden on desktop */
-            padding: 12px;
-            background-color: var(--color-bg);
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-            color: var(--color-text-secondary);
-        }
 
         .tabs-wrapper {
             flex: 1;
@@ -575,6 +644,7 @@
             min-height: 0; 
         }
 
+        /* V9.0: Note: This refers to the INTERNAL tabs (Positions/History), not the main V9 tabs */
         .tab-content {
             padding: 15px;
             display: none;
@@ -592,11 +662,9 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-            /* V8.0: Ensure the list takes full height for empty state centering */
             flex: 1; 
         }
 
-        /* V8.0: Empty State Styling (Addresses user complaint about blank space) */
         .empty-state {
             display: flex;
             justify-content: center;
@@ -605,7 +673,6 @@
             color: var(--color-text-secondary);
             font-size: 14px;
             padding: 20px;
-            /* V8.0: Ensure it fills the container if the list is empty */
             flex: 1; 
             height: 100%;
         }
@@ -651,22 +718,17 @@
             font-size: 12px;
         }
 
-        /* V8.0.1/V8.0.3: Major Mobile Optimization Overhaul */
+        /* V8.0.1/V9.0: Mobile Optimization Overhaul (Chart Controls) */
         @media (max-width: 900px) {
-            .btn-toggle-panel {
-                display: block; /* Visible on mobile */
-            }
 
-            /* V8.0.1: Vertical Chart Controls on Mobile */
+            /* Vertical Chart Controls on Mobile */
             .controls-overlay-container {
-                /* Adjust padding for mobile */
                 top: 5px;
                 left: 5px;
                 right: 5px;
                 align-items: flex-start; 
             }
 
-            /* Apply reduced padding/gap to all control groups */
             .controls {
                  padding: 5px;
                  gap: 5px;
@@ -674,11 +736,20 @@
 
             .controls-left {
                 flex-direction: column;
-                align-items: stretch; /* Make buttons same width */
+                align-items: stretch;
             }
 
             .collapsible-controls {
                 flex-direction: column;
+                
+                /* Adjust transition for vertical collapse (using max-height instead of max-width) */
+                transition: max-height 0.4s ease, opacity 0.4s ease, margin-top 0.4s ease, padding-top 0.4s ease, border-top-width 0.4s ease;
+                max-width: none; /* Remove max-width constraint */
+                max-height: 500px; /* Set a large max-height for animation */
+            }
+            
+            /* V9.0: Styling when controls are NOT collapsed (for vertical stack separation) */
+            .controls-left:not(.controls-collapsed) .collapsible-controls {
                 /* Reset horizontal styles */
                 padding-left: 0;
                 margin-left: 0;
@@ -687,12 +758,8 @@
                 border-top: 1px solid var(--color-border);
                 padding-top: 5px;
                 margin-top: 5px;
-                
-                /* Adjust transition for vertical collapse (using max-height instead of max-width) */
-                transition: max-height 0.4s ease, opacity 0.4s ease, margin-top 0.4s ease, padding-top 0.4s ease, border-top-width 0.4s ease;
-                max-width: none; /* Remove max-width constraint */
-                max-height: 500px; /* Set a large max-height for animation */
             }
+
 
             .controls-collapsed .collapsible-controls {
                 /* Adjust collapse properties for vertical animation */
@@ -704,57 +771,58 @@
                 border-top-width: 0;
             }
 
-            /* Keep speed selector horizontal for better usability */
             .speed-selector {
                 display: flex;
             }
 
             .speed-btn {
-                flex: 1; /* Distribute space evenly */
+                flex: 1;
             }
             
             .btn {
-                font-size: 12px; /* Smaller buttons on mobile */
+                font-size: 12px;
                 padding: 6px 8px;
                 min-height: 28px;
             }
         }
 
-        /* V8.0.3: Optimization for small mobile devices (Unified optimization breakpoint) */
+        /* V8.0.2/V9.0: Optimization for small mobile devices (<600px) */
         @media (max-width: 600px) {
-            /* Header Fix: Aggressive optimization for single-line display */
+            /* Header Fix (V9.0 R1 relies on flex-wrap) */
             .header {
-                padding: 5px 8px;
-                /* V8.0.3: Keep flex-direction: row; Removed stacking behavior */
+                padding: 4px 8px;
+                gap: 5px;
             }
             
             .hud, .hud-right {
-                gap: 10px; /* Reduced gap significantly */
+                gap: 8px; /* V9.0 Reduced gap further */
             }
 
             .hud-label {
-                font-size: 9px; /* Aggressively reduced font size */
+                font-size: 10px;
             }
 
             .hud-value {
-                font-size: 12px; /* Aggressively reduced font size */
+                font-size: 13px;
             }
 
-            /* V8.0.3: Hide Floating P/L to save space, as Equity is more important */
-            /* P/L is the 3rd item in .hud */
-            .hud .hud-item:nth-child(3) { 
-               display: none;
+            @media (max-width: 380px) {
+                .hud .hud-item:first-child {
+                   display: none;
+                }
             }
             
             .progress-container {
-                width: 60px; /* Reduced width further */
+                width: auto;
+                flex: 1;
+                max-width: 120px;
             }
 
-            /* Bottom Bar Fix: Reduce sizes and ensure visibility */
-            .bottom-bar {
+            /* V9.0: Bottom Content Area Fixes (Ordering Tab) */
+
+            #tabOrder {
                 padding: 5px;
                 gap: 5px;
-                padding-bottom: max(5px, env(safe-area-inset-bottom));
             }
 
             .order-controls {
@@ -769,7 +837,6 @@
                 width: 60px; /* Further reduced width */
                 font-size: 12px;
                 padding: 5px 3px;
-                /* V8.0.2: Adjust height for this breakpoint */
                 height: 28px;
             }
 
@@ -777,11 +844,9 @@
                 gap: 5px;
             }
 
-            .btn-trade, .btn-open-panel {
+            .btn-trade {
                 font-size: 14px;
                 padding: 8px 5px;
-                /* V8.0.3: Ensure minimum height to prevent clipping */
-                min-height: 36px;
             }
             
             .order-info-bar {
@@ -794,25 +859,8 @@
             }
         }
 
-        /* V8.0.3: Optimization for very small screens (e.g., iPhone SE 1st gen) */
-        @media (max-width: 360px) {
-             .hud, .hud-right {
-                gap: 5px;
-            }
-            /* Hide Date to ensure critical info fits */
-            .hud .hud-item:first-child { 
-               display: none;
-            }
-            .hud-label {
-                font-size: 8px;
-            }
-             .hud-value {
-                font-size: 11px;
-            }
-        }
 
-
-        /* 7. Modals & Overlays */
+        /* 7. Modals & Overlays (Inherited from V8.0) */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -945,18 +993,18 @@
 
         @media (max-width: 900px) {
             #notification-container {
-                /* V8.0.3: Adjusted top position based on potentially smaller header height */
-                top: 50px; 
+                /* V9.0: Top position might need dynamic adjustment via JS if header wraps, but use a safe default */
+                top: 60px; 
                 right: 10px;
                 left: 10px;
                 align-items: center;
             }
         }
         
-        /* V8.0.3: Further optimization for small headers */
          @media (max-width: 600px) {
             #notification-container {
-                top: 45px; 
+                /* Further adjustment for potentially wrapped header */
+                top: 85px; 
             }
         }
 
@@ -1028,6 +1076,7 @@
     </style>
 </head>
 <body>
+    <!-- Loader -->
     <div class="loader-wrap" id="loader">
         <div id="loader-status">
             <div class="loading-spinner"></div>
@@ -1044,6 +1093,7 @@
 
     <div id="notification-container"></div>
 
+    <!-- Header -->
     <header class="header">
         <div class="hud">
             <div class="hud-item">
@@ -1073,19 +1123,21 @@
         </div>
     </header>
 
-    <!-- V8.0: Renamed from main-content to main-container -->
-    <div class="main-container">
+    <!-- V9.0: New Main Container Structure -->
+    <div class="main-container-v9">
         
-        <div class="chart-container">
+        <!-- V9.0: Chart Container -->
+        <div class="chart-container-v9">
 
             <div class="chart-wrap" id="chartWrap">
-                 <!-- Overlay Controls (Kept from V7.3) -->
+                 <!-- Overlay Controls -->
                 <div class="controls-overlay-container">
-                    <div class="controls controls-left" id="chartControls">
-                        <button class="btn btn-primary" id="btnPlayPause">▶️ 播放</button>
-                        <button class="btn btn-secondary" id="btnStepForward">➡️ 逐K前進</button>
+                    <!-- V9.0 (R3): Added controls-collapsed by default -->
+                    <div class="controls controls-left controls-collapsed" id="chartControls">
                         
                         <div class="collapsible-controls">
+                            <button class="btn btn-primary" id="btnPlayPause">▶️ 播放</button>
+                            <button class="btn btn-secondary" id="btnStepForward">➡️ 逐K前進</button>
                             <div class="speed-selector" id="speedSelector">
                                 <button class="speed-btn active" data-speed="1">1x</button>
                                 <button class="speed-btn" data-speed="5">5x</button>
@@ -1095,7 +1147,8 @@
                             <button class="btn btn-secondary" id="btnZoomIn">🔍+</button>
                             <button class="btn btn-secondary" id="btnZoomOut">🔍-</button>
                         </div>
-                        <button class="btn btn-secondary btn-toggle-controls" id="btnToggleControls">隱藏設定</button>
+                         <!-- V9.0 (R3): Changed initial text to "展開設定" -->
+                        <button class="btn btn-secondary btn-toggle-controls" id="btnToggleControls">展開設定</button>
                     </div>
                     <div class="controls controls-right">
                          <button class="btn btn-end-game" id="btnEndGame">結束挑戰</button>
@@ -1108,74 +1161,76 @@
             </div>
         </div>
 
-        <!-- V8.0: New Side Panel for Positions/History (Replaces old sidebar) -->
-        <aside class="side-panel" id="sidePanel">
-            <div class="challenge-info" id="challengeInfo">
-                <h4>🏆 30天交易挑戰</h4>
-                <p>從隨機歷史日期開始，在一個月內盡力獲取最高收益！</p>
-            </div>
-
-            <div class="panel-tabs">
-                <!-- V8.0: Removed 'Trade' tab -->
-                <button class="tab-btn active" data-target="tabPositions">持倉 (<span id="positionsCount">0</span>)</button>
-                <button class="tab-btn" data-target="tabHistory">紀錄</button>
-                <!-- V8.0: Added button for mobile toggle -->
-                <button class="btn-toggle-panel" id="btnTogglePanel">關閉</button>
-            </div>
+        <!-- V9.0: Bottom Content Area (Becomes Side Panel on Desktop) -->
+        <div class="bottom-content-v9" id="bottomContent">
             
-            <div class="tabs-wrapper">
-                <!-- V8.0: Removed tabOrder content -->
+            <!-- V9.0: Navigation Bar (Moved here for Desktop view compatibility) -->
+            <nav class="bottom-nav-bar-v9" id="bottomNavBar">
+                <button class="nav-btn-v9 active" data-target="tabOrder">下單</button>
+                <button class="nav-btn-v9" data-target="tabPositionsHistory">倉位/紀錄 (<span id="positionsCountNav">0</span>)</button>
+            </nav>
 
-                <div class="tab-content active" id="tabPositions">
-                    <div class="positions-list" id="positionsList">
-                        <!-- V8.0: Added Empty State Placeholder -->
-                        <div class="empty-state" id="emptyPositions">目前沒有持倉。</div>
+            <!-- Tab Content 1: Ordering -->
+            <div class="tab-content-v9 active" id="tabOrder">
+                <!-- Content moved from old bottom-bar -->
+                <div class="order-controls">
+                    <div class="input-group-horizontal">
+                       <label for="inputSL">SL</label>
+                       <input type="number" class="input-field scrubbable" id="inputSL" placeholder="價格" step="0.1" min="0" data-scrub-step="0.5">
                     </div>
+                    <div class="input-group-horizontal">
+                       <label for="inputLots">手數</label>
+                       <input type="number" class="input-field scrubbable" id="inputLots" value="0.10" step="0.01" min="0.01" data-scrub-step="0.05">
+                   </div>
+                   <div class="input-group-horizontal">
+                       <label for="inputTP">TP</label>
+                       <input type="number" class="input-field scrubbable" id="inputTP" placeholder="價格" step="0.1" min="0" data-scrub-step="0.5">
+                   </div>
+               </div>
+               <div class="trade-actions">
+                   <button class="btn btn-trade btn-sell" id="btnSell">賣出</button>
+                   <button class="btn btn-trade btn-buy" id="btnBuy">買入</button>
+               </div>
+               <div class="order-info-bar">
+                   <div class="estimates">
+                       <span id="estimateSL"></span>
+                       <span id="estimateTP"></span>
+                   </div>
+                   <button class="btn btn-small btn-danger" id="btnCloseAllGlobal">全部平倉</button>
+               </div>
+            </div>
+
+            <!-- Tab Content 2: Positions/History -->
+            <div class="tab-content-v9" id="tabPositionsHistory">
+                <!-- Content moved from old side-panel -->
+                <div class="challenge-info" id="challengeInfo">
+                    <h4>🏆 30天交易挑戰</h4>
+                    <p>從隨機歷史日期開始，在一個月內盡力獲取最高收益！</p>
                 </div>
 
-                <div class="tab-content" id="tabHistory">
-                    <div class="history-list" id="historyList">
-                        <!-- V8.0: Added Empty State Placeholder -->
-                        <div class="empty-state" id="emptyHistory">還沒有交易紀錄。</div>
+                <div class="panel-tabs">
+                    <button class="tab-btn active" data-target="tabPositions">持倉 (<span id="positionsCount">0</span>)</button>
+                    <button class="tab-btn" data-target="tabHistory">紀錄</button>
+                </div>
+                
+                <div class="tabs-wrapper">
+                    <div class="tab-content active" id="tabPositions">
+                        <div class="positions-list" id="positionsList">
+                            <div class="empty-state" id="emptyPositions">目前沒有持倉。</div>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="tabHistory">
+                        <div class="history-list" id="historyList">
+                            <div class="empty-state" id="emptyHistory">還沒有交易紀錄。</div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </aside>
+
+        </div>
     </div>
     
-    <!-- V8.0: New Bottom Bar for Ordering -->
-    <div class="bottom-bar">
-        <div class="order-controls">
-             <!-- V8.0: Inputs reorganized for horizontal layout using input-group-horizontal -->
-             <div class="input-group-horizontal">
-                <label for="inputSL">SL</label>
-                <input type="number" class="input-field scrubbable" id="inputSL" placeholder="價格" step="0.1" min="0" data-scrub-step="0.5">
-             </div>
-             <div class="input-group-horizontal">
-                <label for="inputLots">手數</label>
-                <input type="number" class="input-field scrubbable" id="inputLots" value="0.10" step="0.01" min="0.01" data-scrub-step="0.05">
-            </div>
-            <div class="input-group-horizontal">
-                <label for="inputTP">TP</label>
-                <input type="number" class="input-field scrubbable" id="inputTP" placeholder="價格" step="0.1" min="0" data-scrub-step="0.5">
-            </div>
-        </div>
-        <div class="trade-actions">
-            <button class="btn btn-trade btn-sell" id="btnSell">賣出</button>
-            <!-- V8.0: New button to toggle side panel on mobile -->
-            <button class="btn btn-secondary btn-open-panel" id="btnOpenPanel">持倉/紀錄</button>
-            <button class="btn btn-trade btn-buy" id="btnBuy">買入</button>
-        </div>
-        <!-- V8.0: New info bar for estimates and global close all -->
-        <div class="order-info-bar">
-            <div class="estimates">
-                <span id="estimateSL"></span>
-                <span id="estimateTP"></span>
-            </div>
-            <!-- V8.0: Renamed ID from btnCloseAllTab and moved location -->
-            <button class="btn btn-small btn-danger" id="btnCloseAllGlobal">全部平倉</button>
-        </div>
-    </div>
 
     <!-- Modals -->
     <div class="modal-overlay" id="eventModal">
@@ -1218,11 +1273,12 @@
 
     <script>
         // ============================================================================
-        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V8.0 - UI/UX App-Style Redesign)
+        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V9.0 - Responsive App-Style Redesign)
         // ============================================================================
 
         // ----------------------------------------------------------------------------
         // 1. 狀態管理與常數 (State Management & Constants)
+        // (Constants remain the same)
         // ----------------------------------------------------------------------------
 
         const CONFIG = {
@@ -1236,7 +1292,6 @@
             SIMULATION_DURATION_DAYS: 30,
         };
         
-        // (PERFORMANCE_BENCHMARKS and ACHIEVEMENTS constants remain the same)
         const PERFORMANCE_BENCHMARKS = {
             GENERAL: [
                 { ror: -Infinity, text: "你現在是市場裡的苦主之一，還比不上 21% 的股民", beat: 0 },
@@ -1342,13 +1397,11 @@
 
         // ----------------------------------------------------------------------------
         // 2. 數據處理 (Data Processing)
-        // ----------------------------------------------------------------------------
         // (Data Processing functions remain the same)
+        // ----------------------------------------------------------------------------
 
         async function loadData() {
             try {
-                // Simulating fetch locally requires a local server or browser flag adjustments.
-                // We keep the fetch logic but rely on the fallback mechanism if running from file://
                 const response = await fetch(CONFIG.DATA_URL);
                 if (!response.ok) {
                     throw new Error(`HTTP 錯誤! 狀態碼: ${response.status}`);
@@ -1495,21 +1548,16 @@
         // ----------------------------------------------------------------------------
 
         function init() {
-            // V8.0: Determine if mobile based on screen width as well, for responsiveness testing
-            // V8.0.2: Use 900px as the standard breakpoint for mobile behavior (like panel drawer)
+            // V9.0: Determine mobile based on screen width (900px breakpoint)
             state.isMobile = window.innerWidth <= 900 || 'ontouchstart' in window || navigator.maxTouchPoints > 0;
             cacheDOMElements();
             setupEventListeners();
             initChart();
             loadData();
-            // V8.0: Initialize the panel state (closed on mobile initially)
-            if (state.isMobile && DOM.sidePanel) {
-                DOM.sidePanel.classList.remove('open');
-            }
         }
 
         function cacheDOMElements() {
-            // V8.0: Updated DOM caching for new layout
+            // V9.0: Updated DOM caching for new layout
             Object.assign(DOM, {
                 hudDate: document.getElementById('hud-date'),
                 hudEquity: document.getElementById('hud-equity'),
@@ -1523,10 +1571,10 @@
                 chartCanvas: document.getElementById('chartCanvas'),
                 chartOverlay: document.getElementById('chartOverlay'),
                 chartControls: document.getElementById('chartControls'),
-                // V8.0: New elements
-                sidePanel: document.getElementById('sidePanel'),
-                btnOpenPanel: document.getElementById('btnOpenPanel'),
-                btnTogglePanel: document.getElementById('btnTogglePanel'),
+                // V9.0: New elements
+                bottomNavBar: document.getElementById('bottomNavBar'),
+                positionsCountNav: document.getElementById('positionsCountNav'),
+                btnToggleControls: document.getElementById('btnToggleControls'),
             });
             Object.assign(DOM, {
                 inputLots: document.getElementById('inputLots'),
@@ -1536,10 +1584,9 @@
                 estimateTP: document.getElementById('estimateTP'),
                 positionsList: document.getElementById('positionsList'),
                 historyList: document.getElementById('historyList'),
+                // V9.0: Keep positionsCount (used inside the Positions/History tab)
                 positionsCount: document.getElementById('positionsCount'),
-                // V8.0: Renamed btnCloseAllTab to btnCloseAllGlobal
                 btnCloseAllGlobal: document.getElementById('btnCloseAllGlobal'),
-                // V8.0: Empty states
                 emptyPositions: document.getElementById('emptyPositions'),
                 emptyHistory: document.getElementById('emptyHistory'),
             });
@@ -1603,7 +1650,7 @@
             state.chart.isCrosshairPinned = false;
             DOM.chartOverlay.innerHTML = '';
 
-            // V8.0: Clear lists correctly while retaining empty state elements
+            // Clear lists correctly while retaining empty state elements
             DOM.positionsList.querySelectorAll('.trade-item').forEach(item => item.remove());
             DOM.historyList.querySelectorAll('.trade-item').forEach(item => item.remove());
             
@@ -1618,6 +1665,12 @@
             state.current7DayRange = { high: null, low: null };
             state.lastAlertedHigh = null;
             state.lastAlertedLow = null;
+
+            // V9.0 (R3): Ensure controls are collapsed on restart
+            if (!DOM.chartControls.classList.contains('controls-collapsed')) {
+                DOM.chartControls.classList.add('controls-collapsed');
+                DOM.btnToggleControls.textContent = '展開設定';
+            }
 
             state.unlockedAchievements.clear();
             state.achievementStats = {
@@ -1763,8 +1816,6 @@
         // 4. 圖表繪製與渲染 (Chart Drawing & Rendering)
         // ----------------------------------------------------------------------------
         
-        // (All chart drawing functions remain the same)
-        
         function initChart() {
             state.chart.canvas = DOM.chartCanvas;
             state.chart.ctx = state.chart.canvas.getContext('2d');
@@ -1772,8 +1823,16 @@
         }
 
         function resizeCanvas() {
-            // V8.0: Update mobile detection on resize
-            state.isMobile = window.innerWidth <= 900 || 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            // V9.0: Update mobile detection on resize (using 900px breakpoint)
+            const newIsMobile = window.innerWidth <= 900 || 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+            if (newIsMobile !== state.isMobile) {
+                state.isMobile = newIsMobile;
+                // If the mobile state changed, we might need to refresh tutorial positioning if active
+                if (state.tutorialActive) {
+                    setTimeout(showTutorialStep, 50);
+                }
+            }
 
             const dpr = window.devicePixelRatio || 1;
             const rect = DOM.chartWrap.getBoundingClientRect();
@@ -1796,6 +1855,8 @@
             }
         }
 
+        // (All other chart drawing functions remain the same as V8.0)
+        
         function draw() {
             if (state.isLoading || state.gameData.length === 0) return;
             const ctx = state.chart.ctx;
@@ -2318,7 +2379,6 @@
             if (!state.isPlaying) requestAnimationFrame(draw);
         }
         
-        // OPTIMIZED: Breakout/Breakdown animation position is constrained
         function drawChartAlertAnimations(ctx) {
             const now = performance.now();
             let animationsRunning = false;
@@ -2447,9 +2507,8 @@
 
         // ----------------------------------------------------------------------------
         // 5. 交易邏輯與帳戶管理 (Trading Logic & Account Management)
-        // ----------------------------------------------------------------------------
-        
         // (All trading logic functions remain the same)
+        // ----------------------------------------------------------------------------
         
         function getCurrentPrice() {
             if (state.gameData.length === 0 || state.currentIndex >= state.gameData.length) return 0;
@@ -2591,7 +2650,6 @@
         }
 
         function updateOrderPanel() {
-            // V8.0: Update the global close all button (renamed ID)
             DOM.btnCloseAllGlobal.disabled = state.openPositions.length === 0 || state.isEnded;
             updateEstimatedPL();
         }
@@ -2602,19 +2660,16 @@
             const tpPrice = parseFloat(DOM.inputTP.value);
             const currentPrice = getCurrentPrice();
             
-            // V8.0: Update text content slightly for brevity in the info bar
             DOM.estimateSL.textContent = '';
             DOM.estimateTP.textContent = '';
             if (isNaN(lots) || lots <= 0 || currentPrice <= 0) return;
             
             if (!isNaN(slPrice) && slPrice > 0) {
                 const slPL = Math.abs(currentPrice - slPrice) * CONFIG.CONTRACT_SIZE * lots;
-                // V8.0: Briefer text
                 DOM.estimateSL.textContent = `SL: -$${slPL.toFixed(2)}`;
             }
             if (!isNaN(tpPrice) && tpPrice > 0) {
                 const tpPL = Math.abs(currentPrice - tpPrice) * CONFIG.CONTRACT_SIZE * lots;
-                // V8.0: Briefer text
                 DOM.estimateTP.textContent = `TP: +$${tpPL.toFixed(2)}`;
             }
         }
@@ -2636,18 +2691,22 @@
             DOM.hudProgress.style.width = `${Math.min(100, progress)}%`;
         }
         
-        // V8.0: Updated to manage empty state visibility correctly
+        // V9.0: Updated to update navigation bar count
         function updatePositionsPanel() {
             DOM.positionsCount.textContent = state.openPositions.length;
+            // V9.0: Update the count in the navigation bar as well
+            if (DOM.positionsCountNav) {
+                DOM.positionsCountNav.textContent = state.openPositions.length;
+            }
             
-            // V8.0: Handle Empty State visibility
+            // Handle Empty State visibility
             if (state.openPositions.length === 0) {
                 DOM.emptyPositions.style.display = 'flex';
             } else {
                 DOM.emptyPositions.style.display = 'none';
             }
 
-            // V8.0: Select only trade items, not the empty state
+            // Select only trade items, not the empty state
             const existingItems = DOM.positionsList.querySelectorAll('.trade-item');
             const currentIds = new Set(state.openPositions.map(p => p.id));
             
@@ -2680,7 +2739,7 @@
                             <button class="btn btn-small btn-danger btn-close">平倉</button>
                         </div>
                     `;
-                    // V8.0: Insert before the empty state element
+                    // Insert before the empty state element
                     DOM.positionsList.insertBefore(item, DOM.emptyPositions);
                 }
                 
@@ -2696,16 +2755,15 @@
             });
         }
 
-        // V8.0: Updated to manage empty state visibility correctly
         function updateHistoryPanel() {
-            // V8.0: Handle Empty State visibility
+            // Handle Empty State visibility
             if (state.tradeHistory.length === 0) {
                 DOM.emptyHistory.style.display = 'flex';
             } else {
                 DOM.emptyHistory.style.display = 'none';
             }
 
-            // V8.0: Check against actual trade items, excluding the empty state
+            // Check against actual trade items, excluding the empty state
             const tradeItemCount = DOM.historyList.querySelectorAll('.trade-item').length;
             if (tradeItemCount === state.tradeHistory.length) return;
             
@@ -2726,7 +2784,7 @@
                         <div><div class="trade-detail-label">持有時間</div><div>${formatDuration(trade.closeTime - trade.entryTime)}</div></div>
                     </div>
                 `;
-                // V8.0: Insert before the empty state
+                // Insert before the empty state
                 DOM.historyList.insertBefore(item, DOM.emptyHistory);
             });
         }
@@ -2748,9 +2806,14 @@
             document.getElementById('btnZoomIn').addEventListener('click', () => zoomChart(1.2));
             document.getElementById('btnZoomOut').addEventListener('click', () => zoomChart(1/1.2));
             document.getElementById('btnEndGame').addEventListener('click', handleEndGameClick);
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', handleTabSwitch));
+
+            // V9.0: Handle the internal tabs (Positions vs History)
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', handleInternalTabSwitch));
             
-            document.getElementById('btnToggleControls').addEventListener('click', toggleCollapsibleControls);
+            // V9.0: Handle the main navigation tabs (Order vs Positions/History)
+            document.querySelectorAll('.nav-btn-v9').forEach(btn => btn.addEventListener('click', handleNavigationTabSwitch));
+            
+            DOM.btnToggleControls.addEventListener('click', toggleCollapsibleControls);
 
             setupInputScrubbing();
 
@@ -2760,12 +2823,8 @@
             document.getElementById('btnBuy').addEventListener('click', () => handleTrade('BUY'));
             document.getElementById('btnSell').addEventListener('click', () => handleTrade('SELL'));
             
-            // V8.0: Updated ID for Close All button
             DOM.btnCloseAllGlobal.addEventListener('click', closeAllOrders);
 
-            // V8.0: Mobile Panel Toggle listeners
-            if (DOM.btnOpenPanel) DOM.btnOpenPanel.addEventListener('click', openSidePanel);
-            if (DOM.btnTogglePanel) DOM.btnTogglePanel.addEventListener('click', closeSidePanel);
 
             DOM.positionsList.addEventListener('click', (e) => {
                 const target = e.target;
@@ -2793,20 +2852,8 @@
             document.getElementById('restartButton').addEventListener('click', startGame);
         }
         
-        // V8.0: New functions for mobile side panel control
-        function openSidePanel() {
-            if (DOM.sidePanel) {
-                DOM.sidePanel.classList.add('open');
-            }
-        }
-
-        function closeSidePanel() {
-            if (DOM.sidePanel) {
-                DOM.sidePanel.classList.remove('open');
-            }
-        }
-
-        // (Remaining Interaction functions remain the same)
+        
+        // (Remaining Interaction functions remain the same, except for tab handling and R3 updates)
         
         function handleEndGameClick() {
             if (state.isEnded) return;
@@ -2815,13 +2862,13 @@
         }
 
         function toggleCollapsibleControls() {
-            const button = document.getElementById('btnToggleControls');
+            // V9.0 (R3): Updated logic for new initial state
             DOM.chartControls.classList.toggle('controls-collapsed');
             
             if (DOM.chartControls.classList.contains('controls-collapsed')) {
-                button.textContent = '顯示設定';
+                DOM.btnToggleControls.textContent = '展開設定';
             } else {
-                button.textContent = '隱藏設定';
+                DOM.btnToggleControls.textContent = '隱藏設定';
             }
 
             // Trigger a resize just in case layout changes affect the chart wrap dimensions.
@@ -2869,9 +2916,29 @@
             }
         }
         
-        function handleTabSwitch(e) {
+        // V9.0: New function for main navigation tabs
+        function handleNavigationTabSwitch(e) {
+            const target = e.target.closest('.nav-btn-v9');
+            if (!target) return;
+            const targetId = target.dataset.target;
+
+            document.querySelectorAll('.nav-btn-v9').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content-v9').forEach(c => c.classList.remove('active'));
+            
+            target.classList.add('active');
+            document.getElementById(targetId).classList.add('active');
+
+            // Trigger resize when switching tabs as layout might change (especially on mobile rotation)
+            setTimeout(resizeCanvas, 50);
+
+            if (state.tutorialActive) setTimeout(showTutorialStep, 50); 
+        }
+
+        // V9.0: Renamed from handleTabSwitch to handleInternalTabSwitch
+        function handleInternalTabSwitch(e) {
             const target = e.target.closest('.tab-btn');
             if (!target) return;
+            // V9.0: Selectors target the internal tabs (tab-btn and tab-content)
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             target.classList.add('active');
@@ -3156,21 +3223,27 @@
             DOM.endGameModal.classList.add('active');
         }
 
-        // V8.0: Updated Tutorial Steps for new UI (Bottom Bar and Side Panel)
+        // V9.0: Updated Tutorial Steps for new UI (Bottom Tabs, Responsive Design, and R3)
         // Define steps dynamically to handle mobile/desktop differences correctly
         const TUTORIAL_STEPS = [
             { selector: '.header', message: '歡迎！本次挑戰目標是在30天內取得最高收益。您可以在頂部追蹤帳戶狀態和進度。', action: 'next' },
-            { selector: '.chart-container', message: '圖表區域已最大化。拖曳查看歷史數據，滾輪或按鈕進行縮放。', action: 'next' },
-            { selector: '#chartControls', message: '控制項懸浮在圖表上。使用這些按鈕控制模擬速度或縮放。', action: 'next' },
-            { selector: '.bottom-bar', message: '重要更新：下單介面已移至底部固定欄，以最大化圖表空間並確保操作穩定性。', action: 'next' },
-            { selector: '.order-controls', message: '設定停損(SL)、手數和停利(TP)。在輸入框上按住並左右拖動 (Scrubbing) 可快速調整數值。', action: 'next' }, 
-            { selector: '.trade-actions', message: '點擊「賣出」或「買入」進行交易。', action: 'next' },
-            // V8.0: Dynamic step for Side Panel (Desktop) or Open Button (Mobile)
+            { selector: '.chart-container-v9', message: '圖表區域已最大化。拖曳查看歷史數據，滾輪或按鈕進行縮放。', action: 'next' },
+            // V9.0 (R3): Updated step for initially collapsed controls
             { 
-                dynamicSelector: () => state.isMobile ? '#btnOpenPanel' : '.side-panel', 
-                dynamicMessage: () => state.isMobile ? '點擊此按鈕打開側邊抽屜，查看您的持倉和交易紀錄。' : '右側面板顯示您的持倉和交易紀錄。',
+                selector: '#btnToggleControls', 
+                message: '圖表設定預設已收合以最大化空間。點擊此按鈕展開速度控制和縮放選項。', 
                 action: 'next' 
             },
+            // V9.0: New step for the bottom navigation/tabs (dynamically adapts)
+            { 
+                dynamicSelector: () => state.isMobile ? '.bottom-nav-bar-v9' : '.main-container-v9 .bottom-nav-bar-v9', 
+                dynamicMessage: () => state.isMobile ? '使用底部導航欄切換「下單」和「倉位/紀錄」頁面。' : '使用側邊欄頂部的頁籤切換「下單」和「倉位/紀錄」面板。',
+                action: 'next' 
+            },
+            // V9.0: Ensure 'Order' tab is active before highlighting controls
+            { selector: '#tabOrder', message: '下單介面集中在此。', action: 'ensureActiveTabOrder', skipDraw: true },
+            { selector: '.order-controls', message: '設定停損(SL)、手數和停利(TP)。在輸入框上按住並左右拖動 (Scrubbing) 可快速調整數值。', action: 'next' }, 
+            { selector: '.trade-actions', message: '點擊「賣出」或「買入」進行交易。', action: 'next' },
             { selector: '#btnCloseAllGlobal', message: '需要快速出場時，點擊「全部平倉」可關閉所有訂單。祝您交易順利！', action: 'next' },
         ];
         let currentTutorialStep = 0;
@@ -3179,8 +3252,19 @@
             if (state.isPlaying) togglePlayPause();
             state.tutorialActive = true;
             currentTutorialStep = 0;
-            // V8.0: Removed reliance on challengeInfo display block
             showTutorialStep();
+        }
+
+        // V9.0: Helper for tutorial actions
+        function ensureActiveTab(tabId) {
+            const tabContent = document.getElementById(tabId);
+            if (!tabContent.classList.contains('active')) {
+                const navButton = document.querySelector(`.nav-btn-v9[data-target="${tabId}"]`);
+                if (navButton) {
+                    // Manually trigger the switch logic instead of relying on click() which might be blocked
+                    handleNavigationTabSwitch({ target: navButton });
+                }
+            }
         }
 
         function showTutorialStep() {
@@ -3189,25 +3273,43 @@
                 return;
             }
 
-            // V8.0: Resolve dynamic selectors/messages before use
             const step = TUTORIAL_STEPS[currentTutorialStep];
+            
+            // V9.0: Handle specific actions before resolving selectors
+            if (step.action === 'ensureActiveTabOrder') {
+                ensureActiveTab('tabOrder');
+                // Proceed to the next step immediately if skipDraw is true
+                if (step.skipDraw) {
+                    currentTutorialStep++;
+                    // Use setTimeout to allow UI to update after tab switch
+                    setTimeout(showTutorialStep, 50); 
+                    return;
+                }
+            }
+
+            // V9.0: Resolve dynamic selectors/messages before use
             if (step.dynamicSelector) {
                 step.selector = step.dynamicSelector();
-                step.message = step.dynamicMessage();
+                if (step.dynamicMessage) {
+                     step.message = step.dynamicMessage();
+                }
             }
 
             const element = document.querySelector(step.selector);
             
-            // V8.0: Handle cases where the element might not be visible
-            if (!element || (element.offsetParent === null && step.selector !== '.side-panel')) {
-                 // If we are trying to highlight the side panel on mobile when closed (shouldn't happen with dynamic selector, but as a fallback)
-                 if (state.isMobile && step.selector === '.side-panel' && !DOM.sidePanel.classList.contains('open')) {
-                     openSidePanel();
-                     setTimeout(showTutorialStep, 350); // Wait for animation
-                     return;
-                 }
+            // V9.0: Handle cases where the element might not be visible (e.g. inside inactive tab)
+            // Check if element exists and is visible (offsetParent check), unless it's the nav bar itself
+            if (!element || (element.offsetParent === null && !step.selector.includes('bottom-nav-bar-v9'))) {
                 
-                // Fallback if element genuinely doesn't exist
+                // If the element is inside a tab content, try activating the tab first (fallback)
+                const parentTab = element ? element.closest('.tab-content-v9') : null;
+                if (parentTab && !parentTab.classList.contains('active')) {
+                    ensureActiveTab(parentTab.id);
+                    setTimeout(showTutorialStep, 100); // Wait for activation
+                    return;
+                }
+                
+                // Fallback if element genuinely doesn't exist or is still hidden
                 if (!element) {
                      console.warn("Tutorial element not found:", step.selector);
                      completeTutorialStep(); // Skip step
@@ -3215,8 +3317,8 @@
                 }
             }
 
-            // Ensure controls are visible if we are highlighting them
-            if (step.selector === '#chartControls' && DOM.chartControls.classList.contains('controls-collapsed')) {
+            // V9.0 (R3): Ensure controls are collapsed if we are highlighting the toggle button
+            if (step.selector === '#btnToggleControls' && !DOM.chartControls.classList.contains('controls-collapsed')) {
                 toggleCollapsibleControls();
             }
 
@@ -3240,22 +3342,22 @@
             state.tutorialCompletedOnce = true;
             DOM.tutorialHighlight.classList.add('hidden');
             DOM.tutorialMessage.classList.add('hidden');
-            
-            // V8.0: Close the side panel if it was opened during the tutorial on mobile
-            if (state.isMobile) {
-                closeSidePanel();
+
+            // V9.0 (R3): Expand controls automatically after tutorial if they were collapsed
+            if (DOM.chartControls.classList.contains('controls-collapsed')) {
+                toggleCollapsibleControls();
             }
 
             if (!state.isPlaying && !state.isEnded) togglePlayPause();
         }
 
-        // Optimized V7.3 (Kept in V8.0): Robust tutorial positioning
+        // Optimized V7.3 (Kept in V9.0): Robust tutorial positioning
         function highlightElement(element) {
             const rect = element.getBoundingClientRect();
             const padding = 10;
 
-            // V8.0 Check for zero dimensions, specifically handling the side-panel case (which might have 0 width if hidden but still in DOM)
-            if (rect.width === 0 && rect.height === 0 && element.id !== 'sidePanel') {
+            // V9.0 Check for zero dimensions
+            if (rect.width === 0 && rect.height === 0) {
                 DOM.tutorialHighlight.classList.add('hidden');
                 DOM.tutorialMessage.classList.add('hidden');
                 return;
@@ -3307,14 +3409,15 @@
             // 3. Calculate horizontal position
             let messageLeft = rect.left + window.scrollX;
             
-            // V8.0 Specific adjustment for side panel (prefer placing message to the left)
-            if (element.id === 'sidePanel' && !state.isMobile) {
-                messageLeft = rect.left + window.scrollX - messageRect.width - padding - 15;
+            // V9.0 Specific adjustment for desktop side panel (prefer placing message to the left)
+            if (!state.isMobile && element.closest('.bottom-content-v9')) {
+                 messageLeft = rect.left + window.scrollX - messageRect.width - padding - 15;
             }
 
             if (messageLeft + messageRect.width > window.innerWidth - safetyMargin) {
                 messageLeft = window.innerWidth - messageRect.width - safetyMargin;
             }
+            // Ensure messageLeft is not negative (can happen if desktop side panel adjustment pushes it off-screen left)
             messageLeft = Math.max(safetyMargin, messageLeft);
 
             DOM.tutorialMessage.style.top = `${finalMessageTop}px`;
@@ -3323,10 +3426,9 @@
 
         // ----------------------------------------------------------------------------
         // 8. 成就係統與市場監控 (Achievement System & Market Monitoring)
+        // (All achievement and monitoring functions remain the same)
         // ----------------------------------------------------------------------------
         
-        // (All achievement and monitoring functions remain the same)
-
         const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
         function calculate7DayRange() {
             if (state.gameData.length === 0 || state.currentIndex <= 0) return { high: null, low: null };
@@ -3480,7 +3582,7 @@
         // 9. 輔助函式 (Utility Functions)
         // ----------------------------------------------------------------------------
         
-        // Scrubbing functionality (Kept from V7.3)
+        // Scrubbing functionality (Kept from V8.0)
         function setupInputScrubbing() {
             document.querySelectorAll('.input-field.scrubbable').forEach(input => {
                 let isScrubbing = false;
