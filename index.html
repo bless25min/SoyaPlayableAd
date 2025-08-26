@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>XAUUSD 交易模擬挑戰 (UI Redesign V8.0.2)</title>
+    <title>XAUUSD 交易模擬挑戰 (UI Redesign V8.0.3)</title>
     <style>
         /* 1. Reset & Variables */
         :root {
@@ -110,6 +110,7 @@
 
 
         /* Mobile Responsiveness Adjustments (V8.0 Overhaul) */
+        /* Breakpoint 1: Tablet/Large Phone (Layout Shift) */
         @media (max-width: 900px) {
             /* V8.0: Side Panel becomes an overlay drawer on mobile */
             .side-panel {
@@ -139,13 +140,13 @@
                 padding: 6px 10px;
             }
             .hud, .hud-right {
-                gap: 10px;
+                gap: 12px;
             }
             .hud-value {
                 font-size: 14px;
             }
             .progress-container {
-                width: 80px; /* V8.0: Reduced width further */
+                width: 80px; 
             }
         }
 
@@ -454,6 +455,8 @@
             color: white;
             flex: 1; /* V8.0: Allow buttons to grow */
             max-width: 200px; /* V8.0: Limit max width on desktop */
+            /* V8.0.3: Add min-height to prevent clipping */
+            min-height: 44px;
         }
 
         .btn-buy {
@@ -507,9 +510,13 @@
             .btn-trade {
                 font-size: 16px;
                 padding: 10px 12px;
+                /* V8.0.3: Adjust min-height */
+                min-height: 40px;
             }
             .btn-open-panel {
                 display: block; /* Visible on mobile */
+                /* V8.0.3: Match height */
+                min-height: 40px;
             }
             .order-info-bar {
                  padding-top: 6px;
@@ -644,8 +651,7 @@
             font-size: 12px;
         }
 
-        /* V8.0: Mobile adjustments for Side Panel */
-        /* V8.0.1: Major Mobile Optimization Overhaul */
+        /* V8.0.1/V8.0.3: Major Mobile Optimization Overhaul */
         @media (max-width: 900px) {
             .btn-toggle-panel {
                 display: block; /* Visible on mobile */
@@ -714,44 +720,37 @@
             }
         }
 
-        /* V8.0.1: Optimization for small mobile devices (Fixes Header overlap and Bottom bar clipping) */
-        /* V8.0.2: Increased breakpoint from 480px to 600px to solve overlap issues */
+        /* V8.0.3: Optimization for small mobile devices (Unified optimization breakpoint) */
         @media (max-width: 600px) {
-            /* Header Fix: Stack vertically */
+            /* Header Fix: Aggressive optimization for single-line display */
             .header {
-                padding: 4px 8px;
-                flex-direction: column; /* Stack HUD and HUD-right vertically */
-                align-items: stretch;
-                gap: 5px;
+                padding: 5px 8px;
+                /* V8.0.3: Keep flex-direction: row; Removed stacking behavior */
             }
             
             .hud, .hud-right {
-                justify-content: space-between; /* Distribute items evenly within their containers */
-                gap: 5px;
+                gap: 10px; /* Reduced gap significantly */
             }
 
             .hud-label {
-                font-size: 10px;
+                font-size: 9px; /* Aggressively reduced font size */
             }
 
             .hud-value {
-                font-size: 13px;
+                font-size: 12px; /* Aggressively reduced font size */
             }
 
-            /* V8.0.2: Hide Date only on very small screens (<380px) to prevent overlap */
-            @media (max-width: 380px) {
-                .hud .hud-item:first-child {
-                   display: none;
-                }
+            /* V8.0.3: Hide Floating P/L to save space, as Equity is more important */
+            /* P/L is the 3rd item in .hud */
+            .hud .hud-item:nth-child(3) { 
+               display: none;
             }
             
             .progress-container {
-                width: auto; /* Allow progress bar to adapt */
-                flex: 1; /* Allow it to grow in the hud-right container */
-                max-width: 120px;
+                width: 60px; /* Reduced width further */
             }
 
-            /* Bottom Bar Fix: Reduce sizes */
+            /* Bottom Bar Fix: Reduce sizes and ensure visibility */
             .bottom-bar {
                 padding: 5px;
                 gap: 5px;
@@ -781,6 +780,8 @@
             .btn-trade, .btn-open-panel {
                 font-size: 14px;
                 padding: 8px 5px;
+                /* V8.0.3: Ensure minimum height to prevent clipping */
+                min-height: 36px;
             }
             
             .order-info-bar {
@@ -790,6 +791,23 @@
             .estimates {
                 font-size: 10px;
                 gap: 8px;
+            }
+        }
+
+        /* V8.0.3: Optimization for very small screens (e.g., iPhone SE 1st gen) */
+        @media (max-width: 360px) {
+             .hud, .hud-right {
+                gap: 5px;
+            }
+            /* Hide Date to ensure critical info fits */
+            .hud .hud-item:first-child { 
+               display: none;
+            }
+            .hud-label {
+                font-size: 8px;
+            }
+             .hud-value {
+                font-size: 11px;
             }
         }
 
@@ -927,19 +945,18 @@
 
         @media (max-width: 900px) {
             #notification-container {
-                /* V8.0.1: Adjust top position dynamically based on header height might be needed via JS, but use a safe default */
-                top: 60px; 
+                /* V8.0.3: Adjusted top position based on potentially smaller header height */
+                top: 50px; 
                 right: 10px;
                 left: 10px;
                 align-items: center;
             }
         }
         
-         /* V8.0.2: Update breakpoint from 480px to 600px */
+        /* V8.0.3: Further optimization for small headers */
          @media (max-width: 600px) {
             #notification-container {
-                /* V8.0.1: Further adjustment for stacked header */
-                top: 85px; 
+                top: 45px; 
             }
         }
 
