@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>XAUUSD 交易模擬挑戰 (UI Redesign V10.0)</title>
+    <title>XAUUSD 交易模擬挑戰 (UI Redesign V10.1)</title>
     <style>
         /* 1. Reset & Variables */
         :root {
@@ -178,6 +178,15 @@
             flex-shrink: 0; /* Prevent shrinking */
             /* Ensure visibility on iOS devices with safe area, combining padding and safe area */
             padding-bottom: max(5px, env(safe-area-inset-bottom));
+        }
+
+        /* V10.1: Footer Ad Link Styling */
+        .footer-ad a {
+            color: inherit; /* Make the link the same color as the surrounding text */
+            text-decoration: none; /* Remove default underline */
+        }
+        .footer-ad a:hover {
+             text-decoration: underline; /* Add underline on hover for clarity */
         }
 
         /* ------------------------------------------------- */
@@ -1286,9 +1295,9 @@
         </div>
     </div>
 
-    <!-- V10.0: Footer for advertisement -->
+    <!-- V10.1: Footer for advertisement with link -->
     <footer class="footer-ad">
-        本遊戲廣告由 眾曜智庫 提供
+        本遊戲廣告由 <a href="https://www.massenlighten.com" target="_blank">眾曜智庫</a> 提供
     </footer>
     
 
@@ -1333,7 +1342,7 @@
 
     <script>
         // ============================================================================
-        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V10.0 - Dynamic Layout & UI Polish)
+        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V10.1 - Animation Polish & Footer Link)
         // ============================================================================
 
         // ----------------------------------------------------------------------------
@@ -2439,17 +2448,20 @@
             if (!state.isPlaying) requestAnimationFrame(draw);
         }
         
+        // V10.1: Updated animation drawing for centered display and smaller size
         function drawChartAlertAnimations(ctx) {
             const now = performance.now();
             let animationsRunning = false;
-            const { left, right, top } = CONFIG.CHART_PADDING;
-            const { width } = state.chart;
+            // V10.1: Use all paddings and dimensions for accurate positioning
+            const { left, right, top, bottom } = CONFIG.CHART_PADDING;
+            const { width, height } = state.chart;
 
             for (let i = chartAlertAnimations.length - 1; i >= 0; i--) {
                 const anim = chartAlertAnimations[i];
                 const elapsed = now - anim.startTime;
                 const progress = Math.min(1, elapsed / anim.duration);
-                const opacity = progress < 0.8 ? 1 : 1 - ((progress - 0.8) / 0.2);
+                // Slightly faster fade out
+                const opacity = progress < 0.7 ? 1 : 1 - ((progress - 0.7) / 0.3);
                 const y = priceToY(anim.price);
                 
                 let color, text;
@@ -2464,7 +2476,8 @@
                 // Draw the pulsating line
                 ctx.globalAlpha = opacity * 0.8;
                 ctx.strokeStyle = color;
-                ctx.lineWidth = 2 + Math.sin(progress * Math.PI * 10) * 1;
+                // Reduced pulsation intensity slightly
+                ctx.lineWidth = 2 + Math.sin(progress * Math.PI * 8) * 0.5; 
                 ctx.beginPath();
                 ctx.moveTo(left, y);
                 ctx.lineTo(width - right, y);
@@ -2472,23 +2485,54 @@
                 
                 // Draw the floating text
                 ctx.globalAlpha = opacity;
-                const textX = left + 15;
+
+                // V10.1: Configuration for smaller, centered animation
+                const fontSize = 16; // Reduced from 20px
+                const padding = 8; // Reduced from 10px
+                const floatDistance = progress * 30 + 20; // Reduced distance
+
+                // V10.1: Center horizontally
+                const chartAreaWidth = width - left - right;
+                const textX = left + chartAreaWidth / 2;
                 
-                // Calculate Y position and constrain it
-                const floatDistance = progress * 50 + 30;
+                // Calculate Y position
+                // Try positioning above the line first
                 let floatY = y - floatDistance;
-                const topBoundary = top + 25;
-                if (floatY < topBoundary) {
-                    floatY = topBoundary;
-                }
                 
-                ctx.font = 'bold 20px sans-serif';
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'bottom';
+                ctx.font = `bold ${fontSize}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle'; // Center vertically around floatY
+
                 const textMetrics = ctx.measureText(text);
-                const padding = 10;
+                const rectHeight = fontSize + padding * 2;
+                const halfHeight = rectHeight / 2;
+
+                // Robust Vertical Positioning:
+                // Check if it goes off the top boundary
+                if (floatY - halfHeight < top) {
+                    // If it does, try positioning below the line
+                    floatY = y + floatDistance;
+                    
+                    // Check if it goes off the bottom boundary
+                    if (floatY + halfHeight > height - bottom) {
+                        // If both top and bottom are cramped, place it at the boundary (top or bottom depending on where the price line 'y' is)
+                        if (y < (top + height - bottom) / 2) {
+                             // Price line is in the top half, place animation at the very top
+                             floatY = top + halfHeight;
+                        } else {
+                            // Price line is in the bottom half, place animation at the very bottom
+                            floatY = height - bottom - halfHeight;
+                        }
+                    }
+                }
+
+                const rectWidth = textMetrics.width + padding * 2;
+                const rectX = textX - rectWidth / 2;
+                const rectY = floatY - halfHeight;
+
                 ctx.fillStyle = `rgba(50, 50, 50, ${opacity * 0.7})`;
-                ctx.fillRect(textX - padding, floatY - 25 - padding, textMetrics.width + padding*2, 25 + padding*2);
+                ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
+                
                 ctx.fillStyle = color;
                 ctx.fillText(text, textX, floatY);
                 
