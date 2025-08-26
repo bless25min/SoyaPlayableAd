@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>XAUUSD 交易模擬挑戰 (UI Redesign V8.0.1)</title>
+    <title>XAUUSD 交易模擬挑戰 (UI Redesign V8.0.2)</title>
     <style>
         /* 1. Reset & Variables */
         :root {
@@ -426,6 +426,8 @@
             text-align: center;
             /* V8.0: Define width for inputs in bottom bar */
             width: 100px; 
+            /* V8.0.2: Add explicit height to prevent clipping */
+            height: 36px;
              -moz-appearance: textfield;
              border-radius: var(--radius-main); 
         }
@@ -499,6 +501,8 @@
                 width: 80px; /* Smaller width on mobile */
                 font-size: 14px;
                 padding: 6px 5px;
+                /* V8.0.2: Adjust height for this breakpoint */
+                height: 32px;
             }
             .btn-trade {
                 font-size: 16px;
@@ -711,7 +715,8 @@
         }
 
         /* V8.0.1: Optimization for small mobile devices (Fixes Header overlap and Bottom bar clipping) */
-        @media (max-width: 480px) {
+        /* V8.0.2: Increased breakpoint from 480px to 600px to solve overlap issues */
+        @media (max-width: 600px) {
             /* Header Fix: Stack vertically */
             .header {
                 padding: 4px 8px;
@@ -733,9 +738,11 @@
                 font-size: 13px;
             }
 
-            /* Hide Date on very small screens to prevent overlap in the top row */
-            .hud .hud-item:first-child {
-               display: none;
+            /* V8.0.2: Hide Date only on very small screens (<380px) to prevent overlap */
+            @media (max-width: 380px) {
+                .hud .hud-item:first-child {
+                   display: none;
+                }
             }
             
             .progress-container {
@@ -763,6 +770,8 @@
                 width: 60px; /* Further reduced width */
                 font-size: 12px;
                 padding: 5px 3px;
+                /* V8.0.2: Adjust height for this breakpoint */
+                height: 28px;
             }
 
             .trade-actions {
@@ -925,8 +934,9 @@
                 align-items: center;
             }
         }
-
-         @media (max-width: 480px) {
+        
+         /* V8.0.2: Update breakpoint from 480px to 600px */
+         @media (max-width: 600px) {
             #notification-container {
                 /* V8.0.1: Further adjustment for stacked header */
                 top: 85px; 
@@ -1469,6 +1479,7 @@
 
         function init() {
             // V8.0: Determine if mobile based on screen width as well, for responsiveness testing
+            // V8.0.2: Use 900px as the standard breakpoint for mobile behavior (like panel drawer)
             state.isMobile = window.innerWidth <= 900 || 'ontouchstart' in window || navigator.maxTouchPoints > 0;
             cacheDOMElements();
             setupEventListeners();
