@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>XAUUSD 交易模擬挑戰 (UI Redesign V10.1)</title>
+    <title>XAUUSD 交易模擬挑戰 (UI Redesign V11.0)</title>
     <style>
         /* 1. Reset & Variables */
         :root {
@@ -334,7 +334,7 @@
             transition: width 0.3s ease;
         }
 
-        /* 4. Chart Components (Inherited from V8.0) */
+        /* 4. Chart Components (V11.0 Updates) */
         .chart-wrap {
             position: relative;
             flex: 1;
@@ -343,6 +343,8 @@
             box-shadow: var(--shadow-main);
             overflow: hidden;
             cursor: crosshair;
+            /* V11.0: Crucial for preventing default browser zoom/pan behavior (Feature 3) */
+            touch-action: none; 
         }
 
         #chartCanvas {
@@ -397,7 +399,7 @@
             box-shadow: var(--shadow-main);
         }
 
-        /* 5. Controls & Toolbar (Inherited from V8.0) */
+        /* 5. Controls & Toolbar (V11.0 Updates) */
         
         .controls-overlay-container {
             position: absolute;
@@ -416,13 +418,34 @@
             align-items: center;
             gap: 10px;
             pointer-events: auto;
-            background-color: rgba(255, 255, 255, 0.95);
+            /* V11.0: Use slightly transparent background and backdrop filter (Feature 2) */
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(5px); 
             padding: 8px;
             border-radius: var(--radius-main);
             box-shadow: var(--shadow-main);
-            transition: opacity 0.3s ease;
+            /* V11.0: Transition for opacity changes */
+            transition: opacity 0.3s ease, background-color 0.3s ease;
         }
         
+        /* V11.0: Styling for collapsed state (Feature 2) */
+        .controls-collapsed {
+            /* Reduce opacity when collapsed (Using 0.6 for slightly better visibility than 0.5) */
+            opacity: 0.6;
+            /* Reduce background intensity */
+            background-color: rgba(255, 255, 255, 0.5);
+            /* Apply specific blur as requested */
+            backdrop-filter: blur(2px);
+        }
+
+        /* V11.0: Restore opacity on hover or focus, even when collapsed (Feature 2) */
+        .controls:hover,
+        .controls:focus-within {
+            opacity: 1;
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+        }
+
         .collapsible-controls {
             display: flex;
             gap: 10px;
@@ -1342,12 +1365,11 @@
 
     <script>
         // ============================================================================
-        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V10.1 - Animation Polish & Footer Link)
+        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V11.0 - Interactive Chart Features)
         // ============================================================================
 
         // ----------------------------------------------------------------------------
         // 1. 狀態管理與常數 (State Management & Constants)
-        // (Constants remain the same)
         // ----------------------------------------------------------------------------
 
         const CONFIG = {
@@ -1359,6 +1381,9 @@
             CONTRACT_SIZE: 100,
             INITIAL_BALANCE: 10000,
             SIMULATION_DURATION_DAYS: 30,
+            // V11.0: Zoom Constraints (Feature 3)
+            MIN_VISIBLE_CANDLES: 10,
+            MAX_VISIBLE_CANDLES: 200,
         };
         
         const PERFORMANCE_BENCHMARKS = {
@@ -1432,6 +1457,11 @@
                 scrollOffset: 0, 
                 isCrosshairPinned: false,
                 pinnedCrosshairPos: { x: 0, y: 0 },
+                // V11.0: New state properties for interactions (Feature 1 & 3)
+                draggedLineType: null, // 'SL' or 'TP' (Feature 1)
+                pinchStartDistance: 0,
+                pinchStartCandleWidth: 0,
+                isPinching: false,
             },
             mouse: { x: -1, y: -1, isOverChart: false },
             isMobile: false,
@@ -1671,7 +1701,6 @@
             });
         }
 
-        // (Remaining Game Initialization & Flow Control functions remain the same)
         function startGame() {
             if (state.rawData.length === 0) return;
             DOM.endGameModal.classList.remove('active');
@@ -1717,6 +1746,11 @@
             state.chart.candleSpacing = CONFIG.CANDLE_SPACING;
             state.chart.scrollOffset = 0;
             state.chart.isCrosshairPinned = false;
+            // V11.0: Reset interaction states
+            state.chart.isDragging = false;
+            state.chart.isPinching = false;
+            state.chart.draggedLineType = null;
+
             DOM.chartOverlay.innerHTML = '';
 
             // Clear lists correctly while retaining empty state elements
@@ -1924,8 +1958,6 @@
             }
         }
 
-        // (All other chart drawing functions remain the same as V8.0)
-        
         function draw() {
             if (state.isLoading || state.gameData.length === 0) return;
             const ctx = state.chart.ctx;
@@ -1934,6 +1966,8 @@
             drawBackground(ctx);
             drawGrid(ctx);
             drawCandles(ctx);
+            // V11.0: Draw SL/TP setup lines (Feature 1)
+            drawOrderSetupLines(ctx);
             drawYAxis(ctx);
             drawXAxis(ctx);
             drawCrosshair(ctx);
@@ -1941,6 +1975,78 @@
             drawChartAlertAnimations(ctx);
             updatePositionOverlays();
         }
+
+        // V11.0: New function to draw interactive SL/TP lines (Feature 1)
+        function drawOrderSetupLines(ctx) {
+            // Ensure inputs are available (e.g. during initialization)
+            if (!DOM.inputSL || !DOM.inputTP || !DOM.inputLots) return;
+
+            const slPrice = parseFloat(DOM.inputSL.value);
+            const tpPrice = parseFloat(DOM.inputTP.value);
+            const lots = parseFloat(DOM.inputLots.value);
+
+            if (!isNaN(slPrice) && slPrice > 0) {
+                drawSetupLine(ctx, slPrice, 'SL', lots);
+            }
+            if (!isNaN(tpPrice) && tpPrice > 0) {
+                drawSetupLine(ctx, tpPrice, 'TP', lots);
+            }
+        }
+
+        // V11.0: Helper function for drawing individual setup lines (Feature 1)
+        function drawSetupLine(ctx, price, type, lots) {
+            const y = priceToY(price);
+            const { left, right, top, bottom } = CONFIG.CHART_PADDING;
+            const { width, height } = state.chart;
+
+            // Don't draw if outside the visible area
+            if (y < top || y > height - bottom) return;
+
+            const color = type === 'SL' ? getComputedStyle(document.documentElement).getPropertyValue('--color-danger').trim() : getComputedStyle(document.documentElement).getPropertyValue('--color-success').trim();
+            
+            // Draw the line
+            ctx.strokeStyle = color;
+            // V11.0: Enhance visibility if dragging
+            ctx.lineWidth = state.chart.draggedLineType === type ? 2.5 : 1.5;
+            // Make it slightly dashed for distinction from existing position lines
+            ctx.setLineDash([10, 5]); 
+            ctx.beginPath();
+            ctx.moveTo(left, y);
+            ctx.lineTo(width - right, y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Calculate and draw estimated P/L label
+            const currentPrice = getCurrentPrice();
+            let estimatedPL = 0;
+            if (!isNaN(lots) && lots > 0 && currentPrice > 0) {
+                // P/L is calculated as the absolute difference between current price and target price
+                estimatedPL = Math.abs(currentPrice - price) * CONFIG.CONTRACT_SIZE * lots;
+            }
+
+            const labelText = `${type}: ${type === 'SL' ? '-' : '+'}$${estimatedPL.toFixed(2)}`;
+            const padding = 5;
+            
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'bottom';
+
+            const textMetrics = ctx.measureText(labelText);
+            const labelWidth = textMetrics.width + padding * 2;
+            const labelHeight = 20;
+
+            // Position label just above the line, starting from the left padding edge
+            ctx.fillStyle = color;
+            // Add a slight background opacity for better readability
+            ctx.globalAlpha = 0.85; 
+            ctx.fillRect(left, y - labelHeight, labelWidth, labelHeight);
+            ctx.globalAlpha = 1.0;
+
+            ctx.fillStyle = 'white';
+            // Adjust vertical alignment within the box
+            ctx.fillText(labelText, left + padding, y - (labelHeight - 16) / 2 );
+        }
+
 
         function calculateVisibleCandles() {
             const { width, candleWidth, candleSpacing } = state.chart;
@@ -2018,6 +2124,7 @@
             const chartAreaHeight = height - top - bottom;
             const priceRange = maxPrice - minPrice;
             if (chartAreaHeight <= 0) return (minPrice + maxPrice) / 2;
+            // V11.0: Constrain Y to the chart area boundaries before calculation (Feature 1)
             const constrainedY = Math.max(top, Math.min(height - bottom, y));
             const price = minPrice + priceRange * (1 - (constrainedY - top) / chartAreaHeight);
             return price;
@@ -2189,7 +2296,8 @@
             });
             
             // Current price indicator (only when not using crosshair and at the latest data)
-            const isCrosshairActive = (state.mouse.isOverChart || state.chart.isCrosshairPinned) && !state.chart.isDragging;
+            // V11.0: Added check for !state.chart.draggedLineType
+            const isCrosshairActive = (state.mouse.isOverChart || state.chart.isCrosshairPinned) && !state.chart.isDragging && !state.chart.draggedLineType;
             if (state.currentIndex < state.gameData.length && state.chart.scrollOffset === 0 && !isCrosshairActive) {
                 const currentPrice = getCurrentPrice();
                 const currentY = priceToY(currentPrice);
@@ -2293,7 +2401,8 @@
         }
 
         function drawCrosshair(ctx) {
-            if (state.chart.isDragging) return;
+            // V11.0: If dragging the chart (panning), don't show crosshair. (Feature 1)
+            if (state.chart.isDragging && state.chart.draggedLineType === null) return;
             
             let x, y;
             if (state.chart.isCrosshairPinned) {
@@ -2312,6 +2421,9 @@
             // Constrain crosshair to the chart area
             if (x < left || x > width - right || y < top || y > height - bottom) return;
             
+            // V11.0: If dragging a line, only show the horizontal component (Feature 1)
+            const showVertical = state.chart.draggedLineType === null;
+
             const crosshairColor = getComputedStyle(document.documentElement).getPropertyValue('--chart-crosshair').trim();
             ctx.strokeStyle = crosshairColor;
             ctx.lineWidth = 1;
@@ -2324,10 +2436,12 @@
             ctx.stroke();
             
             // Vertical line
-            ctx.beginPath();
-            ctx.moveTo(x, top);
-            ctx.lineTo(x, height - bottom);
-            ctx.stroke();
+            if (showVertical) {
+                ctx.beginPath();
+                ctx.moveTo(x, top);
+                ctx.lineTo(x, height - bottom);
+                ctx.stroke();
+            }
             
             ctx.setLineDash([]);
             
@@ -2611,7 +2725,6 @@
 
         // ----------------------------------------------------------------------------
         // 5. 交易邏輯與帳戶管理 (Trading Logic & Account Management)
-        // (All trading logic functions remain the same)
         // ----------------------------------------------------------------------------
         
         function getCurrentPrice() {
@@ -2641,6 +2754,11 @@
             if (sameTypeCount + 1 >= 3) unlockAchievement('AVERAGE_DOWN');
 
             state.openPositions.push(position);
+
+            // V11.0: Clear SL/TP inputs after successful order (Feature 1 behavior refinement)
+            DOM.inputSL.value = "";
+            DOM.inputTP.value = "";
+
             addTradeAnimation(type, entryPrice, state.currentIndex);
             updateAccount();
             updateUI();
@@ -2751,6 +2869,11 @@
             updateHistoryPanel();
             updateControls();
             updateOrderPanel();
+            // V11.0: If not playing, trigger a redraw to update the SL/TP lines (Feature 1)
+            // This ensures lines update when inputs change (typing, scrubbing, or dragging).
+            if (!state.isPlaying) {
+                requestAnimationFrame(draw);
+            }
         }
 
         function updateOrderPanel() {
@@ -2759,6 +2882,9 @@
         }
 
         function updateEstimatedPL() {
+            // Ensure DOM elements are ready
+            if (!DOM.inputLots || !DOM.inputSL || !DOM.inputTP || !DOM.estimateSL || !DOM.estimateTP) return;
+
             const lots = parseFloat(DOM.inputLots.value);
             const slPrice = parseFloat(DOM.inputSL.value);
             const tpPrice = parseFloat(DOM.inputTP.value);
@@ -2921,9 +3047,15 @@
 
             setupInputScrubbing();
 
-            DOM.inputLots.addEventListener('input', updateEstimatedPL);
-            DOM.inputSL.addEventListener('input', updateEstimatedPL);
-            DOM.inputTP.addEventListener('input', updateEstimatedPL);
+            // V11.0: Added 'change' event listener for manual input updates (Feature 1)
+            // Using 'input' covers real-time changes (typing/scrubbing), 'change' covers final confirmation.
+            DOM.inputLots.addEventListener('input', updateUI);
+            DOM.inputSL.addEventListener('input', updateUI);
+            DOM.inputTP.addEventListener('input', updateUI);
+            DOM.inputLots.addEventListener('change', updateUI);
+            DOM.inputSL.addEventListener('change', updateUI);
+            DOM.inputTP.addEventListener('change', updateUI);
+
             document.getElementById('btnBuy').addEventListener('click', () => handleTrade('BUY'));
             document.getElementById('btnSell').addEventListener('click', () => handleTrade('SELL'));
             
@@ -2948,6 +3080,7 @@
             window.addEventListener('mousemove', handleDragging);
             window.addEventListener('mouseup', handleDragEnd);
 
+            // V11.0: Updated touch listeners for Pinch-to-Zoom (Feature 3)
             DOM.chartWrap.addEventListener('touchstart', handleTouchStart, { passive: false });
             window.addEventListener('touchmove', handleTouchMove, { passive: false });
             window.addEventListener('touchend', handleTouchEnd);
@@ -2955,9 +3088,6 @@
             document.getElementById('eventContinueBtn').addEventListener('click', continueFromEvent);
             document.getElementById('restartButton').addEventListener('click', startGame);
         }
-        
-        
-        // (Remaining Interaction functions remain the same, except for tab handling and R3 updates)
         
         function handleEndGameClick() {
             if (state.isEnded) return;
@@ -3120,11 +3250,17 @@
             state.mouse.isOverChart = true;
             // Unpin crosshair on mouse move (Desktop behavior)
             if (state.chart.isCrosshairPinned && !state.isMobile) state.chart.isCrosshairPinned = false;
+            
+            // V11.0: Update cursor style based on hover (Feature 1)
+            updateCursorStyle();
+
             if (!state.isPlaying && !state.chart.isDragging) requestAnimationFrame(draw);
         }
 
         function handleMouseLeave() {
             state.mouse.isOverChart = false;
+            // V11.0: Reset cursor style on leave (Feature 1)
+            updateCursorStyle();
             if (!state.isPlaying && !state.chart.isDragging) requestAnimationFrame(draw);
         }
 
@@ -3135,35 +3271,160 @@
 
         function zoomChart(factor) {
             const newWidth = state.chart.candleWidth * factor;
-            if (newWidth < 2 || newWidth > 50) return;
+            
+            // V11.0: Enforce Zoom Constraints (Feature 3)
+            // Define physical constraints based on candle width
+            const MIN_CANDLE_WIDTH = 2; 
+            const MAX_CANDLE_WIDTH = 50; 
+
+            // Calculate potential visible candles with the new width
+            const chartAreaWidth = state.chart.width - CONFIG.CHART_PADDING.left - CONFIG.CHART_PADDING.right;
+            const newSpacing = state.chart.candleSpacing * factor;
+            const newUnitWidth = newWidth + newSpacing;
+
+            if (newUnitWidth <= 0) return;
+
+            // Check constraints based on visible candles (if chart area is valid)
+            if (chartAreaWidth > 0) {
+                const visibleCandles = Math.floor(chartAreaWidth / newUnitWidth);
+
+                // Enforce minimum visible candles (Zoom In Limit)
+                if (visibleCandles < CONFIG.MIN_VISIBLE_CANDLES && factor > 1) {
+                    // Allow zoom if the chart area is inherently very small, otherwise restrict
+                    if (chartAreaWidth > CONFIG.MIN_VISIBLE_CANDLES * (CONFIG.CANDLE_WIDTH_DEFAULT + CONFIG.CANDLE_SPACING)) {
+                        return;
+                    }
+                }
+
+                // Enforce maximum visible candles (Zoom Out Limit)
+                if (visibleCandles > CONFIG.MAX_VISIBLE_CANDLES && factor < 1) {
+                    return;
+                }
+            }
+
+            // Fallback physical constraints (important if chartAreaWidth is 0 or for extreme aspect ratios)
+            if (newWidth < MIN_CANDLE_WIDTH || newWidth > MAX_CANDLE_WIDTH) return;
+
             state.chart.candleWidth = newWidth;
-            state.chart.candleSpacing = state.chart.candleSpacing * factor;
+            state.chart.candleSpacing = newSpacing; // Keep spacing proportional
             validateScrollOffset();
             if (!state.isPlaying) requestAnimationFrame(draw);
         }
 
+        // V11.0: Helper to check if a point is near a setup line (Feature 1)
+        function getLineNearPoint(x, y) {
+            const proximityThreshold = 8; // pixels tolerance
+            const { left, right } = CONFIG.CHART_PADDING;
+            const { width } = state.chart;
+
+            // Only check if cursor is within the main chart area horizontally
+            if (x < left || x > width - right) return null;
+
+            // Ensure inputs are available
+            if (!DOM.inputSL || !DOM.inputTP) return null;
+
+            const slPrice = parseFloat(DOM.inputSL.value);
+            const tpPrice = parseFloat(DOM.inputTP.value);
+
+            // Check SL proximity
+            if (!isNaN(slPrice) && slPrice > 0) {
+                const slY = priceToY(slPrice);
+                if (Math.abs(y - slY) <= proximityThreshold) return 'SL';
+            }
+            // Check TP proximity
+            if (!isNaN(tpPrice) && tpPrice > 0) {
+                const tpY = priceToY(tpPrice);
+                if (Math.abs(y - tpY) <= proximityThreshold) return 'TP';
+            }
+            return null;
+        }
+
+        // V11.0: Helper to manage cursor style based on hover state (Feature 1)
+        function updateCursorStyle() {
+            if (state.chart.isDragging || state.chart.isPinching) return; // Dragging/Pinching handles its own cursor
+
+            const chartX = state.mouse.x;
+            const chartY = state.mouse.y;
+
+            if (state.mouse.isOverChart) {
+                const lineType = getLineNearPoint(chartX, chartY);
+                if (lineType) {
+                    DOM.chartWrap.style.cursor = 'ns-resize'; // Vertical resize cursor when hovering a line
+                } else {
+                    DOM.chartWrap.style.cursor = 'crosshair';
+                }
+            } else {
+                DOM.chartWrap.style.cursor = 'crosshair';
+            }
+        }
+
+
         function handleDragStart(e) { if (e.button === 0) startDrag(e.clientX, e.clientY); }
         function handleDragging(e) { if (state.chart.isDragging) performDrag(e.clientX, e.clientY); }
-        function handleDragEnd() { if (!state.isMobile && state.chart.isDragging) endDrag(); }
+        
+        // V11.0: Updated handleDragEnd for desktop
+        function handleDragEnd() { 
+            // V11.0: Only call endDrag if dragging was active (handles desktop/mobile differences)
+            if (state.chart.isDragging) {
+                endDrag(); 
+            }
+        }
 
-        // Updated touch handlers to respect overlay controls
+        // V11.0: Updated touch handlers for Pinch-to-Zoom and Line Dragging (Feature 1 & 3)
         function handleTouchStart(e) {
-            if (e.touches.length === 1 && e.target.closest('#chartWrap')) {
-                // Prevent default only if not interacting with controls (allows buttons to work)
+            // Only handle touches that originated within the chart wrap area
+            if (!e.target.closest('#chartWrap')) return;
+
+            // V11.0: Handle multi-touch (Pinch-to-zoom) (Feature 3)
+            if (e.touches.length === 2) {
+                if (e.cancelable) e.preventDefault();
+                state.chart.isDragging = false; // Cancel any ongoing panning/line dragging
+                state.chart.isPinching = true;
+                
+                // Calculate initial distance between fingers
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                state.chart.pinchStartDistance = Math.sqrt(dx * dx + dy * dy);
+                state.chart.pinchStartCandleWidth = state.chart.candleWidth;
+
+            } else if (e.touches.length === 1) {
+                // Handle single touch (Panning or Line Dragging)
+                // Prevent default scrolling/zooming behavior, unless interacting with controls
                 if (!e.target.closest('.controls')) {
-                     e.preventDefault();
+                     if (e.cancelable) e.preventDefault();
                 }
+                // Ensure pinching flag is off
+                state.chart.isPinching = false;
                 startDrag(e.touches[0].clientX, e.touches[0].clientY);
             }
         }
 
         function handleTouchMove(e) {
-            if (e.touches.length === 1 && state.chart.isDragging) {
-                e.preventDefault();
+            // V11.0: Handle Pinching (Feature 3)
+            if (state.chart.isPinching && e.touches.length === 2) {
+                if (e.cancelable) e.preventDefault();
+
+                // Calculate current distance
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const currentDistance = Math.sqrt(dx * dx + dy * dy);
+
+                if (state.chart.pinchStartDistance > 0) {
+                    const scaleFactor = currentDistance / state.chart.pinchStartDistance;
+                    // Calculate the target width based on the width at the start of the pinch
+                    const newWidth = state.chart.pinchStartCandleWidth * scaleFactor;
+                    // Call zoomChart with the ratio relative to the CURRENT width to apply the change
+                    zoomChart(newWidth / state.chart.candleWidth);
+                }
+
+            } else if (e.touches.length === 1 && state.chart.isDragging) {
+                if (e.cancelable) e.preventDefault();
                 const dx = e.touches[0].clientX - state.chart.dragStartX;
                 const dy = e.touches[0].clientY - state.chart.dragStartY;
-                // Unpin crosshair if dragging significantly (Mobile behavior)
-                if (Math.sqrt(dx * dx + dy * dy) > 10 && state.chart.isCrosshairPinned) {
+                
+                // Unpin crosshair if dragging the chart significantly (Mobile behavior)
+                // V11.0: Check specifically if dragging the chart (draggedLineType === null)
+                if (state.chart.draggedLineType === null && Math.sqrt(dx * dx + dy * dy) > 10 && state.chart.isCrosshairPinned) {
                     state.chart.isCrosshairPinned = false;
                 }
                 performDrag(e.touches[0].clientX, e.touches[0].clientY);
@@ -3171,26 +3432,54 @@
         }
 
         function handleTouchEnd(e) {
+            // V11.0: Reset pinching state (Feature 3)
+            if (state.chart.isPinching) {
+                state.chart.isPinching = false;
+                // If one finger remains on screen after pinch ends, potentially initiate drag
+                if (e.touches.length === 1) {
+                    startDrag(e.touches[0].clientX, e.touches[0].clientY);
+                }
+                return; 
+            }
+
             if (!state.chart.isDragging) return;
+
+            // V11.0: If dragging a line, just end the drag, don't check for taps (Feature 1)
+            if (state.chart.draggedLineType !== null) {
+                endDrag();
+                return;
+            }
+
             const touchDuration = Date.now() - state.chart.dragStartTimeStamp;
             const dx = state.chart.dragCurrentX - state.chart.dragStartX;
             const dy = state.chart.dragCurrentY - state.chart.dragStartY;
             const isTap = touchDuration < 300 && Math.sqrt(dx * dx + dy * dy) < 10;
             
             // Check if the tap occurred on the chart canvas itself, not on the controls
+            // We must check the coordinates of the interaction against the bounds of the controls.
             let isOnControls = false;
+            const rect = DOM.chartWrap.getBoundingClientRect();
+            // Use the start coordinates (relative to viewport) for checking against control bounds
+            const startX = state.chart.dragStartX;
+            const startY = state.chart.dragStartY;
             
-            // Check if the target of the event (the element released upon) is part of the controls
-            if (e.target.closest('.controls-overlay-container')) {
-                isOnControls = true;
-            }
+            // Check if the starting point of the drag was within the bounds of any control container
+            const controlsContainers = document.querySelectorAll('.controls-overlay-container .controls');
+            controlsContainers.forEach(container => {
+                const ctrlRect = container.getBoundingClientRect();
+                if (startX >= ctrlRect.left && startX <= ctrlRect.right &&
+                    startY >= ctrlRect.top && startY <= ctrlRect.bottom) {
+                    isOnControls = true;
+                }
+            });
+
 
             if (isTap && !isOnControls) {
                 // Toggle pinned crosshair on tap (Mobile behavior)
                 if (state.chart.isCrosshairPinned) {
                     state.chart.isCrosshairPinned = false;
                 } else {
-                    const rect = DOM.chartWrap.getBoundingClientRect();
+                    // Use the current coordinates (relative to chart wrap) for pinning
                     state.chart.pinnedCrosshairPos.x = state.chart.dragCurrentX - rect.left;
                     state.chart.pinnedCrosshairPos.y = state.chart.dragCurrentY - rect.top;
                     state.chart.isCrosshairPinned = true;
@@ -3200,30 +3489,69 @@
         }
 
         function startDrag(clientX, clientY) {
-            state.chart.isDragging = true;
-            state.chart.dragStartX = clientX;
-            state.chart.dragStartY = clientY;
-            state.chart.dragStartScroll = state.chart.scrollOffset;
-            DOM.chartWrap.style.cursor = 'grabbing';
+            // V11.0: Check if starting a line drag (Feature 1)
+            const rect = DOM.chartWrap.getBoundingClientRect();
+            const chartX = clientX - rect.left;
+            const chartY = clientY - rect.top;
+
+            const lineType = getLineNearPoint(chartX, chartY);
+            if (lineType) {
+                state.chart.isDragging = true;
+                state.chart.draggedLineType = lineType;
+                DOM.chartWrap.style.cursor = 'ns-resize'; // Vertical resize cursor
+            } else {
+                // Default chart panning behavior
+                state.chart.isDragging = true;
+                state.chart.draggedLineType = null;
+                state.chart.dragStartX = clientX;
+                state.chart.dragStartScroll = state.chart.scrollOffset;
+                // Only set 'grabbing' cursor if not pinching (prevents flicker on mobile)
+                if (!state.chart.isPinching) {
+                     DOM.chartWrap.style.cursor = 'grabbing';
+                }
+            }
+
+            // Common setup
             state.chart.dragCurrentX = clientX;
             state.chart.dragCurrentY = clientY;
             state.chart.dragStartTimeStamp = Date.now();
         }
 
         function performDrag(clientX, clientY) {
-            const dx = clientX - state.chart.dragStartX;
-            const candleUnitWidth = state.chart.candleWidth + state.chart.candleSpacing;
-            if (candleUnitWidth <= 0) return;
-            state.chart.scrollOffset = state.chart.dragStartScroll + Math.round(dx / candleUnitWidth);
             state.chart.dragCurrentX = clientX;
             state.chart.dragCurrentY = clientY;
-            validateScrollOffset();
-            requestAnimationFrame(draw);
+
+            // V11.0: Handle line dragging (Feature 1)
+            if (state.chart.draggedLineType) {
+                const rect = DOM.chartWrap.getBoundingClientRect();
+                const chartY = clientY - rect.top;
+                // yToPrice handles boundary constraints
+                const newPrice = yToPrice(chartY);
+                
+                if (newPrice > 0) {
+                    const inputField = state.chart.draggedLineType === 'SL' ? DOM.inputSL : DOM.inputTP;
+                    // Update input field value in real-time
+                    inputField.value = newPrice.toFixed(2);
+                    // Update estimates and UI (which redraws the chart)
+                    updateUI(); 
+                }
+            } else {
+                // Default chart panning behavior
+                const dx = clientX - state.chart.dragStartX;
+                const candleUnitWidth = state.chart.candleWidth + state.chart.candleSpacing;
+                if (candleUnitWidth <= 0) return;
+                state.chart.scrollOffset = state.chart.dragStartScroll + Math.round(dx / candleUnitWidth);
+                validateScrollOffset();
+                requestAnimationFrame(draw);
+            }
         }
 
         function endDrag() {
             state.chart.isDragging = false;
-            DOM.chartWrap.style.cursor = 'crosshair';
+            // V11.0: Reset dragged line type (Feature 1)
+            state.chart.draggedLineType = null;
+            // V11.0: Restore cursor based on current hover state
+            updateCursorStyle(); 
             if (!state.isPlaying) requestAnimationFrame(draw);
         }
 
@@ -3331,15 +3659,16 @@
             DOM.endGameModal.classList.add('active');
         }
 
-        // V10.0: Updated Tutorial Steps for new UI
+        // V11.0: Updated Tutorial Steps (including new features)
         // Define steps dynamically to handle mobile/desktop differences correctly
         const TUTORIAL_STEPS = [
             { selector: '.header', message: '歡迎！本次挑戰目標是在30天內取得最高收益。您可以在頂部追蹤帳戶狀態和進度。', action: 'next' },
-            { selector: '.chart-container-v9', message: '圖表區域已最大化。拖曳查看歷史數據，滾輪或按鈕進行縮放。', action: 'next' },
-            // V9.0 (R3): Updated step for initially collapsed controls
+            // V11.0 (Feature 3 update)
+            { selector: '.chart-container-v9', message: '圖表區域已最大化。拖曳查看歷史數據，使用滑鼠滾輪或手機雙指縮放 (Pinch-to-Zoom) 查看細節。', action: 'next' },
+            // V11.0 (Feature 2 update)
             { 
                 selector: '#btnToggleControls', 
-                message: '圖表設定預設已收合以最大化空間。點擊此按鈕展開速度控制和縮放選項。', 
+                message: '圖表設定預設已收合並以半透明顯示。點擊此按鈕展開速度控制和縮放選項。', 
                 action: 'next' 
             },
             // V9.0: New step for the bottom navigation/tabs (dynamically adapts)
@@ -3351,6 +3680,12 @@
             // V9.0: Ensure 'Order' tab is active before highlighting controls
             { selector: '#tabOrder', message: '下單介面集中在此。', action: 'ensureActiveTabOrder', skipDraw: true },
             { selector: '.order-controls', message: '設定停損(SL)、手數和停利(TP)。在輸入框上按住並左右拖動 (Scrubbing) 可快速調整數值。', action: 'next' },
+             // V11.0 (Feature 1 New Step)
+            { 
+                selector: '.chart-wrap', 
+                message: '當您設定 SL/TP 價格後，圖表上會顯示對應的價格線。您可以直接【拖曳】這些線條來快速微調價格。', 
+                action: 'demoSLTPInput' // Add a helper action to populate inputs for demo
+            },
             // V10.0: Updated message for 3-button layout
             { selector: '.trade-actions', message: '點擊「賣出」、「全部平倉」或「買入」進行交易。', action: 'next' },
             // V10.0: Updated final step as the button is moved.
@@ -3377,6 +3712,18 @@
             }
         }
 
+        // V11.0: Helper to demo SL/TP input for tutorial
+        function demoSLTPInput() {
+            const currentPrice = getCurrentPrice();
+            if (currentPrice > 0) {
+                // Set SL/TP roughly 10 units away
+                DOM.inputSL.value = (currentPrice - 10).toFixed(2);
+                DOM.inputTP.value = (currentPrice + 10).toFixed(2);
+                updateUI(); // Trigger redraw to show the lines
+            }
+        }
+
+
         function showTutorialStep() {
             if (currentTutorialStep >= TUTORIAL_STEPS.length) {
                 endTutorial();
@@ -3385,7 +3732,7 @@
 
             const step = TUTORIAL_STEPS[currentTutorialStep];
             
-            // V9.0: Handle specific actions before resolving selectors
+            // V11.0: Handle specific actions before resolving selectors
             if (step.action === 'ensureActiveTabOrder') {
                 ensureActiveTab('tabOrder');
                 // Proceed to the next step immediately if skipDraw is true
@@ -3395,7 +3742,11 @@
                     setTimeout(showTutorialStep, 50); 
                     return;
                 }
+            } else if (step.action === 'demoSLTPInput') {
+                // Execute the demo action
+                demoSLTPInput();
             }
+
 
             // V9.0: Resolve dynamic selectors/messages before use
             if (step.dynamicSelector) {
@@ -3452,6 +3803,11 @@
             state.tutorialCompletedOnce = true;
             DOM.tutorialHighlight.classList.add('hidden');
             DOM.tutorialMessage.classList.add('hidden');
+
+            // V11.0: Clear the demo inputs (Feature 1)
+            DOM.inputSL.value = "";
+            DOM.inputTP.value = "";
+            updateUI();
 
             // V9.0 (R3): Expand controls automatically after tutorial if they were collapsed
             if (DOM.chartControls.classList.contains('controls-collapsed')) {
@@ -3692,7 +4048,7 @@
         // 9. 輔助函式 (Utility Functions)
         // ----------------------------------------------------------------------------
         
-        // Scrubbing functionality (Kept from V8.0)
+        // Scrubbing functionality (V11.0 Update)
         function setupInputScrubbing() {
             document.querySelectorAll('.input-field.scrubbable').forEach(input => {
                 let isScrubbing = false;
@@ -3732,7 +4088,8 @@
                         input.value = newValue.toFixed(decimalPlaces);
                     }
 
-                    updateEstimatedPL();
+                    // V11.0: Update UI instead of just EstimatedPL to redraw lines (Feature 1)
+                    updateUI();
                 };
 
                 const onScrubEnd = () => {
