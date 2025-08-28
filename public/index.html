@@ -350,6 +350,25 @@
             animationFrameId = requestAnimationFrame(gameLoop);
         }
 
+        async function stepForward() {
+            if (state.isPlaying || state.isEnded || isTicking) return;
+            isTicking = true;
+            try {
+                const data = await apiRequest('/api/tick', { method: 'POST' });
+                state.barAnimationProgress = 0; // Reset animation
+                handleTickData(data);
+                state.barAnimationProgress = 1; // Show the new bar immediately
+                if (state.chart.scrollOffset > 0) state.chart.scrollOffset = Math.max(0, state.chart.scrollOffset - 1);
+                updateUI();
+                requestAnimationFrame(draw);
+                if (state.isEnded) endGame();
+            } catch (error) {
+                // Error is handled by apiRequest
+            } finally {
+                isTicking = false;
+            }
+        }
+
         function handleTickData(data) {
             state.isEnded = data.isEnded;
             state.currentIndex = data.currentIndex;
