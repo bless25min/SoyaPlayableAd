@@ -1,0 +1,16 @@
+{
+  "name": "trading-sim-serverless",
+  "version": "1.0.0",
+  "description": "A serverless trading simulator using Cloudflare Pages and Workers.",
+  "private": true,
+  "scripts": {
+    "start": "npx wrangler pages dev public",
+    "deploy": "npx wrangler pages deploy public"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  },
+  "dependencies": {
+    "itty-router": "^4.0.23"
+  }
+}
