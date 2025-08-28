@@ -1,5 +1,6 @@
-import { Router } from 'itty-router';
-import csvData from '../XAUUSD_M15.csv';
+import { Router, error, json } from 'itty-router';
+// The path is relative to the project root, and Cloudflare's build system handles it.
+import csvData from '../../XAUUSD_M15.csv';
 
 // ============================================================================
 // 1. Constants & State Management
@@ -11,17 +12,32 @@ const CONFIG = {
     SIMULATION_DURATION_DAYS: 30,
 };
 
-// This will hold the state of the single, ongoing game.
-// NOTE: This simple state management is for a single-player experience.
-// For a multi-user system, Cloudflare Durable Objects would be required.
+// NOTE: This simple state management is for a single-player experience and will
+// reset if the worker instance restarts. For persistent state, a storage
+// solution like KV or Durable Objects would be needed.
 let state = {};
 
 // This will hold all parsed price data from the CSV.
+// This parsing happens only once when the function is first invoked.
 let rawData = [];
+let isDataParsed = false;
 
 // ============================================================================
-// 2. Data Processing (Executed on Worker startup)
+// 2. Data Processing & Game Logic
 // ============================================================================
+
+function parseAndLoadData() {
+    if (isDataParsed) return;
+    try {
+        // The imported csvData is a string containing the file's content.
+        rawData = parseData(csvData);
+        console.log(`Successfully parsed ${rawData.length} data points.`);
+        isDataParsed = true;
+    } catch (e) {
+        console.error("Failed to parse CSV data on worker startup:", e);
+        // If data fails to parse, rawData will be empty, and subsequent calls will fail.
+    }
+}
 
 function parseData(csvText) {
     if (csvText.charCodeAt(0) === 0xFEFF) {
@@ -92,29 +108,11 @@ function parseData(csvText) {
     return parsedData.sort((a, b) => a.time - b.time);
 }
 
-// Immediately parse the data when the worker initializes.
-try {
-    rawData = parseData(csvData);
-    console.log(`Successfully parsed ${rawData.length} data points.`);
-} catch (e) {
-    console.error("Failed to parse CSV data on worker startup:", e);
-}
-
-
-// ============================================================================
-// 3. Game Logic Functions
-// ============================================================================
-
 function resetState() {
     state = {
-        gameData: [],
-        isEnded: false,
-        currentIndex: 0,
-        balance: CONFIG.INITIAL_BALANCE,
-        equity: CONFIG.INITIAL_BALANCE,
-        floatingPL: 0,
-        openPositions: [],
-        tradeHistory: [],
+        gameData: [], isEnded: false, currentIndex: 0,
+        balance: CONFIG.INITIAL_BALANCE, equity: CONFIG.INITIAL_BALANCE,
+        floatingPL: 0, openPositions: [], tradeHistory: [],
         orderIdCounter: 1,
     };
 }
@@ -158,54 +156,40 @@ function updateAccount() {
 function internalCloseOrder(id, closePrice) {
     const index = state.openPositions.findIndex(p => p.id === id);
     if (index === -1) return null;
-
     const position = state.openPositions[index];
     const profit = calculateProfit(position, closePrice);
     state.balance += profit;
-
     const closeTime = state.gameData[state.currentIndex].time;
     const historyEntry = { ...position, closePrice, closeTime, profit };
     state.tradeHistory.push(historyEntry);
     state.openPositions.splice(index, 1);
-
     return historyEntry;
 }
 
-
 function updatePositions() {
     if (state.isEnded || !state.gameData || state.currentIndex >= state.gameData.length) return [];
-
     const currentBar = state.gameData[state.currentIndex];
     const closedTrades = [];
-
-    // Use a reverse loop to safely remove items while iterating
     for (let i = state.openPositions.length - 1; i >= 0; i--) {
         const pos = state.openPositions[i];
-
-        let closed = false;
         if (pos.type === 'BUY') {
             if (pos.sl && currentBar.low <= pos.sl) {
                 const closedTrade = internalCloseOrder(pos.id, pos.sl);
                 if(closedTrade) closedTrades.push(closedTrade);
-                closed = true;
             } else if (pos.tp && currentBar.high >= pos.tp) {
                 const closedTrade = internalCloseOrder(pos.id, pos.tp);
                 if(closedTrade) closedTrades.push(closedTrade);
-                closed = true;
             }
-        } else { // SELL
+        } else {
             if (pos.sl && currentBar.high >= pos.sl) {
                 const closedTrade = internalCloseOrder(pos.id, pos.sl);
                 if(closedTrade) closedTrades.push(closedTrade);
-                closed = true;
             } else if (pos.tp && currentBar.low <= pos.tp) {
                 const closedTrade = internalCloseOrder(pos.id, pos.tp);
                 if(closedTrade) closedTrades.push(closedTrade);
-                closed = true;
             }
         }
     }
-
     updateAccount();
     return closedTrades;
 }
@@ -220,139 +204,85 @@ function advanceSimulation() {
 }
 
 // ============================================================================
-// 4. API Router & Handlers
+// 4. API Router
 // ============================================================================
 
-const router = Router();
+// The base path is `/api/` due to the file location `functions/api/[[path]].js`
+const router = Router({ base: '/api' });
 
-// A helper to create a standard JSON response
-const jsonResponse = (data, status = 200) =>
-    new Response(JSON.stringify(data, null, 2), {
-        headers: { 'Content-Type': 'application/json' },
-        status,
-    });
+router
+    .post('/start', () => {
+        parseAndLoadData(); // Ensure data is loaded
+        if (rawData.length === 0) return error(500, "Could not initialize game, no data available.");
 
-// A helper to create a standard error response
-const errorResponse = (message, status = 400) =>
-    jsonResponse({ error: message }, status);
+        resetState();
+        selectRandomDataSegment();
+        state.currentIndex = 0;
+        updateAccount();
 
-// POST /api/start - Initializes a new game
-router.post('/api/start', () => {
-    resetState();
-    selectRandomDataSegment();
-    if (state.gameData.length === 0) {
-        return errorResponse("Could not initialize game, no data available.", 500);
-    }
-    state.currentIndex = 0; // Start at the beginning of the segment
-    updateAccount();
-
-    return jsonResponse({
-        initialBalance: CONFIG.INITIAL_BALANCE,
-        gameData: state.gameData,
-        startIndex: state.currentIndex,
-    });
-});
-
-// POST /api/tick - Advances the simulation by one step
-router.post('/api/tick', () => {
-    if (state.isEnded || !state.gameData || state.gameData.length === 0) {
-        return errorResponse("Game is not active or has ended.", 400);
-    }
-
-    const hasAdvanced = advanceSimulation();
-    const closedTrades = updatePositions(); // This also calls updateAccount inside
-
-    return jsonResponse({
-        isEnded: state.isEnded,
-        currentIndex: state.currentIndex,
-        equity: state.equity,
-        floatingPL: state.floatingPL,
-        openPositions: state.openPositions,
-        newlyClosedTrades: closedTrades, // Send back trades that were just closed
-    });
-});
-
-// POST /api/trade - Opens a new trade
-router.post('/api/trade', async request => {
-    if (state.isEnded) return errorResponse("Game has ended.", 400);
-
-    const { type, lots, sl, tp } = await request.json();
-
-    if (!['BUY', 'SELL'].includes(type)) return errorResponse("Invalid trade type.");
-    if (isNaN(lots) || lots <= 0) return errorResponse("Invalid lots.");
-
-    const entryPrice = getCurrentPrice();
-    if (entryPrice <= 0) return errorResponse("Invalid entry price.", 500);
-
-    // Basic validation
-    if (type === 'BUY') {
-        if (sl && sl >= entryPrice) return errorResponse("Buy order SL must be below entry price.");
-        if (tp && tp <= entryPrice) return errorResponse("Buy order TP must be above entry price.");
-    } else {
-        if (sl && sl <= entryPrice) return errorResponse("Sell order SL must be above entry price.");
-        if (tp && tp >= entryPrice) return errorResponse("Sell order TP must be below entry price.");
-    }
-
-    const position = {
-        id: state.orderIdCounter++,
-        type,
-        lots,
-        entryPrice,
-        entryTime: state.gameData[state.currentIndex].time,
-        sl: sl || null,
-        tp: tp || null,
-        profit: 0
-    };
-
-    state.openPositions.push(position);
-    updateAccount();
-
-    return jsonResponse(state);
-});
-
-// DELETE /api/trade/:id - Closes a single trade
-router.delete('/api/trade/:id', (request) => {
-    if (state.isEnded) return errorResponse("Game has ended.", 400);
-    const id = parseInt(request.params.id);
-    if (isNaN(id)) return errorResponse("Invalid trade ID.");
-
-    const closePrice = getCurrentPrice();
-    const closedTrade = internalCloseOrder(id, closePrice);
-
-    if (!closedTrade) return errorResponse("Position not found.", 404);
-
-    updateAccount();
-    return jsonResponse(state);
-});
-
-// DELETE /api/trades - Closes all open trades
-router.delete('/api/trades', () => {
-    if (state.isEnded) return errorResponse("Game has ended.", 400);
-
-    const closePrice = getCurrentPrice();
-    [...state.openPositions].forEach(pos => internalCloseOrder(pos.id, closePrice));
-
-    updateAccount();
-    return jsonResponse(state);
-});
-
-
-// Catch-all for 404s
-router.all('*', () => new Response('Not Found.', { status: 404 }));
-
-// ============================================================================
-// 5. Worker Entrypoint
-// ============================================================================
-
-export default {
-    async fetch(request, env, ctx) {
-        // We only handle API requests. The Pages plugin handles serving static assets.
-        const url = new URL(request.url);
-        if (url.pathname.startsWith('/api/')) {
-            return router.handle(request);
+        return json({
+            initialBalance: CONFIG.INITIAL_BALANCE,
+            gameData: state.gameData,
+            startIndex: state.currentIndex,
+        });
+    })
+    .post('/tick', () => {
+        if (state.isEnded || !state.gameData || state.gameData.length === 0) {
+            return error(400, "Game is not active or has ended.");
         }
-        // This is a fallback. In a real Pages setup, this response would likely not be used
-        // as the Pages plugin would serve the `index.html` or a 404 asset.
-        return new Response('Not an API route. Your Pages assets should be served.', { status: 404 });
-    },
+        advanceSimulation();
+        const closedTrades = updatePositions();
+        return json({
+            isEnded: state.isEnded,
+            currentIndex: state.currentIndex,
+            equity: state.equity,
+            floatingPL: state.floatingPL,
+            openPositions: state.openPositions,
+            newlyClosedTrades: closedTrades,
+        });
+    })
+    .post('/trade', async request => {
+        if (state.isEnded) return error(400, "Game has ended.");
+        const { type, lots, sl, tp } = await request.json();
+        if (!['BUY', 'SELL'].includes(type) || isNaN(lots) || lots <= 0) return error(400, "Invalid trade parameters.");
+
+        const entryPrice = getCurrentPrice();
+        if (entryPrice <= 0) return error(500, "Invalid entry price.");
+
+        const position = {
+            id: state.orderIdCounter++, type, lots, entryPrice,
+            entryTime: state.gameData[state.currentIndex].time,
+            sl: sl || null, tp: tp || null, profit: 0
+        };
+        state.openPositions.push(position);
+        updateAccount();
+        return json(state);
+    })
+    .delete('/trade/:id', (request) => {
+        if (state.isEnded) return error(400, "Game has ended.");
+        const id = parseInt(request.params.id);
+        if (isNaN(id)) return error(400, "Invalid trade ID.");
+        const closePrice = getCurrentPrice();
+        if (!internalCloseOrder(id, closePrice)) return error(404, "Position not found.");
+        updateAccount();
+        return json(state);
+    })
+    .delete('/trades', () => {
+        if (state.isEnded) return error(400, "Game has ended.");
+        const closePrice = getCurrentPrice();
+        [...state.openPositions].forEach(pos => internalCloseOrder(pos.id, closePrice));
+        updateAccount();
+        return json(state);
+    })
+    // Catch-all for other /api routes
+    .all('*', () => error(404, 'API route not found.'));
+
+// ============================================================================
+// 5. Pages Function Entrypoint
+// ============================================================================
+
+// This single onRequest function handles all incoming requests.
+export const onRequest = async (context) => {
+    // Pass the request to the itty-router instance.
+    return router.handle(context.request);
 };

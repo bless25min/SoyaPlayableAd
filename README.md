@@ -95,24 +95,23 @@ V4.0 - 藍圖指導下的完全重構
 
 結論: 這次重構不僅解決了 V3.0 的所有技術問題，更產出了一個功能完整、架構清晰、行為可預測的最終穩定版本。它標誌著整個探索與開發過程的圓滿完成，為專案的長期發展奠定了堅實的基礎。
 
-## V5.0 - 架構重構：前後端分離 (Serverless Architecture)
+## V5.0 - 架構重構：Cloudflare Pages 全棧 (Full-Stack)
 
-為了實現更高的安全性、可擴展性和可維護性，專案已重構為前後端分離的無伺服器 (Serverless) 架構，並完全基於 Cloudflare 生態系統。
+為了實現更高的安全性、可擴展性和更簡易的部署流程，專案已重構為 Cloudflare Pages 的全棧架構。前端和後端 API 被整合在同一個專案中，實現了無縫的開發與部署體驗。
 
 ### 架構概述 (Architecture Overview)
 
-*   **前端 (Frontend)**: 由 **Cloudflare Pages** 驅動。它是一個純靜態的 HTML 頁面，負責所有使用者介面的渲染和互動。所有核心的交易邏輯都已被移除。
-*   **後端 (Backend)**: 由 **Cloudflare Workers** 驅動。它是一個輕量級的無伺服器 API，負責處理所有核心遊戲邏輯，包括：數據處理、帳戶計算、開倉/平倉、損益更新等。
+*   **前端 (Frontend)**: 位於 `/public` 目錄，由 Cloudflare Pages 提供靜態資源服務。`index.html` 負責所有 UI 渲染和使用者互動。
+*   **後端 (Backend)**: 位於 `/functions` 目錄，由 Cloudflare Pages Functions 提供無伺服器 API 服務。這種模式下，後端 API 與前端專案緊密整合，無需單獨部署或綁定 Worker。
 
-這種架構將核心商業邏輯完美地隱藏在後端，前端只負責「顯示」和「請求」，大幅提升了應用的安全性。
+此架構將核心商業邏輯完美地隱藏在後端，前端只負責「顯示」和「請求」，大幅提升了應用的安全性與可維護性。
 
 ### 目錄結構 (Directory Structure)
 
-*   `/public`: 包含所有前端靜態資源。`index.html` 是唯一的頁面。
-*   `/worker`: 包含所有後端 Worker 的程式碼。
-    *   `worker/src/index.js`: 後端 API 的邏輯進入點。
-    *   `worker/XAUUSD_M15.csv`: 遊戲所使用的歷史數據，與 Worker 捆綁在一起。
-*   `wrangler.toml`: Cloudflare Worker 的設定檔。
+*   `/public`: 包含所有前端靜態資源 (`index.html`)。
+*   `/functions`: 包含所有後端 API 邏輯。
+    *   `/functions/api/[[path]].js`: 一個「萬用路由 (catch-all)」檔案，負責處理所有對 `/api/*` 路徑的請求。
+    *   `/functions/XAUUSD_M15.csv`: 遊戲所使用的歷史數據，與後端函式部署在一起。
 *   `package.json`: Node.js 專案設定檔，用於管理開發依賴 (例如 `wrangler`)。
 
 ### 本地開發 (Local Development)
@@ -120,7 +119,7 @@ V4.0 - 藍圖指導下的完全重構
 您可以在本地電腦上完整地模擬 Cloudflare 環境，同時運行前端和後端。
 
 1.  **安裝依賴**:
-    打開您的終端機 (Terminal)，進入專案根目錄，然後執行一次 `npm install` 來安裝必要的開發工具。
+    如果尚未安裝，請打開您的終端機 (Terminal)，進入專案根目錄，然後執行 `npm install` 來安裝必要的開發工具。
     ```bash
     npm install
     ```
@@ -130,21 +129,21 @@ V4.0 - 藍圖指導下的完全重構
     ```bash
     npm start
     ```
-    `wrangler` 將會啟動一個伺服器 (通常在 `http://127.0.0.1:8788`)，它會自動提供 `/public` 目錄下的前端頁面，並將所有 `/api/*` 的請求轉發到您本地運行的 Worker，完美模擬線上環境。
+    `wrangler` 將會啟動一個伺服器 (通常在 `http://127.0.0.1:8788`)。它會自動提供 `/public` 目錄下的前端頁面，並將所有 `/api/*` 的請求轉發到 `/functions` 目錄下的後端邏輯，完美模擬線上環境。
 
 ### 生產環境部署 (Deployment)
 
-您可以透過兩種方式部署此應用程式：
+部署流程已大幅簡化。
 
 1.  **透過 Git (推薦)**:
     *   將您的專案推送到一個 GitHub 或 GitLab 倉庫。
     *   在 Cloudflare 儀表板上，建立一個新的 Pages 專案並將其連接到您的 Git 倉庫。
     *   在 **Build settings** (建置設定) 中，將 **Build output directory** (建置輸出目錄) 設定為 `/public`。
-    *   Cloudflare 會自動處理部署，並將您的 Worker 與 Pages 應用程式關聯。
+    *   **完成！** Cloudflare 會自動偵測到 `/functions` 目錄並將其部署為您的後端 API。您無需再進行任何手動綁定。
 
 2.  **手動部署 (使用 Wrangler CLI)**:
     如果您偏好手動部署，可以執行以下指令：
     ```bash
     npx wrangler pages deploy public
     ```
-    此指令會將 `public` 目錄的內容部署到 Cloudflare Pages，並自動關聯設定好的 Worker。
+    此指令會將 `public` 目錄的內容以及 `/functions` 目錄下的 API 函式一同部署。
