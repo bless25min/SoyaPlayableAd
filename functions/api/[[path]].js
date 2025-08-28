@@ -10,10 +10,33 @@ const CONFIG = {
     SIMULATION_DURATION_DAYS: 30,
 };
 
+const PERFORMANCE_BENCHMARKS = {
+    GENERAL: [
+        { ror: -Infinity, text: "你目前的模擬績效還有很大的進步空間，繼續學習！" },
+        { ror: -0.20, text: "模擬剛開始，請謹慎操作，掌握風險管理。" },
+        { ror: 0.00, text: "保持穩健！你成功在模擬中保護了初始虛擬資金。" },
+        { ror: 0.02, text: "表現穩健，你正在掌握模擬交易的節奏。" },
+        { ror: 0.05, text: "技巧提升中！你的模擬績效持續進步。" },
+        { ror: 0.10, text: "優秀的模擬表現！你展現了良好的交易策略理解。" },
+    ],
+    FUND: [
+        { ror: -Infinity, text: "在高波動模擬環境中，風險控制是首要任務。" },
+        { ror: 0.03, text: "穩定的操作策略，在模擬中逐步積累經驗。" },
+        { ror: 0.06, text: "展現紀律性，你的模擬策略開始奏效。" },
+        { ror: 0.11, text: "表現亮眼！你對市場動態有敏銳的觀察力。" },
+        { ror: 0.16, text: "模擬交易大師！你展現了高水準的策略應用能力。" },
+        { ror: 0.21, text: "卓越的模擬成果！你的交易技巧已達頂尖水準。" },
+    ]
+};
+
+const FINANCIAL_EVENTS = [
+     { triggerDay: 5, title: '美國非農就業數據 (NFP)', description: '非農數據即將公布，市場預期將出現劇烈波動。請注意風險！' },
+    { triggerDay: 15, title: '美國 CPI 公布', description: '消費者物價指數 (CPI) 高於預期，可能引發市場對通膨的擔憂。' },
+    { triggerDay: 25, title: 'FOMC 利率決議', description: '聯準會即將宣布利率決議。市場普遍預期將維持現有利率。' },
+];
+
 let state = {};
 let rawData = [];
-
-// This promise will be used as a gate to ensure we only fetch and parse data once.
 let dataLoadingPromise = null;
 
 // ============================================================================
@@ -21,25 +44,18 @@ let dataLoadingPromise = null;
 // ============================================================================
 
 async function loadAndParseData(requestUrl) {
-    // Construct the full URL for the CSV file based on the incoming request's origin.
     const url = new URL(requestUrl);
     const csvUrl = new URL('/XAUUSD_M15.csv', url.origin).toString();
-
     console.log(`Fetching data from: ${csvUrl}`);
-
     try {
         const response = await fetch(csvUrl);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch CSV: ${response.status} ${response.statusText}`);
-        }
+        if (!response.ok) throw new Error(`Failed to fetch CSV: ${response.status} ${response.statusText}`);
         const csvText = await response.text();
         rawData = parseData(csvText);
         console.log(`Successfully parsed ${rawData.length} data points.`);
     } catch (e) {
         console.error("Failed to fetch or parse CSV data:", e);
-        // Reset rawData in case of failure to prevent using stale data.
         rawData = [];
-        // Re-throw the error to fail the request that triggered the load.
         throw e;
     }
 }
@@ -119,6 +135,10 @@ function resetState() {
         balance: CONFIG.INITIAL_BALANCE, equity: CONFIG.INITIAL_BALANCE,
         floatingPL: 0, openPositions: [], tradeHistory: [],
         orderIdCounter: 1,
+        // Gamification state
+        triggeredEvents: new Set(),
+        lastAlertedHigh: null,
+        lastAlertedLow: null,
     };
 }
 
@@ -180,18 +200,18 @@ function updatePositions() {
         if (pos.type === 'BUY') {
             if (pos.sl && currentBar.low <= pos.sl) {
                 const closedTrade = internalCloseOrder(pos.id, pos.sl);
-                if(closedTrade) closedTrades.push(closedTrade);
+                if(closedTrade) closedTrades.push({ ...closedTrade, reason: 'SL' });
             } else if (pos.tp && currentBar.high >= pos.tp) {
                 const closedTrade = internalCloseOrder(pos.id, pos.tp);
-                if(closedTrade) closedTrades.push(closedTrade);
+                if(closedTrade) closedTrades.push({ ...closedTrade, reason: 'TP' });
             }
         } else {
             if (pos.sl && currentBar.high >= pos.sl) {
                 const closedTrade = internalCloseOrder(pos.id, pos.sl);
-                if(closedTrade) closedTrades.push(closedTrade);
+                if(closedTrade) closedTrades.push({ ...closedTrade, reason: 'SL' });
             } else if (pos.tp && currentBar.low <= pos.tp) {
                 const closedTrade = internalCloseOrder(pos.id, pos.tp);
-                if(closedTrade) closedTrades.push(closedTrade);
+                if(closedTrade) closedTrades.push({ ...closedTrade, reason: 'TP' });
             }
         }
     }
@@ -206,6 +226,32 @@ function advanceSimulation() {
     }
     state.isEnded = true;
     return false;
+}
+
+function getPerformanceFeedback(ror, benchmarkType = 'GENERAL') {
+    const benchmarks = PERFORMANCE_BENCHMARKS[benchmarkType];
+    if (!benchmarks) return null;
+    let feedback = benchmarks[0];
+    for (const benchmark of benchmarks) {
+        if (ror >= benchmark.ror) feedback = benchmark;
+        else break;
+    }
+    return feedback;
+}
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+function calculate7DayRange() {
+    if (state.gameData.length === 0 || state.currentIndex <= 0) return { high: null, low: null };
+    const endTime = state.gameData[state.currentIndex].time;
+    const startTime = endTime - SEVEN_DAYS_MS;
+    let high = -Infinity, low = Infinity;
+    for (let i = state.currentIndex - 1; i >= 0; i--) {
+        const bar = state.gameData[i];
+        if (bar.time < startTime && i < state.currentIndex - 1) break;
+        high = Math.max(high, bar.high);
+        low = Math.min(low, bar.low);
+    }
+    return { high: high === -Infinity ? null : high, low: low === Infinity ? null : low };
 }
 
 // ============================================================================
@@ -229,8 +275,41 @@ router
     })
     .post('/tick', () => {
         if (state.isEnded || !state.gameData || state.gameData.length === 0) return error(400, "Game is not active or has ended.");
+
+        const events = [];
         advanceSimulation();
         const closedTrades = updatePositions();
+
+        // Check for gamification events
+        const currentBar = state.gameData[state.currentIndex];
+        const elapsedDays = Math.floor((currentBar.time - state.gameData[0].time) / 86400000) + 1;
+
+        // Financial Events
+        const event = FINANCIAL_EVENTS.find(e => e.triggerDay === elapsedDays);
+        if (event && !state.triggeredEvents.has(event.title)) {
+            events.push({ type: 'FINANCIAL_EVENT', data: event });
+            state.triggeredEvents.add(event.title);
+        }
+
+        // Market Alerts
+        const range = calculate7DayRange();
+        if (range && range.high !== null && currentBar.high > range.high && range.high !== state.lastAlertedHigh) {
+            events.push({ type: 'MARKET_ALERT', data: { type: 'BREAKOUT', price: range.high } });
+            state.lastAlertedHigh = range.high;
+        }
+        if (range && range.low !== null && currentBar.low < range.low && range.low !== state.lastAlertedLow) {
+            events.push({ type: 'MARKET_ALERT', data: { type: 'BREAKDOWN', price: range.low } });
+            state.lastAlertedLow = range.low;
+        }
+
+        // Check for game end and add performance feedback
+        if (state.isEnded) {
+            const finalRoR = (state.equity - CONFIG.INITIAL_BALANCE) / CONFIG.INITIAL_BALANCE;
+            const feedbackGeneral = getPerformanceFeedback(finalRoR, 'GENERAL');
+            const feedbackFund = getPerformanceFeedback(finalRoR, 'FUND');
+            events.push({ type: 'PERFORMANCE_FEEDBACK', data: { feedbackGeneral, feedbackFund } });
+        }
+
         return json({
             isEnded: state.isEnded,
             currentIndex: state.currentIndex,
@@ -238,6 +317,7 @@ router
             floatingPL: state.floatingPL,
             openPositions: state.openPositions,
             newlyClosedTrades: closedTrades,
+            events: events,
         });
     })
     .post('/trade', async request => {
@@ -260,16 +340,21 @@ router
         const id = parseInt(request.params.id);
         if (isNaN(id)) return error(400, "Invalid trade ID.");
         const closePrice = getCurrentPrice();
-        if (!internalCloseOrder(id, closePrice)) return error(404, "Position not found.");
+        const closedTrade = internalCloseOrder(id, closePrice);
+        if (!closedTrade) return error(404, "Position not found.");
         updateAccount();
-        return json(state);
+        return json({ ...state, lastClosedTrade: closedTrade });
     })
     .delete('/trades', () => {
         if (state.isEnded) return error(400, "Game has ended.");
         const closePrice = getCurrentPrice();
-        [...state.openPositions].forEach(pos => internalCloseOrder(pos.id, closePrice));
+        const closedTrades = [];
+        [...state.openPositions].forEach(pos => {
+            const closed = internalCloseOrder(pos.id, closePrice);
+            if(closed) closedTrades.push(closed);
+        });
         updateAccount();
-        return json(state);
+        return json({ ...state, lastClosedTrades: closedTrades });
     })
     .all('*', () => error(404, 'API route not found.'));
 
@@ -278,21 +363,13 @@ router
 // ============================================================================
 
 export const onRequest = async (context) => {
-    // This is the gate. If the data loading promise is null, it means this is the
-    // first request. We create the promise and assign it.
     if (dataLoadingPromise === null) {
         dataLoadingPromise = loadAndParseData(context.request.url);
     }
-
     try {
-        // All subsequent requests will wait for the same promise to resolve.
-        // If it's already resolved, this will be instantaneous.
         await dataLoadingPromise;
     } catch (e) {
-        // If the data loading failed, return an error and don't proceed.
         return error(500, "Failed to load critical game data. Cannot start game.");
     }
-
-    // Once data is loaded, handle the actual API request.
-    return router.handle(context.request);
+    return router.handle(context.request, context.env, context);
 };
