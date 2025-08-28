@@ -1,7 +1,4 @@
 import { Router, error, json } from 'itty-router';
-// The path is relative to the functions directory root.
-// The ?raw suffix tells the bundler to import the file as a raw text string.
-import csvData from '../XAUUSD_M15.csv?raw';
 
 // ============================================================================
 // 1. Constants & State Management
@@ -13,30 +10,37 @@ const CONFIG = {
     SIMULATION_DURATION_DAYS: 30,
 };
 
-// NOTE: This simple state management is for a single-player experience and will
-// reset if the worker instance restarts. For persistent state, a storage
-// solution like KV or Durable Objects would be needed.
 let state = {};
-
-// This will hold all parsed price data from the CSV.
-// This parsing happens only once when the function is first invoked.
 let rawData = [];
-let isDataParsed = false;
+
+// This promise will be used as a gate to ensure we only fetch and parse data once.
+let dataLoadingPromise = null;
 
 // ============================================================================
 // 2. Data Processing & Game Logic
 // ============================================================================
 
-function parseAndLoadData() {
-    if (isDataParsed) return;
+async function loadAndParseData(requestUrl) {
+    // Construct the full URL for the CSV file based on the incoming request's origin.
+    const url = new URL(requestUrl);
+    const csvUrl = new URL('/XAUUSD_M15.csv', url.origin).toString();
+
+    console.log(`Fetching data from: ${csvUrl}`);
+
     try {
-        // The imported csvData is a string containing the file's content.
-        rawData = parseData(csvData);
+        const response = await fetch(csvUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch CSV: ${response.status} ${response.statusText}`);
+        }
+        const csvText = await response.text();
+        rawData = parseData(csvText);
         console.log(`Successfully parsed ${rawData.length} data points.`);
-        isDataParsed = true;
     } catch (e) {
-        console.error("Failed to parse CSV data on worker startup:", e);
-        // If data fails to parse, rawData will be empty, and subsequent calls will fail.
+        console.error("Failed to fetch or parse CSV data:", e);
+        // Reset rawData in case of failure to prevent using stale data.
+        rawData = [];
+        // Re-throw the error to fail the request that triggered the load.
+        throw e;
     }
 }
 
@@ -208,19 +212,15 @@ function advanceSimulation() {
 // 4. API Router
 // ============================================================================
 
-// The base path is `/api/` due to the file location `functions/api/[[path]].js`
 const router = Router({ base: '/api' });
 
 router
     .post('/start', () => {
-        parseAndLoadData(); // Ensure data is loaded
-        if (rawData.length === 0) return error(500, "Could not initialize game, no data available.");
-
+        if (rawData.length === 0) return error(500, "Game data is not loaded or failed to load.");
         resetState();
         selectRandomDataSegment();
         state.currentIndex = 0;
         updateAccount();
-
         return json({
             initialBalance: CONFIG.INITIAL_BALANCE,
             gameData: state.gameData,
@@ -228,9 +228,7 @@ router
         });
     })
     .post('/tick', () => {
-        if (state.isEnded || !state.gameData || state.gameData.length === 0) {
-            return error(400, "Game is not active or has ended.");
-        }
+        if (state.isEnded || !state.gameData || state.gameData.length === 0) return error(400, "Game is not active or has ended.");
         advanceSimulation();
         const closedTrades = updatePositions();
         return json({
@@ -246,10 +244,8 @@ router
         if (state.isEnded) return error(400, "Game has ended.");
         const { type, lots, sl, tp } = await request.json();
         if (!['BUY', 'SELL'].includes(type) || isNaN(lots) || lots <= 0) return error(400, "Invalid trade parameters.");
-
         const entryPrice = getCurrentPrice();
         if (entryPrice <= 0) return error(500, "Invalid entry price.");
-
         const position = {
             id: state.orderIdCounter++, type, lots, entryPrice,
             entryTime: state.gameData[state.currentIndex].time,
@@ -275,15 +271,28 @@ router
         updateAccount();
         return json(state);
     })
-    // Catch-all for other /api routes
     .all('*', () => error(404, 'API route not found.'));
 
 // ============================================================================
 // 5. Pages Function Entrypoint
 // ============================================================================
 
-// This single onRequest function handles all incoming requests.
 export const onRequest = async (context) => {
-    // Pass the request to the itty-router instance.
+    // This is the gate. If the data loading promise is null, it means this is the
+    // first request. We create the promise and assign it.
+    if (dataLoadingPromise === null) {
+        dataLoadingPromise = loadAndParseData(context.request.url);
+    }
+
+    try {
+        // All subsequent requests will wait for the same promise to resolve.
+        // If it's already resolved, this will be instantaneous.
+        await dataLoadingPromise;
+    } catch (e) {
+        // If the data loading failed, return an error and don't proceed.
+        return error(500, "Failed to load critical game data. Cannot start game.");
+    }
+
+    // Once data is loaded, handle the actual API request.
     return router.handle(context.request);
 };
