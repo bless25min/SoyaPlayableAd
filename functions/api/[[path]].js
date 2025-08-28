@@ -1,6 +1,7 @@
 import { Router, error, json } from 'itty-router';
 // The path is relative to the functions directory root.
-import csvData from '../XAUUSD_M15.csv';
+// The ?raw suffix tells the bundler to import the file as a raw text string.
+import csvData from '../XAUUSD_M15.csv?raw';
 
 // ============================================================================
 // 1. Constants & State Management
