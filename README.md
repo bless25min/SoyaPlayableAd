@@ -138,8 +138,10 @@ V4.0 - 藍圖指導下的完全重構
 1.  **透過 Git (推薦)**:
     *   將您的專案推送到一個 GitHub 或 GitLab 倉庫。
     *   在 Cloudflare 儀表板上，建立一個新的 Pages 專案並將其連接到您的 Git 倉庫。
-    *   在 **Build settings** (建置設定) 中，將 **Build output directory** (建置輸出目錄) 設定為 `/public`。
-    *   **完成！** Cloudflare 會自動偵測到 `/functions` 目錄並將其部署為您的後端 API。您無需再進行任何手動綁定。
+    *   在 **Build settings** (建置設定) 中，進行以下設定：
+        *   **Build command** (建置指令): `npm install`
+        *   **Build output directory** (建置輸出目錄): `/public`
+    *   **完成！** 儲存設定後，Cloudflare 在部署時會先安裝必要的依賴，然後將 `/public` 目錄作為前端，並自動偵測 `/functions` 目錄作為後端 API。
 
 2.  **手動部署 (使用 Wrangler CLI)**:
     如果您偏好手動部署，可以執行以下指令：

@@ -1,6 +1,6 @@
 import { Router, error, json } from 'itty-router';
-// The path is relative to the project root, and Cloudflare's build system handles it.
-import csvData from '../../XAUUSD_M15.csv';
+// The path is relative to the functions directory root.
+import csvData from '../XAUUSD_M15.csv';
 
 // ============================================================================
 // 1. Constants & State Management
