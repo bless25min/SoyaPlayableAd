@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- 標題調整為強調模擬學習 -->
+    <title>交易技巧模擬學習挑戰 (V11.0)</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Loader -->
+    <div class="loader-wrap" id="loader">
+        <div id="loader-status">
+            <div class="loading-spinner"></div>
+            <p>正在載入數據與初始化圖表...</p>
+        </div>
+        <div id="fileUploadFallback" class="file-upload-prompt hidden">
+            <p style="color: var(--color-danger); margin-bottom: 15px; font-weight: bold;">⚠️ 數據載入失敗</p>
+            <p id="loader-error-message" style="margin-bottom: 15px;"></p>
+            <p>這可能是由於瀏覽器的本地檔案存取限制 (CORS) 或檔案格式不正確。</p>
+            <p style="margin-bottom: 20px;">請手動上傳 <strong>XAUUSD_M15.csv</strong> 檔案以繼續：</p>
+            <input type="file" id="csvFileInput" accept=".csv">
+        </div>
+    </div>
+
+    <div id="notification-container"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="hud">
+            <div class="hud-item">
+                <span class="hud-label">模擬日期</span>
+                <span class="hud-value" id="hud-date">--/--/-- --:--</span>
+            </div>
+            <div class="hud-item">
+                <!-- 修改：強調是虛擬帳戶 -->
+                <span class="hud-label">虛擬帳戶淨值</span>
+                <span class="hud-value" id="hud-equity">$10000.00</span>
+            </div>
+            <div class="hud-item">
+                <span class="hud-label">浮動損益</span>
+                <span class="hud-value" id="hud-pl">$0.00</span>
+            </div>
+        </div>
+        <div class="hud-right">
+            <div class="hud-item">
+                <span class="hud-label">花費時間</span>
+                <span class="hud-value" id="hud-timer">00:00</span>
+            </div>
+            <div class="hud-item progress-container">
+                <span class="hud-label">挑戰進度</span>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="hud-progress"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- V9.0: New Main Container Structure -->
+    <div class="main-container-v9">
+
+        <!-- V9.0: Chart Container -->
+        <div class="chart-container-v9">
+
+            <div class="chart-wrap" id="chartWrap">
+                 <!-- Overlay Controls -->
+                <div class="controls-overlay-container">
+                    <!-- V9.0 (R3): Added controls-collapsed by default -->
+                    <div class="controls controls-left controls-collapsed" id="chartControls">
+
+                        <div class="collapsible-controls">
+                            <button class="btn btn-primary" id="btnPlayPause">▶️ 播放</button>
+                            <button class="btn btn-secondary" id="btnStepForward">➡️ 逐K前進</button>
+                            <div class="speed-selector" id="speedSelector">
+                                <button class="speed-btn active" data-speed="1">1x</button>
+                                <button class="speed-btn" data-speed="5">5x</button>
+                                <button class="speed-btn" data-speed="20">20x</button>
+                                <button class="speed-btn" data-speed="40">40x</button>
+                            </div>
+                            <button class="btn btn-secondary" id="btnZoomIn">🔍+</button>
+                            <button class="btn btn-secondary" id="btnZoomOut">🔍-</button>
+                        </div>
+                         <!-- V9.0 (R3): Changed initial text to "展開設定" -->
+                        <button class="btn btn-secondary btn-toggle-controls" id="btnToggleControls">展開設定</button>
+                    </div>
+                    <div class="controls controls-right">
+                         <button class="btn btn-end-game" id="btnEndGame">結束挑戰</button>
+                    </div>
+                </div>
+
+                <canvas id="chartCanvas"></canvas>
+                <div class="chart-overlay" id="chartOverlay">
+                    </div>
+            </div>
+        </div>
+
+        <!-- V9.0: Bottom Content Area (Becomes Side Panel on Desktop) -->
+        <div class="bottom-content-v9" id="bottomContent">
+
+            <!-- V9.0: Navigation Bar (Moved here for Desktop view compatibility) -->
+            <nav class="bottom-nav-bar-v9" id="bottomNavBar">
+                <button class="nav-btn-v9 active" data-target="tabOrder">下單</button>
+                <button class="nav-btn-v9" data-target="tabPositionsHistory">倉位/紀錄 (<span id="positionsCountNav">0</span>)</button>
+            </nav>
+
+            <!-- Tab Content 1: Ordering -->
+            <div class="tab-content-v9 active" id="tabOrder">
+                <!-- Content moved from old bottom-bar -->
+                <div class="order-controls">
+                    <div class="input-group-horizontal">
+                       <label for="inputSL">SL</label>
+                       <input type="number" class="input-field scrubbable" id="inputSL" placeholder="價格" step="0.1" min="0" data-scrub-step="0.5">
+                    </div>
+                    <div class="input-group-horizontal">
+                       <label for="inputLots">手數</label>
+                       <input type="number" class="input-field scrubbable" id="inputLots" value="0.10" step="0.01" min="0.01" data-scrub-step="0.05">
+                   </div>
+                   <div class="input-group-horizontal">
+                       <label for="inputTP">TP</label>
+                       <input type="number" class="input-field scrubbable" id="inputTP" placeholder="價格" step="0.1" min="0" data-scrub-step="0.5">
+                   </div>
+               </div>
+               <!-- V10.0: Modified trade-actions for 3-button layout -->
+               <div class="trade-actions">
+                   <button class="btn btn-trade btn-sell" id="btnSell">賣出</button>
+                   <!-- Moved btnCloseAllGlobal here and updated style -->
+                   <button class="btn btn-trade btn-neutral" id="btnCloseAllGlobal">全部平倉</button>
+                   <button class="btn btn-trade btn-buy" id="btnBuy">買入</button>
+               </div>
+               <div class="order-info-bar">
+                   <div class="estimates">
+                       <span id="estimateSL"></span>
+                       <span id="estimateTP"></span>
+                   </div>
+                   <!-- btnCloseAllGlobal removed from here -->
+               </div>
+            </div>
+
+            <!-- Tab Content 2: Positions/History -->
+            <div class="tab-content-v9" id="tabPositionsHistory">
+                <!-- Content moved from old side-panel -->
+                <div class="challenge-info" id="challengeInfo">
+                    <!-- 修改：強調模擬性質 -->
+                    <h4>🏆 30天交易模擬挑戰</h4>
+                    <!-- 修改：避免強調收益，改為強調技巧與績效 -->
+                    <p>從隨機歷史日期開始，在一個月內盡力提升交易技巧與模擬績效！</p>
+                </div>
+
+                <div class="panel-tabs">
+                    <button class="tab-btn active" data-target="tabPositions">持倉 (<span id="positionsCount">0</span>)</button>
+                    <button class="tab-btn" data-target="tabHistory">紀錄</button>
+                </div>
+
+                <div class="tabs-wrapper">
+                    <div class="tab-content active" id="tabPositions">
+                        <div class="positions-list" id="positionsList">
+                            <div class="empty-state" id="emptyPositions">目前沒有持倉。</div>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="tabHistory">
+                        <div class="history-list" id="historyList">
+                            <div class="empty-state" id="emptyHistory">還沒有交易紀錄。</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- V10.1: Footer for advertisement with link -->
+    <!-- 修改：強調本遊戲為教學模擬用途 -->
+    <footer class="footer-ad">
+        本模擬遊戲由 <a href="https://www.massenlighten.com" target="_blank">眾曜智庫</a> 提供用於教學目的
+    </footer>
+
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="eventModal">
+        <div class="modal-content">
+            <h2 class="modal-title" id="eventTitle">⚠️ 重大財經事件</h2>
+            <div class="modal-body" id="eventBody" style="text-align: left;">
+                </div>
+            <button class="btn btn-primary" id="eventContinueBtn">繼續模擬</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="endGameModal">
+        <div class="modal-content">
+            <h2 class="modal-title">🎉 挑戰結束！</h2>
+            <div class="modal-body" style="text-align: center;">
+                <!-- 修改：強調模擬成績 -->
+                <p>您的最終模擬成績：</p>
+                <h1 id="finalScore" style="font-size: 36px; margin: 10px 0;">$10000.00</h1>
+                <p id="finalRoR" style="font-size: 20px;"></p>
+                <p id="finalTime" style="font-size: 16px; color: var(--color-text-secondary);"></p>
+
+                <div id="endGameStats"></div>
+
+                <div class="achievements-section" id="achievementsSection">
+                    <h3>🏆 已解鎖成就</h3>
+                    <ul class="achievements-list" id="achievementsList">
+                        </ul>
+                </div>
+
+            </div>
+            <!-- 修改：CTA 按鈕文字保持中性、教育性 -->
+            <a href="https://www.massenlighten.com/soya%E5%A5%B3%E7%A5%9E" target="_blank" class="btn cta-button" id="ctaButton">了解更多交易知識</a>
+            <button class="btn btn-secondary" id="restartButton" style="margin-top: 15px;">重新挑戰</button>
+        </div>
+    </div>
+
+    <div class="tutorial-highlight hidden" id="tutorialHighlight"></div>
+    <div class="tutorial-message hidden" id="tutorialMessage">
+        <p id="tutorialText"></p>
+        <button class="btn btn-small" id="tutorialNextBtn" style="margin-top: 10px; background-color: white; color: var(--color-primary);">下一步</button>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
