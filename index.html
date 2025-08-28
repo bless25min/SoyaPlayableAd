@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>XAUUSD 交易模擬挑戰 (UI Redesign V11.0)</title>
+    <!-- 標題調整為強調模擬學習 -->
+    <title>交易技巧模擬學習挑戰 (V11.0)</title>
     <style>
         /* 1. Reset & Variables */
         :root {
@@ -1185,7 +1186,8 @@
                 <span class="hud-value" id="hud-date">--/--/-- --:--</span>
             </div>
             <div class="hud-item">
-                <span class="hud-label">帳戶淨值</span>
+                <!-- 修改：強調是虛擬帳戶 -->
+                <span class="hud-label">虛擬帳戶淨值</span>
                 <span class="hud-value" id="hud-equity">$10000.00</span>
             </div>
             <div class="hud-item">
@@ -1291,8 +1293,10 @@
             <div class="tab-content-v9" id="tabPositionsHistory">
                 <!-- Content moved from old side-panel -->
                 <div class="challenge-info" id="challengeInfo">
-                    <h4>🏆 30天交易挑戰</h4>
-                    <p>從隨機歷史日期開始，在一個月內盡力獲取最高收益！</p>
+                    <!-- 修改：強調模擬性質 -->
+                    <h4>🏆 30天交易模擬挑戰</h4>
+                    <!-- 修改：避免強調收益，改為強調技巧與績效 -->
+                    <p>從隨機歷史日期開始，在一個月內盡力提升交易技巧與模擬績效！</p>
                 </div>
 
                 <div class="panel-tabs">
@@ -1319,8 +1323,9 @@
     </div>
 
     <!-- V10.1: Footer for advertisement with link -->
+    <!-- 修改：強調本遊戲為教學模擬用途 -->
     <footer class="footer-ad">
-        本遊戲廣告由 <a href="https://www.massenlighten.com" target="_blank">眾曜智庫</a> 提供
+        本模擬遊戲由 <a href="https://www.massenlighten.com" target="_blank">眾曜智庫</a> 提供用於教學目的
     </footer>
     
 
@@ -1338,7 +1343,8 @@
         <div class="modal-content">
             <h2 class="modal-title">🎉 挑戰結束！</h2>
             <div class="modal-body" style="text-align: center;">
-                <p>您的最終成績：</p>
+                <!-- 修改：強調模擬成績 -->
+                <p>您的最終模擬成績：</p>
                 <h1 id="finalScore" style="font-size: 36px; margin: 10px 0;">$10000.00</h1>
                 <p id="finalRoR" style="font-size: 20px;"></p>
                 <p id="finalTime" style="font-size: 16px; color: var(--color-text-secondary);"></p>
@@ -1352,7 +1358,8 @@
                 </div>
 
             </div>
-            <a href="https://www.massenlighten.com/soya%E5%A5%B3%E7%A5%9E" target="_blank" class="btn cta-button" id="ctaButton">了解如何取得高分</a>
+            <!-- 修改：CTA 按鈕文字保持中性、教育性 -->
+            <a href="https://www.massenlighten.com/soya%E5%A5%B3%E7%A5%9E" target="_blank" class="btn cta-button" id="ctaButton">了解更多交易知識</a>
             <button class="btn btn-secondary" id="restartButton" style="margin-top: 15px;">重新挑戰</button>
         </div>
     </div>
@@ -1365,7 +1372,7 @@
 
     <script>
         // ============================================================================
-        // 專案：XAUUSD 交易模擬 Playable Ad (Rework V11.0 - Interactive Chart Features)
+        // 專案：交易模擬學習 Playable Ad (Rework V11.0 - Compliance Update)
         // ============================================================================
 
         // ----------------------------------------------------------------------------
@@ -1386,42 +1393,45 @@
             MAX_VISIBLE_CANDLES: 200,
         };
         
+        // 修改：績效回饋文字調整。移除與真實投資人的比較，改為強調學習與技巧提升。
         const PERFORMANCE_BENCHMARKS = {
             GENERAL: [
-                { ror: -Infinity, text: "你現在是市場裡的苦主之一，還比不上 21% 的股民", beat: 0 },
-                { ror: -0.20, text: "雖然不理想，但你已勝過約 21% 的股民", beat: 21 },
-                { ror: 0.00, text: "至少沒賠！你已超越了約 38% 的市場參與者", beat: 38 },
-                { ror: 0.02, text: "表現穩健，勝過了將近一半的投資人", beat: 46 },
-                { ror: 0.05, text: "穩中帶強，已領先市場上超過六成的股民", beat: 52 },
-                { ror: 0.10, text: "你是市場上的前段班，勝過約 58% 的投資人", beat: 58 },
+                { ror: -Infinity, text: "你目前的模擬績效還有很大的進步空間，繼續學習！", beat: 0 },
+                { ror: -0.20, text: "模擬剛開始，請謹慎操作，掌握風險管理。", beat: 0 },
+                { ror: 0.00, text: "保持穩健！你成功在模擬中保護了初始虛擬資金。", beat: 0 },
+                { ror: 0.02, text: "表現穩健，你正在掌握模擬交易的節奏。", beat: 0 },
+                { ror: 0.05, text: "技巧提升中！你的模擬績效持續進步。", beat: 0 },
+                { ror: 0.10, text: "優秀的模擬表現！你展現了良好的交易策略理解。", beat: 0 },
             ],
+            // 修改：進階評估，強調策略與紀律
             FUND: [
-                { ror: -Infinity, text: "目前表現略遜一籌，但仍有進步空間", beat: 15 },
-                { ror: 0.03, text: "表現與大多數基金投資人相當", beat: 15 },
-                { ror: 0.06, text: "穩定中求勝，你已勝過一半以上的基金參與者", beat: 46 },
-                { ror: 0.11, text: "表現亮眼，超越近七成基金投資人", beat: 75 },
-                { ror: 0.16, text: "這水準讓你進入基金界前 10% 精英行列", beat: 90 },
-                { ror: 0.21, text: "你是極少數的績效大師，已勝過 95% 基金投資人", beat: 95 },
+                { ror: -Infinity, text: "在高波動模擬環境中，風險控制是首要任務。", beat: 0 },
+                { ror: 0.03, text: "穩定的操作策略，在模擬中逐步積累經驗。", beat: 0 },
+                { ror: 0.06, text: "展現紀律性，你的模擬策略開始奏效。", beat: 0 },
+                { ror: 0.11, text: "表現亮眼！你對市場動態有敏銳的觀察力。", beat: 0 },
+                { ror: 0.16, text: "模擬交易大師！你展現了高水準的策略應用能力。", beat: 0 },
+                { ror: 0.21, text: "卓越的模擬成果！你的交易技巧已達頂尖水準。", beat: 0 },
             ]
         };
 
+        // 修改：成就係統調整。移除所有金融敏感詞彙、俚語或可能暗示快速致富的描述。
         const ACHIEVEMENTS = {
-            FIRST_TRADE: { title: "新手上路", description: "剛開戶就上車，駕照還在影印中", icon: "🚗" },
-            BIG_WIN: { title: "荷包滿滿", description: "一根長紅，帳戶變胖了！ (單筆獲利>$3000)", icon: "💰" },
-            BIG_LOSS: { title: "忍痛停損", description: "對帳單一打開，我直接見祖先 (單筆虧損>$3000)", icon: "💔" },
-            WIN_STREAK_3: { title: "財神保佑", description: "三連紅，今天有神明附身 (連勝3筆)", icon: "🙏" },
-            LOSS_STREAK_3: { title: "這人急了", description: "每根K棒都能解讀成希望 (連虧3筆)", icon: "😰" },
-            HOLD_LOSS_7D: { title: "凹單大師", description: "主力洗我我不怕，我有信仰 (持虧損倉>7天)", icon: "🧱" },
-            HOLD_WIN_7D: { title: "佛系操盤", description: "放著讓它噴，天命流最會賺 (持獲利倉>7天)", icon: "🧘" },
-            TRADER_10: { title: "積少成多", description: "韭菜每天割一點，主力都感動了 (累計10筆)", icon: "👨‍🌾" },
-            QUICK_DRAW: { title: "快槍俠", description: "一敲就出場，我盤感來了 (1小時內獲利平倉)", icon: "⚡" },
-            DOUBLE_UP: { title: "翻倍！", description: "阿嬤都說你該辭職全職操盤了 (淨值>$20000)", icon: "🚀" },
-            MARGIN_CALL: { title: "破產邊緣", description: "再跌我就要賣腎了啦！(淨值曾低於$2000)", icon: "📉" },
-            CONSISTENT: { title: "穩健獲利", description: "不當沖、不飆股，照樣噴到天花板 (結束時勝率>60%，且至少10筆)", icon: "🎯" },
-            DIAMOND_HANDS_LOSS: { title: "信仰之力", description: "就算跌停，我還是幫它按愛心 (單一虧損部位抱超過 30%虧損還沒出場)", icon: "💖" },
-            AVERAGE_DOWN: { title: "拉回買點", description: "每次攤平，內心都默唸老師有交代 (對同一方向加碼 3 次以上)", icon: "📉📈" },
-            BAD_DAY: { title: "今天盤不好", description: "明明賠錢卻能講到像賺錢 (單日虧損交易三次)", icon: "🌧️" },
-            RUG_PULL: { title: "盤中抽筋", description: "開高進場，收盤哭著關機 (同日內由獲利轉為虧損超過 $2000)", icon: "😱" },
+            FIRST_TRADE: { title: "模擬初體驗", description: "完成了第一筆模擬交易。", icon: "🎓" },
+            BIG_WIN: { title: "漂亮的操作", description: "單筆模擬交易獲得顯著虛擬收益。(>$3000)", icon: "🎯" },
+            BIG_LOSS: { title: "寶貴的經驗", description: "從大幅虛擬虧損中學習風險管理的重要性。(>$3000)", icon: "💡" },
+            WIN_STREAK_3: { title: "連戰連捷", description: "連續三次模擬交易獲得虛擬收益。", icon: "⭐" },
+            LOSS_STREAK_3: { title: "需要冷靜", description: "連續三次模擬交易出現虛擬虧損，建議重新審視策略。", icon: "🤔" },
+            HOLD_LOSS_7D: { title: "長期觀察", description: "持有處於虛擬虧損狀態的部位超過7天。", icon: "⏳" },
+            HOLD_WIN_7D: { title: "趨勢跟隨者", description: "成功持有一個處於虛擬收益狀態的部位超過7天。", icon: "📈" },
+            TRADER_10: { title: "積極練習", description: "累積完成了10筆模擬交易。", icon: "🔄" },
+            QUICK_DRAW: { title: "短線高手", description: "在1小時內完成一筆有虛擬收益的模擬交易。", icon: "⚡" },
+            DOUBLE_UP: { title: "模擬績效卓越", description: "虛擬帳戶淨值達到初始資金的兩倍。(>$20000)", icon: "🏆" },
+            MARGIN_CALL: { title: "風險警示", description: "虛擬帳戶淨值曾低於$2000，請注意風險控管。", icon: "⚠️" },
+            CONSISTENT: { title: "穩健操作", description: "模擬結束時勝率>60%且至少10筆交易。", icon: "📊" },
+            DIAMOND_HANDS_LOSS: { title: "深度回撤觀察", description: "持有單一虛擬虧損部位超過30%仍未平倉。", icon: "👀" },
+            AVERAGE_DOWN: { title: "分批進場", description: "對同一方向建立模擬部位3次以上。", icon: "🧱" },
+            BAD_DAY: { title: "逆風考驗", description: "單日內執行了三次虛擬虧損的模擬交易。", icon: "🌧️" },
+            RUG_PULL: { title: "劇烈波動", description: "模擬帳戶在同日內由虛擬收益轉為虛擬虧損超過 $2000。", icon: "🎢" },
         };
 
         const state = {
@@ -1483,6 +1493,7 @@
                 dailyLossCount: 0,
                 dailyMaxPL: 0,
             },
+            // 財經事件描述保持中性，符合規範
             financialEvents: [
                  { triggerDay: 5, title: '美國非農就業數據 (NFP)', description: '非農數據即將公布，市場預期將出現劇烈波動。請注意風險！' },
                 { triggerDay: 15, title: '美國 CPI 公布', description: '消費者物價指數 (CPI) 高於預期，可能引發市場對通膨的擔憂。' },
@@ -2738,7 +2749,7 @@
             const entryPrice = getCurrentPrice();
             if (entryPrice <= 0) return;
             
-            // Validation checks
+            // Validation checks (使用標準技術性提示，符合規範)
             if (type === 'BUY') {
                 if (sl && sl >= entryPrice) { alert("買單 (BUY) 的停損價格 (SL) 必須低於進場價格。"); return; }
                 if (tp && tp <= entryPrice) { alert("買單 (BUY) 的停利價格 (TP) 必須高於進場價格。"); return; }
@@ -3634,7 +3645,8 @@
             }
             
             document.getElementById('finalScore').textContent = `$${state.equity.toFixed(2)}`;
-            document.getElementById('finalRoR').innerHTML = `回報率 (RoR): ${(finalRoR * 100).toFixed(2)}% <br><small style="font-size: 14px; color: var(--color-text-secondary);">(年化報酬率估算: ${(annualizedRoR * 100).toFixed(2)}%)</small>`;
+            // 修改：強調模擬性質
+            document.getElementById('finalRoR').innerHTML = `模擬回報率 (Simulated RoR): ${(finalRoR * 100).toFixed(2)}% <br><small style="font-size: 14px; color: var(--color-text-secondary);">(模擬年化報酬率估算: ${(annualizedRoR * 100).toFixed(2)}%)</small>`;
             document.getElementById('finalRoR').style.color = finalRoR >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
             
             const minutes = Math.floor(state.elapsedTime / 60);
@@ -3646,14 +3658,16 @@
             const feedbackFund = getPerformanceFeedback(annualizedRoR, 'FUND');
             let feedbackHTML = '';
             if (feedbackGeneral && feedbackFund) {
-                feedbackHTML = `<div class="performance-feedback" style="text-align: left; margin-top: 20px; padding: 15px; background-color: var(--color-bg); border-radius: var(--radius-main);"><h3 style="text-align: center; margin-bottom: 10px;">📊 你的表現如何？</h3><p style="margin-top: 10px;"><strong>對比一般投資人：</strong><br>${feedbackGeneral.text}</p><p style="margin-top: 10px;"><strong>對比基金投資人：</strong><br>${feedbackFund.text}</p></div>`;
+                // 修改：標題改為基礎評估與進階評估
+                feedbackHTML = `<div class="performance-feedback" style="text-align: left; margin-top: 20px; padding: 15px; background-color: var(--color-bg); border-radius: var(--radius-main);"><h3 style="text-align: center; margin-bottom: 10px;">📊 模擬表現分析</h3><p style="margin-top: 10px;"><strong>基礎評估：</strong><br>${feedbackGeneral.text}</p><p style="margin-top: 10px;"><strong>進階評估：</strong><br>${feedbackFund.text}</p></div>`;
             }
             
             // Statistics
             const totalTrades = state.tradeHistory.length;
             const winRate = totalTrades > 0 ? (state.tradeHistory.filter(t => t.profit > 0).length / totalTrades) * 100 : 0;
             const totalProfit = state.tradeHistory.reduce((sum, t) => sum + t.profit, 0);
-            document.getElementById('endGameStats').innerHTML = `${feedbackHTML}<div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--color-border); text-align: left;"><p><strong>交易統計：</strong></p><ul style="list-style-position: inside; padding-left: 10px;"><li>總交易次數: ${totalTrades}</li><li>勝率: ${winRate.toFixed(2)}%</li><li>總損益: $${totalProfit.toFixed(2)}</li><li>模擬期間: 約 ${Math.round(simulationDays)} 天</li></ul></div>`;
+            // 修改：標籤強調模擬性質
+            document.getElementById('endGameStats').innerHTML = `${feedbackHTML}<div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--color-border); text-align: left;"><p><strong>交易統計：</strong></p><ul style="list-style-position: inside; padding-left: 10px;"><li>總交易次數: ${totalTrades}</li><li>勝率: ${winRate.toFixed(2)}%</li><li>模擬總損益: $${totalProfit.toFixed(2)}</li><li>模擬期間: 約 ${Math.round(simulationDays)} 天</li></ul></div>`;
             
             displayAchievements();
             DOM.endGameModal.classList.add('active');
@@ -3661,8 +3675,9 @@
 
         // V11.0: Updated Tutorial Steps (including new features)
         // Define steps dynamically to handle mobile/desktop differences correctly
+        // 修改：教學引導文字，強調學習和虛擬帳戶
         const TUTORIAL_STEPS = [
-            { selector: '.header', message: '歡迎！本次挑戰目標是在30天內取得最高收益。您可以在頂部追蹤帳戶狀態和進度。', action: 'next' },
+            { selector: '.header', message: '歡迎！本次模擬挑戰目標是在30天內學習交易並提升績效。您可以在頂部追蹤虛擬帳戶狀態和進度。', action: 'next' },
             // V11.0 (Feature 3 update)
             { selector: '.chart-container-v9', message: '圖表區域已最大化。拖曳查看歷史數據，使用滑鼠滾輪或手機雙指縮放 (Pinch-to-Zoom) 查看細節。', action: 'next' },
             // V11.0 (Feature 2 update)
@@ -3689,7 +3704,7 @@
             // V10.0: Updated message for 3-button layout
             { selector: '.trade-actions', message: '點擊「賣出」、「全部平倉」或「買入」進行交易。', action: 'next' },
             // V10.0: Updated final step as the button is moved.
-            { selector: '.order-info-bar', message: '您可以在此查看預估的停損/停利金額。祝您交易順利！', action: 'next' },
+            { selector: '.order-info-bar', message: '您可以在此查看預估的停損/停利金額。祝您模擬順利！', action: 'next' },
         ];
         let currentTutorialStep = 0;
 
