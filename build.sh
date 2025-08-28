@@ -12,7 +12,7 @@ echo '{
   "description": "Build dependencies for SoyaPlayableAd",
   "devDependencies": {
     "esbuild": "^0.14.0",
-    "terser": "^5.0.0",
+    "javascript-obfuscator": "^4.1.0",
     "html-minifier-terser": "^7.0.0"
   }
 }' > package.json
@@ -31,11 +31,11 @@ else
     exit 1
 fi
 
-if [ -f "./node_modules/.bin/terser" ]; then
-    chmod +x ./node_modules/.bin/terser
-    echo "terser executable found and permissions set."
+if [ -f "./node_modules/.bin/javascript-obfuscator" ]; then
+    chmod +x ./node_modules/.bin/javascript-obfuscator
+    echo "javascript-obfuscator executable found and permissions set."
 else
-    echo "ERROR: terser binary not found in node_modules/.bin!"
+    echo "ERROR: javascript-obfuscator binary not found in node_modules/.bin!"
     exit 1
 fi
 
@@ -55,9 +55,26 @@ mkdir -p $DIST_DIR
 echo "   - Bundling JavaScript..."
 ./node_modules/.bin/esbuild "$JS_DIR/security.js" --bundle --outfile="$DIST_DIR/bundle.js"
 
-# Step 3b: Minify & Obfuscate JS
+# Step 3b: Obfuscate JS with javascript-obfuscator
 echo "   - Obfuscating JavaScript..."
-./node_modules/.bin/terser "$DIST_DIR/bundle.js" --compress drop_console=true,dead_code=true --mangle toplevel=true -o "$DIST_DIR/bundle.min.js"
+./node_modules/.bin/javascript-obfuscator "$DIST_DIR/bundle.js" \
+    --output "$DIST_DIR/bundle.min.js" \
+    --compact true \
+    --control-flow-flattening true \
+    --dead-code-injection true \
+    --disable-console-output true \
+    --identifier-names-generator mangled \
+    --log false \
+    --numbers-to-expressions true \
+    --rename-globals false \
+    --self-defending false \
+    --simplify true \
+    --split-strings true \
+    --string-array true \
+    --string-array-encoding 'rc4' \
+    --string-array-threshold 0.75 \
+    --transform-object-keys true \
+    --unicode-escape-sequence false
 
 # Step 3c: Inject into HTML (using the previously created inject.js script)
 echo "   - Finalizing HTML..."
