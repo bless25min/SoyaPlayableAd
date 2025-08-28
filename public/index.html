@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>交易技巧模擬學習挑戰 (V13.1 - Latency Optimized)</title>
+    <title>交易技巧模擬學習挑戰 (V14.0 - Zero Latency)</title>
     <style>
         /* CSS is unchanged */
         :root {
@@ -198,12 +198,12 @@
 
     <script>
         // ============================================================================
-        // Trading Simulator Frontend (V13.1 - Latency Optimized)
+        // Trading Simulator Frontend (V14.0 - Zero Latency Hybrid)
         // ============================================================================
 
         const CONFIG = { TICK_INTERVAL: 500, CHART_PADDING: { top: 20, right: 60, bottom: 30, left: 10 }, CANDLE_WIDTH_DEFAULT: 8, CANDLE_SPACING: 3, CONTRACT_SIZE: 100, INITIAL_BALANCE: 10000, MIN_VISIBLE_CANDLES: 10, MAX_VISIBLE_CANDLES: 200, };
         const ACHIEVEMENTS = { FIRST_TRADE: { title: "模擬初體驗", description: "完成了第一筆模擬交易。", icon: "🎓" }, BIG_WIN: { title: "漂亮的操作", description: "單筆模擬交易獲得顯著虛擬收益。(>$3000)", icon: "🎯" }, BIG_LOSS: { title: "寶貴的經驗", description: "從大幅虛擬虧損中學習風險管理的重要性。(>$3000)", icon: "💡" }, WIN_STREAK_3: { title: "連戰連捷", description: "連續三次模擬交易獲得虛擬收益。", icon: "⭐" }, LOSS_STREAK_3: { title: "需要冷靜", description: "連續三次模擬交易出現虛擬虧損，建議重新審視策略。", icon: "🤔" }, HOLD_LOSS_7D: { title: "長期觀察", description: "持有處於虛擬虧損狀態的部位超過7天。", icon: "⏳" }, HOLD_WIN_7D: { title: "趨勢跟隨者", description: "成功持有一個處於虛擬收益狀態的部位超過7天。", icon: "📈" }, TRADER_10: { title: "積極練習", description: "累積完成了10筆模擬交易。", icon: "🔄" }, QUICK_DRAW: { title: "短線高手", description: "在1小時內完成一筆有虛擬收益的模擬交易。", icon: "⚡" }, DOUBLE_UP: { title: "模擬績效卓越", description: "虛擬帳戶淨值達到初始資金的兩倍。(>$20000)", icon: "🏆" }, MARGIN_CALL: { title: "風險警示", description: "虛擬帳戶淨值曾低於$2000，請注意風險控管。", icon: "⚠️" }, };
-        const state = { gameData: [], isLoading: true, isPlaying: false, isEnded: false, speedMultiplier: 1, currentIndex: 0, barAnimationProgress: 0, equity: CONFIG.INITIAL_BALANCE, floatingPL: 0, openPositions: [], tradeHistory: [], performanceFeedback: null, wasPlayingBeforeEvent: false, nextTickPromise: null, chart: { canvas: null, ctx: null, width: 0, height: 0, viewStartIndex: 0, viewEndIndex: 0, minPrice: 0, maxPrice: 0, candleWidth: CONFIG.CANDLE_WIDTH_DEFAULT, candleSpacing: CONFIG.CANDLE_SPACING, isDragging: false, dragStartX: 0, dragStartY: 0, dragStartScroll: 0, scrollOffset: 0, isCrosshairPinned: false, pinnedCrosshairPos: { x: 0, y: 0 }, draggedLineType: null, pinchStartDistance: 0, pinchStartCandleWidth: 0, isPinching: false, }, mouse: { x: -1, y: -1, isOverChart: false }, isMobile: false, tutorialActive: false, tutorialCompletedOnce: false, gameStartTime: null, elapsedTime: 0, timerIntervalId: null, unlockedAchievements: new Set(), achievementStats: { consecutiveWins: 0, consecutiveLosses: 0, maxEquity: CONFIG.INITIAL_BALANCE, minEquity: CONFIG.INITIAL_BALANCE }, };
+        const state = { gameData: [], isLoading: true, isPlaying: false, isEnded: false, speedMultiplier: 1, currentIndex: 0, barAnimationProgress: 0, equity: CONFIG.INITIAL_BALANCE, floatingPL: 0, openPositions: [], tradeHistory: [], performanceFeedback: null, wasPlayingBeforeEvent: false, chart: { canvas: null, ctx: null, width: 0, height: 0, viewStartIndex: 0, viewEndIndex: 0, minPrice: 0, maxPrice: 0, candleWidth: CONFIG.CANDLE_WIDTH_DEFAULT, candleSpacing: CONFIG.CANDLE_SPACING, isDragging: false, dragStartX: 0, dragStartY: 0, dragStartScroll: 0, scrollOffset: 0, isCrosshairPinned: false, pinnedCrosshairPos: { x: 0, y: 0 }, draggedLineType: null, pinchStartDistance: 0, pinchStartCandleWidth: 0, isPinching: false, }, mouse: { x: -1, y: -1, isOverChart: false }, isMobile: false, tutorialActive: false, tutorialCompletedOnce: false, gameStartTime: null, elapsedTime: 0, timerIntervalId: null, unlockedAchievements: new Set(), achievementStats: { consecutiveWins: 0, consecutiveLosses: 0, maxEquity: CONFIG.INITIAL_BALANCE, minEquity: CONFIG.INITIAL_BALANCE }, };
         const DOM = {};
 
         async function apiRequest(endpoint, options = {}) {
@@ -229,8 +229,8 @@
             resetState();
             try {
                 const data = await apiRequest('/api/start', { method: 'POST' });
-                state.gameData = data.gameData;
-                state.currentIndex = data.startIndex;
+                state.gameData = data.gameData; // Load the entire dataset
+                state.currentIndex = 0;
                 state.equity = data.initialBalance;
                 const initialVisibleCandles = calculateVisibleCandles();
                 state.currentIndex = Math.min(Math.floor(initialVisibleCandles * 0.8), state.gameData.length - 1);
@@ -248,16 +248,8 @@
         }
 
         let lastTickTime = 0, animationFrameId;
-        async function gameLoop(timestamp) {
-            if (!state.isPlaying || state.isEnded) {
-                cancelAnimationFrame(animationFrameId);
-                return;
-            }
-
-            // Pre-fetch the next tick as soon as the current one begins processing.
-            if (!state.nextTickPromise) {
-                state.nextTickPromise = apiRequest('/api/tick', { method: 'POST' });
-            }
+        function gameLoop(timestamp) {
+            if (!state.isPlaying || state.isEnded) { cancelAnimationFrame(animationFrameId); return; }
 
             const effectiveInterval = CONFIG.TICK_INTERVAL / state.speedMultiplier;
             if (lastTickTime === 0) lastTickTime = timestamp;
@@ -265,63 +257,69 @@
 
             if (deltaTime > 0) {
                 const progressIncrement = deltaTime / effectiveInterval;
-                state.barAnimationProgress = Math.min(1, state.barAnimationProgress + progressIncrement);
-                updateAccountDisplay();
-                updatePositionProfits();
+                state.barAnimationProgress += progressIncrement;
 
-                if (state.barAnimationProgress >= 1) {
-                    try {
-                        const data = await state.nextTickPromise;
-                        state.nextTickPromise = null; // Consume the promise
-                        handleTickData(data);
-                        state.barAnimationProgress = 0;
-                        if (state.isEnded) {
-                            endGame();
-                            return;
-                        }
-                        if (state.chart.scrollOffset > 0) state.chart.scrollOffset++;
-                    } catch (error) {
-                        togglePlayPause();
+                // Animate through multiple ticks if speed requires it
+                while(state.barAnimationProgress >= 1) {
+                    state.barAnimationProgress -= 1;
+                    advanceSimulationLocally();
+                    if (state.isEnded) {
+                        endGame();
+                        return;
                     }
                 }
                 lastTickTime = timestamp;
             }
+
+            // Optimistically update P/L on every frame for smoothness
+            updatePositionProfits();
+            updateAccountDisplay();
             draw();
             animationFrameId = requestAnimationFrame(gameLoop);
         }
 
-        async function stepForward() {
-            if (state.isPlaying || state.isEnded) return;
-            // Cancel any in-flight pre-fetch if user takes manual control
-            state.nextTickPromise = null;
-            try {
-                const data = await apiRequest('/api/tick', { method: 'POST' });
-                state.barAnimationProgress = 0;
-                handleTickData(data);
-                state.barAnimationProgress = 1;
-                if (state.chart.scrollOffset > 0) state.chart.scrollOffset = Math.max(0, state.chart.scrollOffset - 1);
-                updateUI();
-                requestAnimationFrame(draw);
-                if (state.isEnded) endGame();
-            } catch (error) { /* handled by apiRequest */ }
+        // This function now ONLY handles the client-side simulation loop
+        function advanceSimulationLocally() {
+            if (state.currentIndex >= state.gameData.length - 1) {
+                state.isEnded = true;
+                return;
+            }
+            state.currentIndex++;
+
+            // Send a non-blocking request to the backend for state reconciliation
+            apiRequest('/api/tick', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentIndex: state.currentIndex }),
+            }).then(reconcileStateFromServer).catch(err => {
+                console.error("Reconciliation failed:", err);
+                // Optionally stop the game if reconciliation fails continuously
+            });
         }
 
-        function handleTickData(data) {
-            state.isEnded = data.isEnded;
-            state.currentIndex = data.currentIndex;
-            state.equity = data.equity;
-            state.floatingPL = data.floatingPL;
-            state.openPositions = data.openPositions;
-            if (data.newlyClosedTrades && data.newlyClosedTrades.length > 0) {
-                data.newlyClosedTrades.forEach(trade => {
-                    state.tradeHistory.push(trade);
-                    addTradeAnimation('CLOSE', trade.closePrice, state.currentIndex - 1, trade.profit);
-                    updateAchievementStats(trade);
-                    checkTradeAchievements(trade);
+        // This function takes the authoritative state from the server and updates the client
+        function reconcileStateFromServer(serverState) {
+            if (!serverState) return;
+
+            state.isEnded = serverState.isEnded;
+            state.equity = serverState.equity;
+            state.floatingPL = serverState.floatingPL;
+            state.openPositions = serverState.openPositions;
+
+            if (serverState.newlyClosedTrades && serverState.newlyClosedTrades.length > 0) {
+                serverState.newlyClosedTrades.forEach(trade => {
+                    const existing = state.tradeHistory.find(t => t.id === trade.id);
+                    if (!existing) {
+                        state.tradeHistory.push(trade);
+                        addTradeAnimation('CLOSE', trade.closePrice, state.currentIndex, trade.profit);
+                        updateAchievementStats(trade);
+                        checkTradeAchievements(trade);
+                    }
                 });
             }
-            if (data.events && data.events.length > 0) {
-                data.events.forEach(event => {
+
+            if (serverState.events && serverState.events.length > 0) {
+                serverState.events.forEach(event => {
                     switch (event.type) {
                         case 'FINANCIAL_EVENT': showEventModal(event.data); break;
                         case 'MARKET_ALERT': addChartAlertAnimation(event.data.type, event.data.price, state.currentIndex); break;
@@ -329,21 +327,48 @@
                     }
                 });
             }
-            updateAccountDisplay();
+
             checkEquityAchievements();
             checkDurationAchievements();
+            updateUI(); // Refresh UI with authoritative data
+        }
+
+        async function stepForward() {
+            if (state.isPlaying || state.isEnded) return;
+            advanceSimulationLocally();
+            state.barAnimationProgress = 1; // Show the full bar
+            updateUI();
+            requestAnimationFrame(draw);
+            if(state.isEnded) endGame();
         }
 
         function endGame() { if (!state.isEnded) state.isEnded = true; state.isPlaying = false; cancelAnimationFrame(animationFrameId); stopTimer(); checkFinalAchievements(); updateUI(); showEndGameModal(); }
 
+        async function openOrder(type, lots, sl, tp) {
+            if (state.isEnded) return;
+            // Optimistic UI update: show animation immediately
+            addTradeAnimation(type, getCurrentPrice(), state.currentIndex);
+            try {
+                // Send trade to backend for authoritative processing
+                const data = await apiRequest('/api/trade', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type, lots, sl, tp, currentIndex: state.currentIndex }),
+                });
+                // Reconcile state with the backend's response
+                reconcileStateFromServer(data);
+                DOM.inputSL.value = "";
+                DOM.inputTP.value = "";
+            } catch(e) { /* error handled by apiRequest */ }
+        }
+
         // The rest of the file contains all the other functions (UI, Drawing, Event Listeners, etc.)
-        // which are included for completeness but are identical to the previous version.
-        function resetState() { if (state.timerIntervalId) clearInterval(state.timerIntervalId); Object.assign(state, { gameData: [], isLoading: true, isPlaying: false, isEnded: false, currentIndex: 0, barAnimationProgress: 0, equity: CONFIG.INITIAL_BALANCE, floatingPL: 0, openPositions: [], tradeHistory: [], gameStartTime: null, elapsedTime: 0, timerIntervalId: null, unlockedAchievements: new Set(), achievementStats: { consecutiveWins: 0, consecutiveLosses: 0, maxEquity: CONFIG.INITIAL_BALANCE, minEquity: CONFIG.INITIAL_BALANCE }, performanceFeedback: null, wasPlayingBeforeEvent: false, nextTickPromise: null }); Object.assign(state.chart, { scrollOffset: 0, isCrosshairPinned: false, isDragging: false, isPinching: false, draggedLineType: null, }); DOM.chartOverlay.innerHTML = ''; DOM.positionsList.querySelectorAll('.trade-item').forEach(item => item.remove()); DOM.historyList.querySelectorAll('.trade-item').forEach(item => item.remove()); DOM.inputLots.value = "0.10"; DOM.inputSL.value = ""; DOM.inputTP.value = ""; DOM.hudTimer.textContent = "00:00"; }
+        // which are included for completeness but are mostly identical to the previous version.
+        // ... (All other functions from the previous version are included here, no major changes)
+        function resetState() { if (state.timerIntervalId) clearInterval(state.timerIntervalId); Object.assign(state, { gameData: [], isLoading: true, isPlaying: false, isEnded: false, currentIndex: 0, barAnimationProgress: 0, equity: CONFIG.INITIAL_BALANCE, floatingPL: 0, openPositions: [], tradeHistory: [], gameStartTime: null, elapsedTime: 0, timerIntervalId: null, unlockedAchievements: new Set(), achievementStats: { consecutiveWins: 0, consecutiveLosses: 0, maxEquity: CONFIG.INITIAL_BALANCE, minEquity: CONFIG.INITIAL_BALANCE }, performanceFeedback: null, wasPlayingBeforeEvent: false, }); Object.assign(state.chart, { scrollOffset: 0, isCrosshairPinned: false, isDragging: false, isPinching: false, draggedLineType: null, }); DOM.chartOverlay.innerHTML = ''; DOM.positionsList.querySelectorAll('.trade-item').forEach(item => item.remove()); DOM.historyList.querySelectorAll('.trade-item').forEach(item => item.remove()); DOM.inputLots.value = "0.10"; DOM.inputSL.value = ""; DOM.inputTP.value = ""; DOM.hudTimer.textContent = "00:00"; }
         function cacheDOMElements() { Object.assign(DOM, { loader: document.getElementById('loader'), hudDate: document.getElementById('hud-date'), hudEquity: document.getElementById('hud-equity'), hudPL: document.getElementById('hud-pl'), hudProgress: document.getElementById('hud-progress'), hudTimer: document.getElementById('hud-timer'), btnPlayPause: document.getElementById('btnPlayPause'), btnStepForward: document.getElementById('btnStepForward'), speedSelector: document.getElementById('speedSelector'), chartWrap: document.getElementById('chartWrap'), chartCanvas: document.getElementById('chartCanvas'), chartOverlay: document.getElementById('chartOverlay'), chartControls: document.getElementById('chartControls'), bottomNavBar: document.getElementById('bottomNavBar'), positionsCountNav: document.getElementById('positionsCountNav'), btnToggleControls: document.getElementById('btnToggleControls'), inputLots: document.getElementById('inputLots'), inputSL: document.getElementById('inputSL'), inputTP: document.getElementById('inputTP'), estimateSL: document.getElementById('estimateSL'), estimateTP: document.getElementById('estimateTP'), positionsList: document.getElementById('positionsList'), historyList: document.getElementById('historyList'), positionsCount: document.getElementById('positionsCount'), btnCloseAllGlobal: document.getElementById('btnCloseAllGlobal'), emptyPositions: document.getElementById('emptyPositions'), emptyHistory: document.getElementById('emptyHistory'), eventModal: document.getElementById('eventModal'), endGameModal: document.getElementById('endGameModal'), tutorialHighlight: document.getElementById('tutorialHighlight'), tutorialMessage: document.getElementById('tutorialMessage'), tutorialText: document.getElementById('tutorialText'), tutorialNextBtn: document.getElementById('tutorialNextBtn'), notificationContainer: document.getElementById('notification-container'), }); }
-        async function openOrder(type, lots, sl, tp) { if (state.isEnded) return; addTradeAnimation(type, getCurrentPrice(), state.currentIndex); try { const data = await apiRequest('/api/trade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, lots, sl, tp }), }); updateStateFromResponse(data); DOM.inputSL.value = ""; DOM.inputTP.value = ""; } catch(e) {} }
-        async function closeOrder(id) { if (state.isEnded) return; try { const data = await apiRequest(`/api/trade/${id}`, { method: 'DELETE' }); updateStateFromResponse(data); if (data.lastClosedTrade) { addTradeAnimation('CLOSE', data.lastClosedTrade.closePrice, state.currentIndex, data.lastClosedTrade.profit); } } catch(e) {} }
-        async function closeAllOrders() { if (state.isEnded || state.openPositions.length === 0) return; if (!confirm(`確定要關閉所有 ${state.openPositions.length} 個持倉嗎？`)) return; try { const data = await apiRequest('/api/trades', { method: 'DELETE' }); updateStateFromResponse(data); if (data.lastClosedTrades) { data.lastClosedTrades.forEach(trade => addTradeAnimation('CLOSE', trade.closePrice, state.currentIndex, trade.profit)); } } catch(e) {} }
-        function updateStateFromResponse(data) { state.equity = data.equity; state.floatingPL = data.floatingPL; state.openPositions = data.openPositions; state.tradeHistory = data.tradeHistory; updateUI(); }
+        async function closeOrder(id) { if (state.isEnded) return; try { const data = await apiRequest(`/api/trade/${id}`, { method: 'DELETE' }); reconcileStateFromServer(data); if (data.lastClosedTrade) { addTradeAnimation('CLOSE', data.lastClosedTrade.closePrice, state.currentIndex, data.lastClosedTrade.profit); } } catch(e) {} }
+        async function closeAllOrders() { if (state.isEnded || state.openPositions.length === 0) return; if (!confirm(`確定要關閉所有 ${state.openPositions.length} 個持倉嗎？`)) return; try { const data = await apiRequest('/api/trades', { method: 'DELETE' }); reconcileStateFromServer(data); if (data.lastClosedTrades) { data.lastClosedTrades.forEach(trade => addTradeAnimation('CLOSE', trade.closePrice, state.currentIndex, trade.profit)); } } catch(e) {} }
         function updateUI() { updateHUD(); updatePositionsPanel(); updateHistoryPanel(); updateControls(); updateOrderPanel(); if (!state.isPlaying) requestAnimationFrame(draw); }
         function showEventModal(event) { if (state.isPlaying) { state.wasPlayingBeforeEvent = true; togglePlayPause(); } else { state.wasPlayingBeforeEvent = false; } document.getElementById('eventTitle').textContent = `⚠️ ${event.title}`; document.getElementById('eventBody').textContent = event.description; DOM.eventModal.classList.add('active'); }
         function continueFromEvent() { DOM.eventModal.classList.remove('active'); if (state.wasPlayingBeforeEvent) togglePlayPause(); }
@@ -390,7 +415,7 @@
         function setupEventListeners() { window.addEventListener('resize', resizeCanvas); DOM.btnPlayPause.addEventListener('click', togglePlayPause); DOM.btnStepForward.addEventListener('click', stepForward); DOM.speedSelector.addEventListener('click', handleSpeedChange); document.getElementById('btnZoomIn').addEventListener('click', () => zoomChart(1.2)); document.getElementById('btnZoomOut').addEventListener('click', () => zoomChart(1/1.2)); document.getElementById('btnEndGame').addEventListener('click', handleEndGameClick); document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', handleInternalTabSwitch)); document.querySelectorAll('.nav-btn-v9').forEach(btn => btn.addEventListener('click', handleNavigationTabSwitch)); DOM.btnToggleControls.addEventListener('click', toggleCollapsibleControls); setupInputScrubbing(); DOM.inputLots.addEventListener('input', updateOrderPanel); DOM.inputSL.addEventListener('input', updateOrderPanel); DOM.inputTP.addEventListener('input', updateOrderPanel); document.getElementById('btnBuy').addEventListener('click', () => handleTrade('BUY')); document.getElementById('btnSell').addEventListener('click', () => handleTrade('SELL')); DOM.btnCloseAllGlobal.addEventListener('click', closeAllOrders); DOM.positionsList.addEventListener('click', (e) => { const target = e.target; const tradeItem = target.closest('.trade-item'); if (!tradeItem) return; const id = parseInt(tradeItem.dataset.id); if (target.classList.contains('btn-close')) closeOrder(id); else if (target.classList.contains('btn-modify')) alert('修改功能暫未開放。'); }); DOM.chartWrap.addEventListener('mousemove', handleMouseMove); DOM.chartWrap.addEventListener('mouseleave', handleMouseLeave); DOM.chartWrap.addEventListener('wheel', handleMouseWheel, { passive: false }); DOM.chartWrap.addEventListener('mousedown', handleDragStart); window.addEventListener('mousemove', handleDragging); window.addEventListener('mouseup', handleDragEnd); DOM.chartWrap.addEventListener('touchstart', handleTouchStart, { passive: false }); window.addEventListener('touchmove', handleTouchMove, { passive: false }); window.addEventListener('touchend', handleTouchEnd); document.getElementById('restartButton').addEventListener('click', startGame); document.getElementById('eventContinueBtn').addEventListener('click', continueFromEvent); }
         function handleEndGameClick() { if (state.isEnded) return; if (state.isPlaying) togglePlayPause(); if (confirm("確定要提前結束本次挑戰嗎？")) endGame(); }
         function toggleCollapsibleControls() { DOM.chartControls.classList.toggle('controls-collapsed'); DOM.btnToggleControls.textContent = DOM.chartControls.classList.contains('controls-collapsed') ? '展開設定' : '隱藏設定'; setTimeout(resizeCanvas, 50); }
-        function togglePlayPause() { if (state.isEnded) return; state.isPlaying = !state.isPlaying; if (state.isPlaying) { lastTickTime = 0; animationFrameId = requestAnimationFrame(gameLoop); } else { cancelAnimationFrame(animationFrameId); state.nextTickPromise = null; } updateControls(); }
+        function togglePlayPause() { if (state.isEnded) return; state.isPlaying = !state.isPlaying; if (state.isPlaying) { lastTickTime = 0; animationFrameId = requestAnimationFrame(gameLoop); } else { cancelAnimationFrame(animationFrameId); } updateControls(); }
         function handleSpeedChange(e) { if (e.target.classList.contains('speed-btn')) { document.querySelectorAll('.speed-btn').forEach(btn => btn.classList.remove('active')); e.target.classList.add('active'); state.speedMultiplier = parseInt(e.target.dataset.speed); lastTickTime = 0; } }
         function handleNavigationTabSwitch(e) { const target = e.target.closest('.nav-btn-v9'); if (!target) return; const targetId = target.dataset.target; document.querySelectorAll('.nav-btn-v9').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content-v9').forEach(c => c.classList.remove('active')); target.classList.add('active'); document.getElementById(targetId).classList.add('active'); setTimeout(resizeCanvas, 50); if (state.tutorialActive) setTimeout(showTutorialStep, 50); }
         function handleInternalTabSwitch(e) { const target = e.target.closest('.tab-btn'); if (!target) return; document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); target.classList.add('active'); document.getElementById(target.dataset.target).classList.add('active'); if (state.tutorialActive) setTimeout(showTutorialStep, 50); }
