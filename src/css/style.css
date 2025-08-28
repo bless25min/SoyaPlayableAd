@@ -1,0 +1,1161 @@
+/* 1. Reset & Variables */
+        :root {
+            --color-bg: #f5f7fa;
+            --color-panel-bg: #ffffff;
+            --color-border: #e0e3eb;
+            --color-text-primary: #333333;
+            --color-text-secondary: #7f8c8d;
+            --color-primary: #3498db;
+            --color-primary-dark: #2980b9;
+            --color-success: #2ecc71;
+            --color-danger: #e74c3c;
+            /* V10.0: Define neutral color for Close All button */
+            --color-neutral-bg: #95a5a6;
+            --color-warning: #f1c40f;
+            --font-main: 'Helvetica Neue', Arial, sans-serif;
+            --shadow-main: 0 4px 12px rgba(0, 0, 0, 0.05);
+            --radius-main: 8px;
+
+            /* Chart Specific */
+            --chart-bg: #ffffff;
+            --chart-grid: #f0f0f0;
+            --chart-date-separator: #cccccc;
+            --chart-crosshair: #777777;
+            --color-bull: #26a69a;
+            --color-bear: #ef5350;
+
+            /* V9.0: Layout variables */
+            --side-panel-width: 320px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--color-bg);
+            color: var(--color-text-primary);
+            /* V9.0: Ensure body takes full height and is structured for the app layout */
+            display: flex;
+            flex-direction: column;
+            /* V10.0: Use dvh for better mobile viewport handling, fallback to 100vh */
+            height: 100dvh;
+            /* Fallback for older browsers */
+            @supports not (height: 100dvh) {
+                height: 100vh;
+            }
+            overflow: hidden;
+        }
+
+        /* 2. Layout Structure (V10.0 Overhaul - Dynamic Grid/Flex Hybrid) */
+        .header {
+            background-color: var(--color-panel-bg);
+            padding: 8px 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0; /* Prevent shrinking */
+            /* V9.0 (R1): Implement flex-wrap for natural responsiveness */
+            flex-wrap: wrap;
+            gap: 5px 15px; /* row-gap column-gap */
+        }
+
+        /* V10.0: New main container structure */
+        .main-container-v9 {
+            /* V10.0 Mobile (Default): Use Grid for dynamic chart height */
+            /* Chart Row: flexible (1fr), minimum 200px. Bottom Content Row: auto height */
+            display: grid;
+            grid-template-rows: minmax(200px, 1fr) auto;
+            /* flex-direction: column; <-- Removed */
+            flex: 1;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        /* V10.0: Chart container takes flexible space (within grid track) */
+        .chart-container-v9 {
+            /* flex: 1; <-- Removed, managed by grid */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 10px;
+            /* min-height: 200px; <-- Managed by grid minmax */
+        }
+
+        /* V10.0: Bottom Content Area (Tabs content) */
+        .bottom-content-v9 {
+            background-color: var(--color-panel-bg);
+            border-top: 1px solid var(--color-border);
+            display: flex;
+            flex-direction: column;
+            /* flex-shrink: 0; <-- Removed, managed by grid */
+            /* V10.0 Mobile (Default): Height is 'auto' based on grid track */
+            /* height: 35vh; <-- Removed */
+            /* max-height: 400px; <-- Removed */
+        }
+
+        /* V10.0: Ensure the Positions/History tab doesn't become excessively tall on mobile when active */
+        #tabPositionsHistory {
+             /* Limit height on mobile to ensure chart visibility, allows internal scrolling */
+             max-height: 50vh;
+        }
+
+        /* V9.0: Bottom Navigation Bar */
+        .bottom-nav-bar-v9 {
+            background-color: var(--color-panel-bg);
+            /* border-top: 1px solid var(--color-border); <-- Moved to bottom-content-v9 */
+            flex-shrink: 0;
+            z-index: 30;
+            display: flex;
+            /* box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05); <-- Removed shadow as it's no longer floating */
+            /* Safe area padding moved to the new footer */
+            /* padding-bottom: env(safe-area-inset-bottom); <-- Removed */
+        }
+
+        .nav-btn-v9 {
+            flex: 1;
+            padding: 12px 10px;
+            text-align: center;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 16px;
+            color: var(--color-text-secondary);
+            transition: color 0.2s, background-color 0.2s;
+        }
+
+        .nav-btn-v9.active {
+            color: var(--color-primary);
+            font-weight: bold;
+            /* V9.0 Mobile (Default): Top border indicator */
+            box-shadow: inset 0 2px 0 0 var(--color-primary);
+        }
+
+        .nav-btn-v9:hover {
+            background-color: var(--color-bg);
+        }
+
+        /* V9.0: Tab Content Management */
+        .tab-content-v9 {
+            display: none;
+            flex-direction: column;
+            /* flex: 1; <-- Removed by default in V10.0 for content-based height on mobile */
+            overflow: hidden;
+        }
+
+        .tab-content-v9.active {
+            display: flex;
+        }
+
+        /* V9.0: Specific styles for Ordering Tab content */
+        #tabOrder {
+            /* V9.0 Mobile (Default): Padding and centering */
+            padding: 10px;
+            gap: 8px;
+            /* justify-content: center; <-- Removed in V10.0 as height is now content-based */
+        }
+
+        /* V10.0: Footer Advertisement Styling */
+        .footer-ad {
+            background-color: var(--color-panel-bg);
+            color: var(--color-text-secondary);
+            text-align: center;
+            padding: 5px 10px;
+            font-size: 12px;
+            border-top: 1px solid var(--color-border);
+            flex-shrink: 0; /* Prevent shrinking */
+            /* Ensure visibility on iOS devices with safe area, combining padding and safe area */
+            padding-bottom: max(5px, env(safe-area-inset-bottom));
+        }
+
+        /* V10.1: Footer Ad Link Styling */
+        .footer-ad a {
+            color: inherit; /* Make the link the same color as the surrounding text */
+            text-decoration: none; /* Remove default underline */
+        }
+        .footer-ad a:hover {
+             text-decoration: underline; /* Add underline on hover for clarity */
+        }
+
+        /* ------------------------------------------------- */
+        /* Desktop Responsiveness Adjustments (V10.0 Overhaul) */
+        /* ------------------------------------------------- */
+        @media (min-width: 901px) {
+            /* V10.0 Desktop: Switch to a side-by-side layout (Using Flex) */
+            .main-container-v9 {
+                display: flex;
+                flex-direction: row;
+                /* Reset grid properties */
+                grid-template-rows: unset;
+            }
+
+            .chart-container-v9 {
+                padding-right: 0; /* No padding on the right side where the panel is */
+                /* Restore flex behavior for desktop */
+                flex: 1;
+            }
+
+            /* V10.0 Desktop: Bottom Content becomes the Side Panel */
+            .bottom-content-v9 {
+                width: var(--side-panel-width);
+                height: auto; /* Full height of the container */
+                /* max-height: none; */
+                border-top: none;
+                border-left: 1px solid var(--color-border);
+                padding: 10px 0;
+                /* Restore flex-shrink for desktop */
+                flex-shrink: 0;
+            }
+
+            #tabPositionsHistory {
+                /* Reset mobile constraint */
+                max-height: none;
+                /* Allow it to fill the side panel height */
+                flex: 1;
+            }
+
+            /* V9.0 Desktop: Bottom Nav Bar becomes Top Tab Selector in the Side Panel */
+            .bottom-nav-bar-v9 {
+                /* Reset bottom bar styles */
+                box-shadow: none;
+                /* padding-bottom: 0; */
+                border-top: none;
+                /* Apply styles similar to the existing panel-tabs */
+                border-bottom: 1px solid var(--color-border);
+            }
+
+            .nav-btn-v9 {
+                /* Adjust button styles to look like tabs */
+                padding: 12px;
+                font-size: 14px;
+                background-color: var(--color-bg);
+            }
+
+            .nav-btn-v9.active {
+                background-color: var(--color-panel-bg);
+                /* Switch indicator from top border to bottom border */
+                box-shadow: inset 0 -2px 0 0 var(--color-primary);
+            }
+
+            /* V10.0 Desktop: Adjust ordering tab padding and alignment */
+            #tabOrder {
+                padding: 20px;
+                gap: 15px;
+                justify-content: flex-start;
+            }
+        }
+
+
+        /* Mobile Responsiveness Adjustments (V9.0 Inherited from V8.0) */
+        @media (max-width: 900px) {
+
+            .chart-container-v9 {
+                /* V9.0: Chart takes full width on mobile, reduced padding */
+                padding: 5px;
+            }
+
+            .header {
+                padding: 6px 10px;
+            }
+            .hud, .hud-right {
+                gap: 10px;
+            }
+            .hud-value {
+                font-size: 14px;
+            }
+            .progress-container {
+                width: 80px;
+            }
+        }
+
+        /* 3. Header (HUD) Components (V9.0 R1 Update) */
+        .hud {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            /* V9.0 (R1): Allow wrapping */
+            flex-wrap: wrap;
+        }
+
+        .hud-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .hud-label {
+            font-size: 11px;
+            color: var(--color-text-secondary);
+        }
+
+        .hud-value {
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        #hud-pl.positive { color: var(--color-success); }
+        #hud-pl.negative { color: var(--color-danger); }
+
+        .hud-right {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            /* V9.0 (R1): Allow wrapping */
+            flex-wrap: wrap;
+        }
+
+        .progress-container {
+            width: 120px;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background-color: var(--color-border);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 3px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background-color: var(--color-primary);
+            transition: width 0.3s ease;
+        }
+
+        /* 4. Chart Components (V11.0 Updates) */
+        .chart-wrap {
+            position: relative;
+            flex: 1;
+            background-color: var(--chart-bg);
+            border-radius: var(--radius-main);
+            box-shadow: var(--shadow-main);
+            overflow: hidden;
+            cursor: crosshair;
+            /* V11.0: Crucial for preventing default browser zoom/pan behavior (Feature 3) */
+            touch-action: none;
+        }
+
+        #chartCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .chart-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .position-line {
+            position: absolute;
+            left: 0;
+            display: flex;
+            align-items: center;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .position-line-dash {
+            flex: 1;
+            height: 1px;
+            border-top-style: dashed;
+            border-top-width: 1px;
+        }
+
+        .position-label {
+            padding: 3px 6px;
+            font-size: 12px;
+            border-radius: 3px;
+            color: white;
+            font-weight: bold;
+            margin-left: 5px;
+            margin-right: 5px;
+            white-space: nowrap;
+        }
+
+        .position-pl {
+            padding: 3px 6px;
+            font-size: 12px;
+            border-radius: 3px;
+            background-color: rgba(255, 255, 255, 0.9);
+            margin-right: 5px;
+            font-weight: bold;
+            box-shadow: var(--shadow-main);
+        }
+
+        /* 5. Controls & Toolbar (V11.0 Updates) */
+
+        .controls-overlay-container {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            z-index: 5;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            pointer-events: auto;
+            /* V11.0: Use slightly transparent background and backdrop filter (Feature 2) */
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(5px);
+            padding: 8px;
+            border-radius: var(--radius-main);
+            box-shadow: var(--shadow-main);
+            /* V11.0: Transition for opacity changes */
+            transition: opacity 0.3s ease, background-color 0.3s ease;
+        }
+
+        /* V11.0: Styling for collapsed state (Feature 2) */
+        .controls-collapsed {
+            /* Reduce opacity when collapsed (Using 0.6 for slightly better visibility than 0.5) */
+            opacity: 0.6;
+            /* Reduce background intensity */
+            background-color: rgba(255, 255, 255, 0.5);
+            /* Apply specific blur as requested */
+            backdrop-filter: blur(2px);
+        }
+
+        /* V11.0: Restore opacity on hover or focus, even when collapsed (Feature 2) */
+        .controls:hover,
+        .controls:focus-within {
+            opacity: 1;
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+        }
+
+        .collapsible-controls {
+            display: flex;
+            gap: 10px;
+            transition: max-width 0.4s ease, opacity 0.4s ease, margin-left 0.4s ease, padding-left 0.4s ease, border-left-width 0.4s ease;
+            overflow: hidden;
+            max-width: 500px;
+            opacity: 1;
+            /* V9.0: Added separator only when expanded */
+        }
+
+        .controls-left:not(.controls-collapsed) .collapsible-controls {
+            border-left: 1px solid var(--color-border);
+            padding-left: 10px;
+            margin-left: 5px;
+        }
+
+        .controls-collapsed .collapsible-controls {
+            max-width: 0;
+            opacity: 0;
+            margin-left: 0;
+            padding-left: 0;
+            border-left-width: 0;
+        }
+
+        .btn-toggle-controls {
+            font-size: 12px;
+            padding: 4px 8px;
+            min-height: 28px;
+        }
+
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: var(--radius-main);
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.1s, background-color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            user-select: none;
+            line-height: 1.2;
+            min-height: 32px;
+        }
+
+        .btn:hover:not(:disabled) {
+            opacity: 0.9;
+        }
+
+        .btn:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: default;
+            transform: scale(1);
+        }
+
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: white;
+        }
+
+        .btn-secondary {
+            background-color: var(--color-border);
+            color: var(--color-text-primary);
+        }
+
+        .btn-danger {
+            background-color: var(--color-danger);
+            color: white;
+        }
+
+        /* V10.0: New style for the neutral Close All button */
+        .btn-neutral {
+            background-color: var(--color-neutral-bg);
+            color: white;
+        }
+
+        .btn-end-game {
+             background-color: var(--color-panel-bg);
+             color: var(--color-danger);
+             border: 1px solid var(--color-danger);
+        }
+        .btn-end-game:hover:not(:disabled) {
+            background-color: var(--color-danger);
+            color: white;
+        }
+
+        .speed-selector {
+            display: flex;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-main);
+            overflow: hidden;
+        }
+
+        .speed-btn {
+            padding: 8px 10px;
+            background-color: var(--color-panel-bg);
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .speed-btn.active {
+            background-color: var(--color-primary);
+            color: white;
+        }
+
+        .speed-btn:not(:last-child) {
+            border-right: 1px solid var(--color-border);
+        }
+
+        /* 6. Trading Interface (V10.0 Adjustments) */
+
+        /* 6.1 Ordering Controls (Adjusted for V9.0 layout flexibility) */
+
+        .order-controls {
+            display: flex;
+            gap: 15px;
+            /* V9.0 Desktop (Default): Vertical stack */
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .input-group-horizontal {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-group-horizontal label {
+            font-size: 14px;
+            color: var(--color-text-secondary);
+            white-space: nowrap;
+            /* V9.0 Desktop (Default): Define width for labels in vertical stack */
+            width: 50px;
+        }
+
+        .input-field {
+            padding: 8px 10px;
+            border: 1px solid var(--color-border);
+            font-size: 16px;
+            text-align: center;
+            /* V9.0: Remove fixed width, allow it to fill the container */
+            width: auto;
+            flex: 1;
+            height: 36px;
+             -moz-appearance: textfield;
+             border-radius: var(--radius-main);
+        }
+
+        .input-field.scrubbable {
+            cursor: ew-resize;
+        }
+
+        .input-field::-webkit-outer-spin-button,
+        .input-field::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .trade-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .btn-trade {
+            padding: 12px 10px; /* Reduced horizontal padding slightly in V10.0 for the 3-button layout */
+            font-size: 18px;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-buy {
+            background-color: var(--color-bull);
+        }
+
+        .btn-sell {
+            background-color: var(--color-bear);
+        }
+
+
+        /* Info bar for estimates */
+        .order-info-bar {
+            display: flex;
+            /* V10.0: Center the estimates now that the button is moved */
+            justify-content: center;
+            align-items: center;
+            border-top: 1px solid var(--color-border);
+            padding-top: 8px;
+            margin-top: 5px;
+        }
+
+        .estimates {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            display: flex;
+            gap: 15px;
+        }
+
+        /* V9.0: Mobile adjustments for Ordering Controls (Reverting to Horizontal) */
+        @media (max-width: 900px) {
+
+            .order-controls {
+                /* V9.0 Mobile: Horizontal layout */
+                flex-direction: row;
+                gap: 10px;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .input-group-horizontal label {
+                /* V9.0 Mobile: Remove fixed width for labels */
+                width: auto;
+            }
+
+            .input-field {
+                /* V9.0 Mobile: Apply fixed width as space is limited */
+                width: 80px;
+                font-size: 14px;
+                padding: 6px 5px;
+                height: 32px;
+            }
+            .btn-trade {
+                font-size: 16px;
+                /* V10.0: Adjusted padding for 3-button layout on mobile */
+                padding: 10px 8px;
+            }
+
+            .order-info-bar {
+                 padding-top: 6px;
+                 margin-top: 0;
+                 /* V10.0: Ensure centering on mobile too */
+                 justify-content: center;
+            }
+            .estimates {
+                gap: 10px;
+                font-size: 11px;
+            }
+        }
+
+        /* 6.2 Positions & History (Inherited from V8.0, now inside V9.0 structure) */
+
+        .challenge-info {
+            display: none;
+        }
+
+        .panel-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--color-border);
+            flex-shrink: 0;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            background-color: var(--color-bg);
+            border: none;
+            font-weight: bold;
+        }
+
+        .tab-btn.active {
+            background-color: var(--color-panel-bg);
+            color: var(--color-primary);
+            border-bottom: 2px solid var(--color-primary);
+        }
+
+
+        .tabs-wrapper {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        /* V9.0: Note: This refers to the INTERNAL tabs (Positions/History), not the main V9 tabs */
+        .tab-content {
+            padding: 15px;
+            display: none;
+            flex-direction: column;
+            gap: 15px;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        .positions-list, .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .empty-state {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: var(--color-text-secondary);
+            font-size: 14px;
+            padding: 20px;
+            flex: 1;
+            height: 100%;
+        }
+
+        .trade-item {
+            background-color: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-main);
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        .trade-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .trade-type.BUY { color: var(--color-bull); }
+        .trade-type.SELL { color: var(--color-bear); }
+
+        .trade-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+        }
+
+        .trade-detail-label {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        .trade-actions-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        /* V8.0.1/V9.0: Mobile Optimization Overhaul (Chart Controls) */
+        @media (max-width: 900px) {
+
+            /* Vertical Chart Controls on Mobile */
+            .controls-overlay-container {
+                top: 5px;
+                left: 5px;
+                right: 5px;
+                align-items: flex-start;
+            }
+
+            .controls {
+                 padding: 5px;
+                 gap: 5px;
+            }
+
+            .controls-left {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .collapsible-controls {
+                flex-direction: column;
+
+                /* Adjust transition for vertical collapse (using max-height instead of max-width) */
+                transition: max-height 0.4s ease, opacity 0.4s ease, margin-top 0.4s ease, padding-top 0.4s ease, border-top-width 0.4s ease;
+                max-width: none; /* Remove max-width constraint */
+                max-height: 500px; /* Set a large max-height for animation */
+            }
+
+            /* V9.0: Styling when controls are NOT collapsed (for vertical stack separation) */
+            .controls-left:not(.controls-collapsed) .collapsible-controls {
+                /* Reset horizontal styles */
+                padding-left: 0;
+                margin-left: 0;
+                border-left: none;
+                /* Add a top border when stacked vertically */
+                border-top: 1px solid var(--color-border);
+                padding-top: 5px;
+                margin-top: 5px;
+            }
+
+
+            .controls-collapsed .collapsible-controls {
+                /* Adjust collapse properties for vertical animation */
+                max-width: none;
+                max-height: 0;
+                opacity: 0;
+                margin-top: 0;
+                padding-top: 0;
+                border-top-width: 0;
+            }
+
+            .speed-selector {
+                display: flex;
+            }
+
+            .speed-btn {
+                flex: 1;
+            }
+
+            .btn {
+                font-size: 12px;
+                padding: 6px 8px;
+                min-height: 28px;
+            }
+        }
+
+        /* V8.0.2/V9.0: Optimization for small mobile devices (<600px) */
+        @media (max-width: 600px) {
+            /* Header Fix (V9.0 R1 relies on flex-wrap) */
+            .header {
+                padding: 4px 8px;
+                gap: 5px;
+            }
+
+            .hud, .hud-right {
+                gap: 8px; /* V9.0 Reduced gap further */
+            }
+
+            .hud-label {
+                font-size: 10px;
+            }
+
+            .hud-value {
+                font-size: 13px;
+            }
+
+            @media (max-width: 380px) {
+                .hud .hud-item:first-child {
+                   display: none;
+                }
+            }
+
+            .progress-container {
+                width: auto;
+                flex: 1;
+                max-width: 120px;
+            }
+
+            /* V10.0: Bottom Content Area Fixes (Ordering Tab) */
+
+            #tabOrder {
+                padding: 5px;
+                gap: 5px;
+            }
+
+            .order-controls {
+                gap: 5px;
+            }
+
+            .input-group-horizontal label {
+                font-size: 12px;
+            }
+
+            .input-field {
+                width: 60px; /* Further reduced width */
+                font-size: 12px;
+                padding: 5px 3px;
+                height: 28px;
+            }
+
+            .trade-actions {
+                gap: 5px;
+            }
+
+            .btn-trade {
+                font-size: 14px;
+                /* V10.0: Further reduced padding for 3-button layout on very small screens */
+                padding: 8px 3px;
+            }
+
+            .order-info-bar {
+                padding-top: 4px;
+            }
+
+            .estimates {
+                font-size: 10px;
+                gap: 8px;
+            }
+        }
+
+
+        /* 7. Modals & Overlays (Inherited from V8.0) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background-color: var(--color-panel-bg);
+            padding: 30px;
+            border-radius: var(--radius-main);
+            box-shadow: var(--shadow-main);
+            max-width: 550px;
+            width: 90%;
+            text-align: center;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            font-size: 24px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .modal-body {
+            font-size: 16px;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        .cta-button {
+            background-color: var(--color-success);
+            color: white;
+            padding: 15px 30px;
+            font-size: 18px;
+            letter-spacing: 1px;
+            text-decoration: none;
+        }
+
+        /* 7.1 Tutorial Specific */
+        .tutorial-highlight {
+            position: absolute;
+            border: 3px dashed var(--color-primary);
+            border-radius: var(--radius-main);
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+            z-index: 1001;
+            pointer-events: none;
+            transition: top 0.3s, left 0.3s, width 0.3s, height 0.3s;
+        }
+
+        .tutorial-message {
+            position: absolute;
+            background-color: var(--color-primary);
+            color: white;
+            padding: 15px;
+            border-radius: var(--radius-main);
+            max-width: 300px;
+            z-index: 1002;
+            box-shadow: var(--shadow-main);
+            transition: top 0.3s, left 0.3s;
+        }
+
+        /* 7.2 Achievements & Feedback */
+        .achievements-section {
+            margin-top: 25px;
+            border-top: 1px solid var(--color-border);
+            padding-top: 15px;
+            text-align: left;
+        }
+        .achievements-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            list-style-type: none;
+            padding: 0;
+            margin-top: 10px;
+        }
+        @media (max-width: 500px) {
+            .achievements-list {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .achievement-item {
+            background-color: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-main);
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+        .achievement-icon {
+            font-size: 20px;
+        }
+
+        /* 7.3 Achievement Notifications (Toasts) */
+        #notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1010;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        @media (max-width: 900px) {
+            #notification-container {
+                /* V9.0: Top position might need dynamic adjustment via JS if header wraps, but use a safe default */
+                top: 60px;
+                right: 10px;
+                left: 10px;
+                align-items: center;
+            }
+        }
+
+         @media (max-width: 600px) {
+            #notification-container {
+                /* Further adjustment for potentially wrapped header */
+                top: 85px;
+            }
+        }
+
+        .notification-toast {
+            background-color: var(--color-primary-dark);
+            color: white;
+            padding: 15px 20px;
+            border-radius: var(--radius-main);
+            box-shadow: var(--shadow-main);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 5px;
+            max-width: 350px;
+            width: 100%;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: opacity 0.5s, transform 0.5s;
+        }
+        .notification-toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* 8. Utilities & Loader */
+        .hidden {
+            display: none !important;
+        }
+
+        .loader-wrap {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--color-bg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            gap: 20px;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: var(--color-primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .file-upload-prompt {
+            background-color: var(--color-panel-bg);
+            padding: 30px;
+            border-radius: var(--radius-main);
+            box-shadow: var(--shadow-main);
+            border: 1px solid var(--color-border);
+            max-width: 450px;
+        }
+
+        /* 9. Anti-Theft Styles */
+        /* Disable text selection to make copying content harder */
+        body {
+            -webkit-user-select: none; /* Safari */
+            -moz-user-select: none; /* Firefox */
+            -ms-user-select: none; /* IE 10+ */
+            user-select: none; /* Standard syntax */
+        }
