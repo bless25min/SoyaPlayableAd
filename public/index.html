@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>交易技巧模擬學習挑戰 (V12.0 - Serverless)</title>
+    <title>交易技巧模擬學習挑戰 (V13.0 - Full Feature)</title>
     <style>
-        /* CSS styles remain unchanged */
+        /* CSS is unchanged */
         :root {
             --color-bg: #f5f7fa;
             --color-panel-bg: #ffffff;
@@ -189,177 +189,16 @@
         .loader-wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--color-bg); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 2000; gap: 20px; text-align: center; padding: 20px; }
         .loading-spinner { border: 4px solid rgba(0, 0, 0, 0.1); border-left-color: var(--color-primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        /* Remove file upload prompt as it's no longer needed */
         .file-upload-prompt { display: none !important; }
     </style>
 </head>
 <body>
-    <!-- Loader -->
-    <div class="loader-wrap" id="loader">
-        <div id="loader-status">
-            <div class="loading-spinner"></div>
-            <p>正在連接伺服器並初始化模擬環境...</p>
-        </div>
-        <!-- Fallback prompt removed -->
-    </div>
-
-    <div id="notification-container"></div>
-
-    <!-- Header -->
-    <header class="header">
-        <div class="hud">
-            <div class="hud-item">
-                <span class="hud-label">模擬日期</span>
-                <span class="hud-value" id="hud-date">--/--/-- --:--</span>
-            </div>
-            <div class="hud-item">
-                <span class="hud-label">虛擬帳戶淨值</span>
-                <span class="hud-value" id="hud-equity">$10000.00</span>
-            </div>
-            <div class="hud-item">
-                <span class="hud-label">浮動損益</span>
-                <span class="hud-value" id="hud-pl">$0.00</span>
-            </div>
-        </div>
-        <div class="hud-right">
-            <div class="hud-item">
-                <span class="hud-label">花費時間</span>
-                <span class="hud-value" id="hud-timer">00:00</span>
-            </div>
-            <div class="hud-item progress-container">
-                <span class="hud-label">挑戰進度</span>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="hud-progress"></div>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <!-- Main Container -->
-    <div class="main-container-v9">
-        <div class="chart-container-v9">
-            <div class="chart-wrap" id="chartWrap">
-                <div class="controls-overlay-container">
-                    <div class="controls controls-left controls-collapsed" id="chartControls">
-                        <div class="collapsible-controls">
-                            <button class="btn btn-primary" id="btnPlayPause">▶️ 播放</button>
-                            <button class="btn btn-secondary" id="btnStepForward">➡️ 逐K前進</button>
-                            <div class="speed-selector" id="speedSelector">
-                                <button class="speed-btn active" data-speed="1">1x</button>
-                                <button class="speed-btn" data-speed="5">5x</button>
-                                <button class="speed-btn" data-speed="20">20x</button>
-                                <button class="speed-btn" data-speed="40">40x</button>
-                            </div>
-                            <button class="btn btn-secondary" id="btnZoomIn">🔍+</button>
-                            <button class="btn btn-secondary" id="btnZoomOut">🔍-</button>
-                        </div>
-                        <button class="btn btn-secondary btn-toggle-controls" id="btnToggleControls">展開設定</button>
-                    </div>
-                    <div class="controls controls-right">
-                         <button class="btn btn-end-game" id="btnEndGame">結束挑戰</button>
-                    </div>
-                </div>
-                <canvas id="chartCanvas"></canvas>
-                <div class="chart-overlay" id="chartOverlay"></div>
-            </div>
-        </div>
-        <div class="bottom-content-v9" id="bottomContent">
-            <nav class="bottom-nav-bar-v9" id="bottomNavBar">
-                <button class="nav-btn-v9 active" data-target="tabOrder">下單</button>
-                <button class="nav-btn-v9" data-target="tabPositionsHistory">倉位/紀錄 (<span id="positionsCountNav">0</span>)</button>
-            </nav>
-            <div class="tab-content-v9 active" id="tabOrder">
-                <div class="order-controls">
-                    <div class="input-group-horizontal">
-                       <label for="inputSL">SL</label>
-                       <input type="number" class="input-field scrubbable" id="inputSL" placeholder="價格" step="0.1" min="0" data-scrub-step="0.5">
-                    </div>
-                    <div class="input-group-horizontal">
-                       <label for="inputLots">手數</label>
-                       <input type="number" class="input-field scrubbable" id="inputLots" value="0.10" step="0.01" min="0.01" data-scrub-step="0.05">
-                   </div>
-                   <div class="input-group-horizontal">
-                       <label for="inputTP">TP</label>
-                       <input type="number" class="input-field scrubbable" id="inputTP" placeholder="價格" step="0.1" min="0" data-scrub-step="0.5">
-                   </div>
-               </div>
-               <div class="trade-actions">
-                   <button class="btn btn-trade btn-sell" id="btnSell">賣出</button>
-                   <button class="btn btn-trade btn-neutral" id="btnCloseAllGlobal">全部平倉</button>
-                   <button class="btn btn-trade btn-buy" id="btnBuy">買入</button>
-               </div>
-               <div class="order-info-bar">
-                   <div class="estimates">
-                       <span id="estimateSL"></span>
-                       <span id="estimateTP"></span>
-                   </div>
-               </div>
-            </div>
-            <div class="tab-content-v9" id="tabPositionsHistory">
-                <div class="challenge-info" id="challengeInfo">
-                    <h4>🏆 30天交易模擬挑戰</h4>
-                    <p>從隨機歷史日期開始，在一個月內盡力提升交易技巧與模擬績效！</p>
-                </div>
-                <div class="panel-tabs">
-                    <button class="tab-btn active" data-target="tabPositions">持倉 (<span id="positionsCount">0</span>)</button>
-                    <button class="tab-btn" data-target="tabHistory">紀錄</button>
-                </div>
-                <div class="tabs-wrapper">
-                    <div class="tab-content active" id="tabPositions">
-                        <div class="positions-list" id="positionsList">
-                            <div class="empty-state" id="emptyPositions">目前沒有持倉。</div>
-                        </div>
-                    </div>
-                    <div class="tab-content" id="tabHistory">
-                        <div class="history-list" id="historyList">
-                            <div class="empty-state" id="emptyHistory">還沒有交易紀錄。</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Footer -->
-    <footer class="footer-ad">
-        本模擬遊戲由 <a href="https://www.massenlighten.com" target="_blank">眾曜智庫</a> 提供用於教學目的
-    </footer>
-
-    <!-- Modals -->
-    <div class="modal-overlay" id="eventModal">
-        <div class="modal-content">
-            <h2 class="modal-title" id="eventTitle">⚠️ 重大財經事件</h2>
-            <div class="modal-body" id="eventBody" style="text-align: left;"></div>
-            <button class="btn btn-primary" id="eventContinueBtn">繼續模擬</button>
-        </div>
-    </div>
-    <div class="modal-overlay" id="endGameModal">
-        <div class="modal-content">
-            <h2 class="modal-title">🎉 挑戰結束！</h2>
-            <div class="modal-body" style="text-align: center;">
-                <p>您的最終模擬成績：</p>
-                <h1 id="finalScore" style="font-size: 36px; margin: 10px 0;">$10000.00</h1>
-                <p id="finalRoR" style="font-size: 20px;"></p>
-                <p id="finalTime" style="font-size: 16px; color: var(--color-text-secondary);"></p>
-                <div id="endGameStats"></div>
-                <div class="achievements-section" id="achievementsSection">
-                    <h3>🏆 已解鎖成就</h3>
-                    <ul class="achievements-list" id="achievementsList"></ul>
-                </div>
-            </div>
-            <a href="https://www.massenlighten.com/soya%E5%A5%B3%E7%A5%9E" target="_blank" class="btn cta-button" id="ctaButton">了解更多交易知識</a>
-            <button class="btn btn-secondary" id="restartButton" style="margin-top: 15px;">重新挑戰</button>
-        </div>
-    </div>
-    <div class="tutorial-highlight hidden" id="tutorialHighlight"></div>
-    <div class="tutorial-message hidden" id="tutorialMessage">
-        <p id="tutorialText"></p>
-        <button class="btn btn-small" id="tutorialNextBtn" style="margin-top: 10px; background-color: white; color: var(--color-primary);">下一步</button>
-    </div>
+    <!-- HTML structure is unchanged -->
+    <div class="loader-wrap" id="loader"> <div id="loader-status"> <div class="loading-spinner"></div> <p>正在連接伺服器並初始化模擬環境...</p> </div> </div> <div id="notification-container"></div> <header class="header"> <div class="hud"> <div class="hud-item"> <span class="hud-label">模擬日期</span> <span class="hud-value" id="hud-date">--/--/-- --:--</span> </div> <div class="hud-item"> <span class="hud-label">虛擬帳戶淨值</span> <span class="hud-value" id="hud-equity">$10000.00</span> </div> <div class="hud-item"> <span class="hud-label">浮動損益</span> <span class="hud-value" id="hud-pl">$0.00</span> </div> </div> <div class="hud-right"> <div class="hud-item"> <span class="hud-label">花費時間</span> <span class="hud-value" id="hud-timer">00:00</span> </div> <div class="hud-item progress-container"> <span class="hud-label">挑戰進度</span> <div class="progress-bar"> <div class="progress-fill" id="hud-progress"></div> </div> </div> </div> </header> <div class="main-container-v9"> <div class="chart-container-v9"> <div class="chart-wrap" id="chartWrap"> <div class="controls-overlay-container"> <div class="controls controls-left controls-collapsed" id="chartControls"> <div class="collapsible-controls"> <button class="btn btn-primary" id="btnPlayPause">▶️ 播放</button> <button class="btn btn-secondary" id="btnStepForward">➡️ 逐K前進</button> <div class="speed-selector" id="speedSelector"> <button class="speed-btn active" data-speed="1">1x</button> <button class="speed-btn" data-speed="5">5x</button> <button class="speed-btn" data-speed="20">20x</button> <button class="speed-btn" data-speed="40">40x</button> </div> <button class="btn btn-secondary" id="btnZoomIn">🔍+</button> <button class="btn btn-secondary" id="btnZoomOut">🔍-</button> </div> <button class="btn btn-secondary btn-toggle-controls" id="btnToggleControls">展開設定</button> </div> <div class="controls controls-right"> <button class="btn btn-end-game" id="btnEndGame">結束挑戰</button> </div> </div> <canvas id="chartCanvas"></canvas> <div class="chart-overlay" id="chartOverlay"></div> </div> </div> <div class="bottom-content-v9" id="bottomContent"> <nav class="bottom-nav-bar-v9" id="bottomNavBar"> <button class="nav-btn-v9 active" data-target="tabOrder">下單</button> <button class="nav-btn-v9" data-target="tabPositionsHistory">倉位/紀錄 (<span id="positionsCountNav">0</span>)</button> </nav> <div class="tab-content-v9 active" id="tabOrder"> <div class="order-controls"> <div class="input-group-horizontal"> <label for="inputSL">SL</label> <input type="number" class="input-field scrubbable" id="inputSL" placeholder="價格" step="0.1" min="0" data-scrub-step="0.5"> </div> <div class="input-group-horizontal"> <label for="inputLots">手數</label> <input type="number" class="input-field scrubbable" id="inputLots" value="0.10" step="0.01" min="0.01" data-scrub-step="0.05"> </div> <div class="input-group-horizontal"> <label for="inputTP">TP</label> <input type="number" class="input-field scrubbable" id="inputTP" placeholder="價格" step="0.1" min="0" data-scrub-step="0.5"> </div> </div> <div class="trade-actions"> <button class="btn btn-trade btn-sell" id="btnSell">賣出</button> <button class="btn btn-trade btn-neutral" id="btnCloseAllGlobal">全部平倉</button> <button class="btn btn-trade btn-buy" id="btnBuy">買入</button> </div> <div class="order-info-bar"> <div class="estimates"> <span id="estimateSL"></span> <span id="estimateTP"></span> </div> </div> </div> <div class="tab-content-v9" id="tabPositionsHistory"> <div class="challenge-info" id="challengeInfo"> <h4>🏆 30天交易模擬挑戰</h4> <p>從隨機歷史日期開始，在一個月內盡力提升交易技巧與模擬績效！</p> </div> <div class="panel-tabs"> <button class="tab-btn active" data-target="tabPositions">持倉 (<span id="positionsCount">0</span>)</button> <button class="tab-btn" data-target="tabHistory">紀錄</button> </div> <div class="tabs-wrapper"> <div class="tab-content active" id="tabPositions"> <div class="positions-list" id="positionsList"> <div class="empty-state" id="emptyPositions">目前沒有持倉。</div> </div> </div> <div class="tab-content" id="tabHistory"> <div class="history-list" id="historyList"> <div class="empty-state" id="emptyHistory">還沒有交易紀錄。</div> </div> </div> </div> </div> </div> </div> <footer class="footer-ad"> 本模擬遊戲由 <a href="https://www.massenlighten.com" target="_blank">眾曜智庫</a> 提供用於教學目的 </footer> <div class="modal-overlay" id="eventModal"> <div class="modal-content"> <h2 class="modal-title" id="eventTitle">⚠️ 重大財經事件</h2> <div class="modal-body" id="eventBody" style="text-align: left;"></div> <button class="btn btn-primary" id="eventContinueBtn">繼續模擬</button> </div> </div> <div class="modal-overlay" id="endGameModal"> <div class="modal-content"> <h2 class="modal-title">🎉 挑戰結束！</h2> <div class="modal-body" style="text-align: center;"> <p>您的最終模擬成績：</p> <h1 id="finalScore" style="font-size: 36px; margin: 10px 0;">$10000.00</h1> <p id="finalRoR" style="font-size: 20px;"></p> <p id="finalTime" style="font-size: 16px; color: var(--color-text-secondary);"></p> <div id="endGameStats"></div> <div class="achievements-section" id="achievementsSection"> <h3>🏆 已解鎖成就</h3> <ul class="achievements-list" id="achievementsList"></ul> </div> </div> <a href="https://www.massenlighten.com/soya%E5%A5%B3%E7%A5%9E" target="_blank" class="btn cta-button" id="ctaButton">了解更多交易知識</a> <button class="btn btn-secondary" id="restartButton" style="margin-top: 15px;">重新挑戰</button> </div> </div> <div class="tutorial-highlight hidden" id="tutorialHighlight"></div> <div class="tutorial-message hidden" id="tutorialMessage"> <p id="tutorialText"></p> <button class="btn btn-small" id="tutorialNextBtn" style="margin-top: 10px; background-color: white; color: var(--color-primary);">下一步</button> </div>
 
     <script>
         // ============================================================================
-        // Trading Simulator Frontend (V12.0 - Serverless)
+        // Trading Simulator Frontend (V13.0 - Full Feature)
         // ============================================================================
 
         // ----------------------------------------------------------------------------
@@ -371,10 +210,29 @@
             CHART_PADDING: { top: 20, right: 60, bottom: 30, left: 10 },
             CANDLE_WIDTH_DEFAULT: 8,
             CANDLE_SPACING: 3,
-            CONTRACT_SIZE: 100, // Kept for client-side estimations
-            INITIAL_BALANCE: 10000, // Kept for display before game starts
+            CONTRACT_SIZE: 100,
+            INITIAL_BALANCE: 10000,
             MIN_VISIBLE_CANDLES: 10,
             MAX_VISIBLE_CANDLES: 200,
+        };
+
+        const PERFORMANCE_BENCHMARKS = {
+            GENERAL: [
+                { ror: -Infinity, text: "你目前的模擬績效還有很大的進步空間，繼續學習！" },
+                { ror: -0.20, text: "模擬剛開始，請謹慎操作，掌握風險管理。" },
+                { ror: 0.00, text: "保持穩健！你成功在模擬中保護了初始虛擬資金。" },
+                { ror: 0.02, text: "表現穩健，你正在掌握模擬交易的節奏。" },
+                { ror: 0.05, text: "技巧提升中！你的模擬績效持續進步。" },
+                { ror: 0.10, text: "優秀的模擬表現！你展現了良好的交易策略理解。" },
+            ],
+            FUND: [
+                { ror: -Infinity, text: "在高波動模擬環境中，風險控制是首要任務。" },
+                { ror: 0.03, text: "穩定的操作策略，在模擬中逐步積累經驗。" },
+                { ror: 0.06, text: "展現紀律性，你的模擬策略開始奏效。" },
+                { ror: 0.11, text: "表現亮眼！你對市場動態有敏銳的觀察力。" },
+                { ror: 0.16, text: "模擬交易大師！你展現了高水準的策略應用能力。" },
+                { ror: 0.21, text: "卓越的模擬成果！你的交易技巧已達頂尖水準。" },
+            ]
         };
 
         const ACHIEVEMENTS = {
@@ -391,21 +249,11 @@
             MARGIN_CALL: { title: "風險警示", description: "虛擬帳戶淨值曾低於$2000，請注意風險控管。", icon: "⚠️" },
         };
 
-        // Frontend state - This mirrors the backend state and holds UI-specific data
         const state = {
-            gameData: [],
-            isLoading: true,
-            isPlaying: false,
-            isEnded: false,
-            speedMultiplier: 1,
-            currentIndex: 0,
-            barAnimationProgress: 0,
-            // Mirrored from backend
-            equity: CONFIG.INITIAL_BALANCE,
-            floatingPL: 0,
-            openPositions: [],
-            tradeHistory: [],
-            // UI-specific state
+            gameData: [], isLoading: true, isPlaying: false, isEnded: false,
+            speedMultiplier: 1, currentIndex: 0, barAnimationProgress: 0,
+            equity: CONFIG.INITIAL_BALANCE, floatingPL: 0, openPositions: [], tradeHistory: [],
+            performanceFeedback: null, wasPlayingBeforeEvent: false,
             chart: {
                 canvas: null, ctx: null, width: 0, height: 0,
                 viewStartIndex: 0, viewEndIndex: 0, minPrice: 0, maxPrice: 0,
@@ -414,22 +262,17 @@
                 isCrosshairPinned: false, pinnedCrosshairPos: { x: 0, y: 0 },
                 draggedLineType: null, pinchStartDistance: 0, pinchStartCandleWidth: 0, isPinching: false,
             },
-            mouse: { x: -1, y: -1, isOverChart: false },
-            isMobile: false,
-            tutorialActive: false,
-            tutorialCompletedOnce: false,
-            gameStartTime: null,
-            elapsedTime: 0,
-            timerIntervalId: null,
+            mouse: { x: -1, y: -1, isOverChart: false }, isMobile: false,
+            tutorialActive: false, tutorialCompletedOnce: false,
+            gameStartTime: null, elapsedTime: 0, timerIntervalId: null,
             unlockedAchievements: new Set(),
-            achievementStats: { consecutiveWins: 0, consecutiveLosses: 0, maxEquity: CONFIG.INITIAL_BALANCE, minEquity: CONFIG.INITIAL_BALANCE, },
+            achievementStats: { consecutiveWins: 0, consecutiveLosses: 0, maxEquity: CONFIG.INITIAL_BALANCE, minEquity: CONFIG.INITIAL_BALANCE },
         };
 
         const DOM = {};
 
-        // ----------------------------------------------------------------------------
-        // 2. API Communication Layer
-        // ----------------------------------------------------------------------------
+        // --- API Communication, Init, Game Flow, and UI Updates ---
+        // (Most functions are the same as before, with key changes in handleTickData and openOrder)
 
         async function apiRequest(endpoint, options = {}) {
             try {
@@ -442,13 +285,9 @@
             } catch (error) {
                 console.error(`API request to ${endpoint} failed:`, error);
                 alert(`與伺服器通訊失敗: ${error.message}`);
-                throw error; // Re-throw to stop dependent operations
+                throw error;
             }
         }
-
-        // ----------------------------------------------------------------------------
-        // 3. GAME INITIALIZATION & FLOW
-        // ----------------------------------------------------------------------------
 
         function init() {
             state.isMobile = window.innerWidth <= 900 || 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -458,193 +297,95 @@
             startGame();
         }
 
-        function cacheDOMElements() {
-            Object.assign(DOM, {
-                loader: document.getElementById('loader'),
-                hudDate: document.getElementById('hud-date'),
-                hudEquity: document.getElementById('hud-equity'),
-                hudPL: document.getElementById('hud-pl'),
-                hudProgress: document.getElementById('hud-progress'),
-                hudTimer: document.getElementById('hud-timer'),
-                btnPlayPause: document.getElementById('btnPlayPause'),
-                btnStepForward: document.getElementById('btnStepForward'),
-                speedSelector: document.getElementById('speedSelector'),
-                chartWrap: document.getElementById('chartWrap'),
-                chartCanvas: document.getElementById('chartCanvas'),
-                chartOverlay: document.getElementById('chartOverlay'),
-                chartControls: document.getElementById('chartControls'),
-                bottomNavBar: document.getElementById('bottomNavBar'),
-                positionsCountNav: document.getElementById('positionsCountNav'),
-                btnToggleControls: document.getElementById('btnToggleControls'),
-                inputLots: document.getElementById('inputLots'),
-                inputSL: document.getElementById('inputSL'),
-                inputTP: document.getElementById('inputTP'),
-                estimateSL: document.getElementById('estimateSL'),
-                estimateTP: document.getElementById('estimateTP'),
-                positionsList: document.getElementById('positionsList'),
-                historyList: document.getElementById('historyList'),
-                positionsCount: document.getElementById('positionsCount'),
-                btnCloseAllGlobal: document.getElementById('btnCloseAllGlobal'),
-                emptyPositions: document.getElementById('emptyPositions'),
-                emptyHistory: document.getElementById('emptyHistory'),
-                eventModal: document.getElementById('eventModal'),
-                endGameModal: document.getElementById('endGameModal'),
-                tutorialHighlight: document.getElementById('tutorialHighlight'),
-                tutorialMessage: document.getElementById('tutorialMessage'),
-                tutorialText: document.getElementById('tutorialText'),
-                tutorialNextBtn: document.getElementById('tutorialNextBtn'),
-                notificationContainer: document.getElementById('notification-container'),
-            });
-        }
-
         async function startGame() {
             DOM.endGameModal.classList.remove('active');
             DOM.loader.classList.remove('hidden');
             resetState();
-
             try {
                 const data = await apiRequest('/api/start', { method: 'POST' });
                 state.gameData = data.gameData;
                 state.currentIndex = data.startIndex;
                 state.equity = data.initialBalance;
-
                 const initialVisibleCandles = calculateVisibleCandles();
                 state.currentIndex = Math.min(Math.floor(initialVisibleCandles * 0.8), state.gameData.length - 1);
-
                 state.isLoading = false;
                 DOM.loader.classList.add('hidden');
                 startTimer();
                 updateUI();
                 requestAnimationFrame(draw);
-
                 if (!state.tutorialCompletedOnce) {
                     startTutorial();
                 }
             } catch (error) {
-                // Error is already alerted by apiRequest
                 DOM.loader.querySelector('p').textContent = '無法啟動遊戲，請重新整理頁面。';
             }
         }
 
-        function resetState() {
-            if (state.timerIntervalId) clearInterval(state.timerIntervalId);
-            Object.assign(state, {
-                gameData: [], isLoading: true, isPlaying: false, isEnded: false,
-                currentIndex: 0, barAnimationProgress: 0, equity: CONFIG.INITIAL_BALANCE,
-                floatingPL: 0, openPositions: [], tradeHistory: [],
-                gameStartTime: null, elapsedTime: 0, timerIntervalId: null,
-                unlockedAchievements: new Set(),
-                achievementStats: { consecutiveWins: 0, consecutiveLosses: 0, maxEquity: CONFIG.INITIAL_BALANCE, minEquity: CONFIG.INITIAL_BALANCE, },
-            });
-            Object.assign(state.chart, {
-                scrollOffset: 0, isCrosshairPinned: false, isDragging: false,
-                isPinching: false, draggedLineType: null,
-            });
-            DOM.chartOverlay.innerHTML = '';
-            DOM.positionsList.querySelectorAll('.trade-item').forEach(item => item.remove());
-            DOM.historyList.querySelectorAll('.trade-item').forEach(item => item.remove());
-            DOM.inputLots.value = "0.10";
-            DOM.inputSL.value = "";
-            DOM.inputTP.value = "";
-            DOM.hudTimer.textContent = "00:00";
-        }
-
-        let lastTickTime = 0;
-        let animationFrameId;
-        let isTicking = false; // Prevents concurrent ticks
-
+        let lastTickTime = 0, animationFrameId, isTicking = false;
         async function gameLoop(timestamp) {
-            if (!state.isPlaying || state.isEnded) {
-                cancelAnimationFrame(animationFrameId);
-                return;
-            }
-
+            if (!state.isPlaying || state.isEnded) { cancelAnimationFrame(animationFrameId); return; }
             const effectiveInterval = CONFIG.TICK_INTERVAL / state.speedMultiplier;
             if (lastTickTime === 0) lastTickTime = timestamp;
             const deltaTime = timestamp - lastTickTime;
-
             if (deltaTime > 0) {
                 const progressIncrement = deltaTime / effectiveInterval;
                 state.barAnimationProgress = Math.min(1, state.barAnimationProgress + progressIncrement);
-
-                // Update UI based on animation progress
                 updateAccountDisplay();
-                updatePositionProfits(); // Update P/L on open positions
-
+                updatePositionProfits();
                 if (state.barAnimationProgress >= 1 && !isTicking) {
                     isTicking = true;
                     try {
                         const data = await apiRequest('/api/tick', { method: 'POST' });
                         handleTickData(data);
                         state.barAnimationProgress = 0;
-                        if (state.isEnded) {
-                            endGame();
-                            isTicking = false;
-                            return;
-                        }
-                        // Auto-scroll if the chart was at the latest data
-                        if (state.chart.scrollOffset > 0) {
-                            state.chart.scrollOffset++;
-                        }
+                        if (state.isEnded) { endGame(); isTicking = false; return; }
+                        if (state.chart.scrollOffset > 0) state.chart.scrollOffset++;
                     } catch (error) {
-                        // Stop the game on server error
                         togglePlayPause();
-                    } finally {
-                        isTicking = false;
-                    }
+                    } finally { isTicking = false; }
                 }
                 lastTickTime = timestamp;
             }
-
             draw();
             animationFrameId = requestAnimationFrame(gameLoop);
         }
 
-        async function stepForward() {
-            if (state.isPlaying || state.isEnded || isTicking) return;
-            isTicking = true;
-            try {
-                const data = await apiRequest('/api/tick', { method: 'POST' });
-                state.barAnimationProgress = 0; // Reset animation
-                handleTickData(data);
-                state.barAnimationProgress = 1; // Show the new bar immediately
-                if (state.chart.scrollOffset > 0) state.chart.scrollOffset = Math.max(0, state.chart.scrollOffset - 1);
-                updateUI();
-                requestAnimationFrame(draw);
-                if (state.isEnded) endGame();
-            } catch (error) {
-                // Error is handled by apiRequest
-            } finally {
-                isTicking = false;
-            }
-        }
-
         function handleTickData(data) {
-            // Update state from backend
             state.isEnded = data.isEnded;
             state.currentIndex = data.currentIndex;
             state.equity = data.equity;
             state.floatingPL = data.floatingPL;
             state.openPositions = data.openPositions;
-
-            // Handle newly closed trades
             if (data.newlyClosedTrades && data.newlyClosedTrades.length > 0) {
                 data.newlyClosedTrades.forEach(trade => {
                     state.tradeHistory.push(trade);
-                    addTradeAnimation('CLOSE', trade.closePrice, state.currentIndex -1, trade.profit);
+                    addTradeAnimation('CLOSE', trade.closePrice, state.currentIndex - 1, trade.profit);
                     updateAchievementStats(trade);
                     checkTradeAchievements(trade);
                 });
             }
-
-            // Update other local stats
+            if (data.events && data.events.length > 0) {
+                data.events.forEach(event => {
+                    switch (event.type) {
+                        case 'FINANCIAL_EVENT':
+                            showEventModal(event.data);
+                            break;
+                        case 'MARKET_ALERT':
+                            addChartAlertAnimation(event.data.type, event.data.price, state.currentIndex);
+                            break;
+                        case 'PERFORMANCE_FEEDBACK':
+                            state.performanceFeedback = event.data;
+                            break;
+                    }
+                });
+            }
             updateAccountDisplay();
             checkEquityAchievements();
             checkDurationAchievements();
         }
 
         function endGame() {
-            if (!state.isEnded) state.isEnded = true; // Ensure state is set
+            if (!state.isEnded) state.isEnded = true;
             state.isPlaying = false;
             cancelAnimationFrame(animationFrameId);
             stopTimer();
@@ -653,29 +394,22 @@
             showEndGameModal();
         }
 
-        function startTimer() {
-            state.gameStartTime = Date.now();
-            if (state.timerIntervalId) clearInterval(state.timerIntervalId);
-            state.timerIntervalId = setInterval(updateTimer, 1000);
-        }
-        function updateTimer() {
-            if (state.gameStartTime && !state.isEnded) {
-                state.elapsedTime = Math.floor((Date.now() - state.gameStartTime) / 1000);
-                const minutes = Math.floor(state.elapsedTime / 60);
-                const seconds = state.elapsedTime % 60;
-                DOM.hudTimer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            }
-        }
-        function stopTimer() {
-            if (state.timerIntervalId) clearInterval(state.timerIntervalId);
-        }
-
-        // ----------------------------------------------------------------------------
-        // 4. CHART DRAWING & RENDERING (Largely Unchanged)
-        // ----------------------------------------------------------------------------
-        // NOTE: All drawing functions like initChart, resizeCanvas, draw, drawCandles, etc.
-        // are kept as they are. They operate on the local `state` object, which is now
-        // a mirror of the backend state. No changes are needed here.
+        // --- All other functions (UI, Drawing, etc.) are included below ---
+        // They are mostly unchanged, but now rely on the state being updated from the server.
+        function resetState() { if (state.timerIntervalId) clearInterval(state.timerIntervalId); Object.assign(state, { gameData: [], isLoading: true, isPlaying: false, isEnded: false, currentIndex: 0, barAnimationProgress: 0, equity: CONFIG.INITIAL_BALANCE, floatingPL: 0, openPositions: [], tradeHistory: [], gameStartTime: null, elapsedTime: 0, timerIntervalId: null, unlockedAchievements: new Set(), achievementStats: { consecutiveWins: 0, consecutiveLosses: 0, maxEquity: CONFIG.INITIAL_BALANCE, minEquity: CONFIG.INITIAL_BALANCE }, performanceFeedback: null, wasPlayingBeforeEvent: false, }); Object.assign(state.chart, { scrollOffset: 0, isCrosshairPinned: false, isDragging: false, isPinching: false, draggedLineType: null, }); DOM.chartOverlay.innerHTML = ''; DOM.positionsList.querySelectorAll('.trade-item').forEach(item => item.remove()); DOM.historyList.querySelectorAll('.trade-item').forEach(item => item.remove()); DOM.inputLots.value = "0.10"; DOM.inputSL.value = ""; DOM.inputTP.value = ""; DOM.hudTimer.textContent = "00:00"; }
+        function cacheDOMElements() { Object.assign(DOM, { loader: document.getElementById('loader'), hudDate: document.getElementById('hud-date'), hudEquity: document.getElementById('hud-equity'), hudPL: document.getElementById('hud-pl'), hudProgress: document.getElementById('hud-progress'), hudTimer: document.getElementById('hud-timer'), btnPlayPause: document.getElementById('btnPlayPause'), btnStepForward: document.getElementById('btnStepForward'), speedSelector: document.getElementById('speedSelector'), chartWrap: document.getElementById('chartWrap'), chartCanvas: document.getElementById('chartCanvas'), chartOverlay: document.getElementById('chartOverlay'), chartControls: document.getElementById('chartControls'), bottomNavBar: document.getElementById('bottomNavBar'), positionsCountNav: document.getElementById('positionsCountNav'), btnToggleControls: document.getElementById('btnToggleControls'), inputLots: document.getElementById('inputLots'), inputSL: document.getElementById('inputSL'), inputTP: document.getElementById('inputTP'), estimateSL: document.getElementById('estimateSL'), estimateTP: document.getElementById('estimateTP'), positionsList: document.getElementById('positionsList'), historyList: document.getElementById('historyList'), positionsCount: document.getElementById('positionsCount'), btnCloseAllGlobal: document.getElementById('btnCloseAllGlobal'), emptyPositions: document.getElementById('emptyPositions'), emptyHistory: document.getElementById('emptyHistory'), eventModal: document.getElementById('eventModal'), endGameModal: document.getElementById('endGameModal'), tutorialHighlight: document.getElementById('tutorialHighlight'), tutorialMessage: document.getElementById('tutorialMessage'), tutorialText: document.getElementById('tutorialText'), tutorialNextBtn: document.getElementById('tutorialNextBtn'), notificationContainer: document.getElementById('notification-container'), }); }
+        async function openOrder(type, lots, sl, tp) { if (state.isEnded) return; addTradeAnimation(type, getCurrentPrice(), state.currentIndex); try { const data = await apiRequest('/api/trade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, lots, sl, tp }), }); updateStateFromResponse(data); DOM.inputSL.value = ""; DOM.inputTP.value = ""; } catch(e) {} }
+        async function closeOrder(id) { if (state.isEnded) return; try { const data = await apiRequest(`/api/trade/${id}`, { method: 'DELETE' }); updateStateFromResponse(data); if (data.lastClosedTrade) { addTradeAnimation('CLOSE', data.lastClosedTrade.closePrice, state.currentIndex, data.lastClosedTrade.profit); } } catch(e) {} }
+        async function closeAllOrders() { if (state.isEnded || state.openPositions.length === 0) return; if (!confirm(`確定要關閉所有 ${state.openPositions.length} 個持倉嗎？`)) return; try { const data = await apiRequest('/api/trades', { method: 'DELETE' }); updateStateFromResponse(data); if (data.lastClosedTrades) { data.lastClosedTrades.forEach(trade => addTradeAnimation('CLOSE', trade.closePrice, state.currentIndex, trade.profit)); } } catch(e) {} }
+        function updateStateFromResponse(data) { state.equity = data.equity; state.floatingPL = data.floatingPL; state.openPositions = data.openPositions; state.tradeHistory = data.tradeHistory; updateUI(); }
+        function updateUI() { updateHUD(); updatePositionsPanel(); updateHistoryPanel(); updateControls(); updateOrderPanel(); if (!state.isPlaying) requestAnimationFrame(draw); }
+        function showEventModal(event) { if (state.isPlaying) { state.wasPlayingBeforeEvent = true; togglePlayPause(); } else { state.wasPlayingBeforeEvent = false; } document.getElementById('eventTitle').textContent = `⚠️ ${event.title}`; document.getElementById('eventBody').textContent = event.description; DOM.eventModal.classList.add('active'); }
+        function continueFromEvent() { DOM.eventModal.classList.remove('active'); if (state.wasPlayingBeforeEvent) togglePlayPause(); }
+        function showEndGameModal() { const finalRoR = (state.equity - CONFIG.INITIAL_BALANCE) / CONFIG.INITIAL_BALANCE; let simulationDays = 30; if (state.gameData.length > 1) { simulationDays = (state.gameData[state.gameData.length-1].time - state.gameData[0].time) / 86400000; } document.getElementById('finalScore').textContent = `$${state.equity.toFixed(2)}`; document.getElementById('finalRoR').innerHTML = `模擬回報率: ${(finalRoR * 100).toFixed(2)}%`; document.getElementById('finalRoR').style.color = finalRoR >= 0 ? 'var(--color-success)' : 'var(--color-danger)'; const minutes = Math.floor(state.elapsedTime / 60); const seconds = state.elapsedTime % 60; document.getElementById('finalTime').textContent = `總花費時間: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`; let feedbackHTML = ''; if (state.performanceFeedback) { feedbackHTML = `<div class="performance-feedback" style="text-align: left; margin-top: 20px; padding: 15px; background-color: var(--color-bg); border-radius: var(--radius-main);"><h3 style="text-align: center; margin-bottom: 10px;">📊 模擬表現分析</h3><p style="margin-top: 10px;"><strong>基礎評估：</strong><br>${state.performanceFeedback.feedbackGeneral.text}</p><p style="margin-top: 10px;"><strong>進階評估：</strong><br>${state.performanceFeedback.feedbackFund.text}</p></div>`; } const totalTrades = state.tradeHistory.length; const winRate = totalTrades > 0 ? (state.tradeHistory.filter(t => t.profit > 0).length / totalTrades) * 100 : 0; const totalProfit = state.tradeHistory.reduce((sum, t) => sum + t.profit, 0); document.getElementById('endGameStats').innerHTML = `${feedbackHTML}<div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--color-border); text-align: left;"><p><strong>交易統計：</strong></p><ul style="list-style-position: inside; padding-left: 10px;"><li>總交易次數: ${totalTrades}</li><li>勝率: ${winRate.toFixed(2)}%</li><li>模擬總損益: $${totalProfit.toFixed(2)}</li><li>模擬期間: 約 ${Math.round(simulationDays)} 天</li></ul></div>`; displayAchievements(); DOM.endGameModal.classList.add('active'); }
+        // The rest of the functions (drawing, UI updates, event listeners, achievements, etc.) are included here, unchanged from the original fully-featured version.
+        function startTimer() { state.gameStartTime = Date.now(); if (state.timerIntervalId) clearInterval(state.timerIntervalId); state.timerIntervalId = setInterval(updateTimer, 1000); }
+        function updateTimer() { if (state.gameStartTime && !state.isEnded) { state.elapsedTime = Math.floor((Date.now() - state.gameStartTime) / 1000); const minutes = Math.floor(state.elapsedTime / 60); const seconds = state.elapsedTime % 60; DOM.hudTimer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`; } }
+        function stopTimer() { if (state.timerIntervalId) { clearInterval(state.timerIntervalId); state.timerIntervalId = null; } }
         function initChart() { state.chart.canvas = DOM.chartCanvas; state.chart.ctx = state.chart.canvas.getContext('2d'); resizeCanvas(); }
         function resizeCanvas() { const newIsMobile = window.innerWidth <= 900 || 'ontouchstart' in window || navigator.maxTouchPoints > 0; if (newIsMobile !== state.isMobile) { state.isMobile = newIsMobile; if (state.tutorialActive) { setTimeout(showTutorialStep, 50); } } const dpr = window.devicePixelRatio || 1; const rect = DOM.chartWrap.getBoundingClientRect(); const width = Math.max(1, Math.floor(rect.width)); const height = Math.max(1, Math.floor(rect.height)); if (state.chart.width !== width || state.chart.height !== height) { state.chart.canvas.width = width * dpr; state.chart.canvas.height = height * dpr; state.chart.canvas.style.width = `${width}px`; state.chart.canvas.style.height = `${height}px`; state.chart.ctx.scale(dpr, dpr); state.chart.width = width; state.chart.height = height; validateScrollOffset(); } if (!state.isLoading) { draw(); } }
         function draw() { if (state.isLoading || state.gameData.length === 0) return; const ctx = state.chart.ctx; ctx.clearRect(0, 0, state.chart.width, state.chart.height); calculateViewport(); drawBackground(ctx); drawGrid(ctx); drawCandles(ctx); drawOrderSetupLines(ctx); drawYAxis(ctx); drawXAxis(ctx); drawCrosshair(ctx); drawTradeAnimations(ctx); drawChartAlertAnimations(ctx); updatePositionOverlays(); }
@@ -701,238 +435,25 @@
         function addTradeAnimation(type, price, index, profit = 0) { tradeAnimations.push({ type, price, index, profit, startTime: performance.now(), duration: type === 'CLOSE' ? 1500 : 800 }); if (!state.isPlaying) requestAnimationFrame(draw); }
         function addChartAlertAnimation(type, price, index) { chartAlertAnimations.push({ type, price, index, startTime: performance.now(), duration: 2500 }); if (!state.isPlaying) requestAnimationFrame(draw); }
         function drawTradeAnimations(ctx) { const now = performance.now(); let animationsRunning = false; for (let i = tradeAnimations.length - 1; i >= 0; i--) { const anim = tradeAnimations[i]; const elapsed = now - anim.startTime; const progress = Math.min(1, elapsed / anim.duration); const opacity = 1 - progress; const x = indexToX(anim.index); const y = priceToY(anim.price); if (x < CONFIG.CHART_PADDING.left || x > state.chart.width - CONFIG.CHART_PADDING.right) { if (progress >= 1) tradeAnimations.splice(i, 1); else animationsRunning = true; continue; } ctx.globalAlpha = opacity; if (anim.type === 'BUY' || anim.type === 'SELL') { const color = anim.type === 'BUY' ? getComputedStyle(document.documentElement).getPropertyValue('--color-bull').trim() : getComputedStyle(document.documentElement).getPropertyValue('--color-bear').trim(); ctx.fillStyle = color; const size = 12 + progress * 5; const offsetY = anim.type === 'BUY' ? 15 : -15; ctx.beginPath(); if (anim.type === 'BUY') { ctx.moveTo(x, y + offsetY); ctx.lineTo(x - size/2, y + offsetY + size); ctx.lineTo(x + size/2, y + offsetY + size); } else { ctx.moveTo(x, y + offsetY); ctx.lineTo(x - size/2, y + offsetY - size); ctx.lineTo(x + size/2, y + offsetY - size); } ctx.closePath(); ctx.fill(); } else if (anim.type === 'CLOSE') { const color = anim.profit >= 0 ? getComputedStyle(document.documentElement).getPropertyValue('--color-success').trim() : getComputedStyle(document.documentElement).getPropertyValue('--color-danger').trim(); ctx.fillStyle = color; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center'; const floatY = y - progress * 60; ctx.fillText(`$${anim.profit.toFixed(2)}`, x, floatY); } ctx.globalAlpha = 1; if (progress >= 1) { tradeAnimations.splice(i, 1); } else { animationsRunning = true; } } if (animationsRunning && !state.isPlaying) requestAnimationFrame(draw); }
-        function drawChartAlertAnimations(ctx) { /* This function remains unchanged */ }
-
-        // ----------------------------------------------------------------------------
-        // 5. TRADING LOGIC (API Calls)
-        // ----------------------------------------------------------------------------
-
-        function getCurrentPrice() {
-            if (state.gameData.length === 0 || state.currentIndex >= state.gameData.length) return 0;
-            const currentBar = state.gameData[state.currentIndex];
-            return getAnimatedBar(currentBar).close;
-        }
-
-        async function openOrder(type, lots, sl, tp) {
-            if (state.isEnded) return;
-            addTradeAnimation(type, getCurrentPrice(), state.currentIndex);
-            try {
-                const data = await apiRequest('/api/trade', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type, lots, sl, tp }),
-                });
-                updateStateFromResponse(data);
-                DOM.inputSL.value = "";
-                DOM.inputTP.value = "";
-            } catch(e) { /* error handled by apiRequest */ }
-        }
-
-        async function closeOrder(id) {
-            if (state.isEnded) return;
-            try {
-                const data = await apiRequest(`/api/trade/${id}`, { method: 'DELETE' });
-                updateStateFromResponse(data);
-            } catch(e) { /* error handled by apiRequest */ }
-        }
-
-        async function closeAllOrders() {
-            if (state.isEnded || state.openPositions.length === 0) return;
-            if (!confirm(`確定要關閉所有 ${state.openPositions.length} 個持倉嗎？`)) return;
-            try {
-                const data = await apiRequest('/api/trades', { method: 'DELETE' });
-                updateStateFromResponse(data);
-            } catch(e) { /* error handled by apiRequest */ }
-        }
-
-        function calculatePotentialProfit(position, targetPrice) {
-            const priceDiff = position.type === 'BUY' ? targetPrice - position.entryPrice : position.entryPrice - targetPrice;
-            return priceDiff * CONFIG.CONTRACT_SIZE * position.lots;
-        }
-
-        function updateStateFromResponse(data) {
-            state.equity = data.equity;
-            state.floatingPL = data.floatingPL;
-            state.openPositions = data.openPositions;
-            state.tradeHistory = data.tradeHistory;
-            updateUI();
-        }
-
-        // ----------------------------------------------------------------------------
-        // 6. UI UPDATES & INTERACTION
-        // ----------------------------------------------------------------------------
-
-        function updateUI() {
-            updateHUD();
-            updatePositionsPanel();
-            updateHistoryPanel();
-            updateControls();
-            updateOrderPanel();
-            if (!state.isPlaying) requestAnimationFrame(draw);
-        }
-
-        function updateAccountDisplay() {
-            DOM.hudEquity.textContent = `$${state.equity.toFixed(2)}`;
-            DOM.hudPL.textContent = `$${state.floatingPL.toFixed(2)}`;
-            DOM.hudPL.classList.toggle('positive', state.floatingPL > 0);
-            DOM.hudPL.classList.toggle('negative', state.floatingPL < 0);
-        }
-
-        function updatePositionProfits() {
-            const currentPrice = getCurrentPrice();
-            if(currentPrice <= 0) return;
-            state.openPositions.forEach(pos => {
-                pos.profit = calculatePotentialProfit(pos, currentPrice);
-            });
-        }
-
-        function updateOrderPanel() {
-            DOM.btnCloseAllGlobal.disabled = state.openPositions.length === 0 || state.isEnded;
-            updateEstimatedPL();
-        }
-
-        function updateEstimatedPL() {
-            if (!DOM.inputLots || !DOM.inputSL || !DOM.inputTP) return;
-            const lots = parseFloat(DOM.inputLots.value);
-            const slPrice = parseFloat(DOM.inputSL.value);
-            const tpPrice = parseFloat(DOM.inputTP.value);
-            const currentPrice = getCurrentPrice();
-            DOM.estimateSL.textContent = '';
-            DOM.estimateTP.textContent = '';
-            if (isNaN(lots) || lots <= 0 || currentPrice <= 0) return;
-            if (!isNaN(slPrice) && slPrice > 0) {
-                const slPL = Math.abs(currentPrice - slPrice) * CONFIG.CONTRACT_SIZE * lots;
-                DOM.estimateSL.textContent = `SL: -$${slPL.toFixed(2)}`;
-            }
-            if (!isNaN(tpPrice) && tpPrice > 0) {
-                const tpPL = Math.abs(currentPrice - tpPrice) * CONFIG.CONTRACT_SIZE * lots;
-                DOM.estimateTP.textContent = `TP: +$${tpPL.toFixed(2)}`;
-            }
-        }
-
-        function updateHUD() {
-            if (state.gameData.length === 0 || state.currentIndex >= state.gameData.length) return;
-            const currentDate = new Date(state.gameData[state.currentIndex].time);
-            DOM.hudDate.textContent = currentDate.toLocaleString('zh-TW', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
-            updateAccountDisplay();
-            const progress = (state.currentIndex / (state.gameData.length - 1)) * 100;
-            DOM.hudProgress.style.width = `${Math.min(100, progress)}%`;
-        }
-
-        function updatePositionsPanel() {
-            DOM.positionsCount.textContent = state.openPositions.length;
-            if (DOM.positionsCountNav) DOM.positionsCountNav.textContent = state.openPositions.length;
-            DOM.emptyPositions.style.display = state.openPositions.length === 0 ? 'flex' : 'none';
-            const existingItems = DOM.positionsList.querySelectorAll('.trade-item');
-            const currentIds = new Set(state.openPositions.map(p => p.id));
-            existingItems.forEach(item => { if (!currentIds.has(parseInt(item.dataset.id))) DOM.positionsList.removeChild(item); });
-            state.openPositions.forEach(pos => {
-                let item = DOM.positionsList.querySelector(`[data-id="${pos.id}"]`);
-                if (!item) {
-                    item = document.createElement('div');
-                    item.className = 'trade-item';
-                    item.dataset.id = pos.id;
-                    item.innerHTML = `<div class="trade-header"><span class="trade-type ${pos.type}">#${pos.id} ${pos.type === 'BUY' ? '買入' : '賣出'} ${pos.lots.toFixed(2)}手</span><span class="trade-profit"></span></div><div class="trade-details"><div><div class="trade-detail-label">進場價</div><div>${pos.entryPrice.toFixed(2)}</div></div><div><div class="trade-detail-label">停損(SL)</div><div class="trade-sl"></div></div><div><div class="trade-detail-label">停利(TP)</div><div class="trade-tp"></div></div></div><div class="trade-actions-buttons"><button class="btn btn-small btn-secondary btn-modify" disabled>修改</button><button class="btn btn-small btn-danger btn-close">平倉</button></div>`;
-                    DOM.positionsList.insertBefore(item, DOM.emptyPositions);
-                }
-                const profitElement = item.querySelector('.trade-profit');
-                profitElement.textContent = `$${pos.profit.toFixed(2)}`;
-                profitElement.style.color = pos.profit >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
-                item.querySelector('.trade-sl').textContent = pos.sl ? pos.sl.toFixed(2) : 'N/A';
-                item.querySelector('.trade-tp').textContent = pos.tp ? pos.tp.toFixed(2) : 'N/A';
-            });
-        }
-
-        function updateHistoryPanel() {
-            DOM.emptyHistory.style.display = state.tradeHistory.length === 0 ? 'flex' : 'none';
-            const tradeItemCount = DOM.historyList.querySelectorAll('.trade-item').length;
-            if (tradeItemCount === state.tradeHistory.length) return;
-            DOM.historyList.querySelectorAll('.trade-item').forEach(item => item.remove());
-            [...state.tradeHistory].reverse().forEach(trade => {
-                const item = document.createElement('div');
-                item.className = 'trade-item';
-                item.innerHTML = `<div class="trade-header"><span class="trade-type ${trade.type}">#${trade.id} ${trade.type === 'BUY' ? '買入' : '賣出'} ${trade.lots.toFixed(2)}手</span><span style="color: ${trade.profit >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}">$${trade.profit.toFixed(2)}</span></div><div class="trade-details"><div><div class="trade-detail-label">開倉價</div><div>${trade.entryPrice.toFixed(2)}</div></div><div><div class="trade-detail-label">平倉價</div><div>${trade.closePrice.toFixed(2)}</div></div><div><div class="trade-detail-label">持有時間</div><div>${formatDuration(trade.closeTime - trade.entryTime)}</div></div></div>`;
-                DOM.historyList.insertBefore(item, DOM.emptyHistory);
-            });
-        }
-
-        function updateControls() {
-            DOM.btnPlayPause.textContent = state.isPlaying ? '⏸️ 暫停' : '▶️ 播放';
-            DOM.btnStepForward.disabled = state.isPlaying || state.isEnded;
-            DOM.btnPlayPause.disabled = state.isEnded;
-            document.getElementById('btnBuy').disabled = state.isEnded;
-            document.getElementById('btnSell').disabled = state.isEnded;
-            document.getElementById('btnEndGame').disabled = state.isEnded;
-        }
-
-        function setupEventListeners() {
-            window.addEventListener('resize', resizeCanvas);
-            DOM.btnPlayPause.addEventListener('click', togglePlayPause);
-            DOM.btnStepForward.addEventListener('click', stepForward);
-            DOM.speedSelector.addEventListener('click', handleSpeedChange);
-            document.getElementById('btnZoomIn').addEventListener('click', () => zoomChart(1.2));
-            document.getElementById('btnZoomOut').addEventListener('click', () => zoomChart(1/1.2));
-            document.getElementById('btnEndGame').addEventListener('click', handleEndGameClick);
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', handleInternalTabSwitch));
-            document.querySelectorAll('.nav-btn-v9').forEach(btn => btn.addEventListener('click', handleNavigationTabSwitch));
-            DOM.btnToggleControls.addEventListener('click', toggleCollapsibleControls);
-            setupInputScrubbing();
-            DOM.inputLots.addEventListener('input', updateOrderPanel);
-            DOM.inputSL.addEventListener('input', updateOrderPanel);
-            DOM.inputTP.addEventListener('input', updateOrderPanel);
-            document.getElementById('btnBuy').addEventListener('click', () => handleTrade('BUY'));
-            document.getElementById('btnSell').addEventListener('click', () => handleTrade('SELL'));
-            DOM.btnCloseAllGlobal.addEventListener('click', closeAllOrders);
-            DOM.positionsList.addEventListener('click', (e) => {
-                const target = e.target;
-                const tradeItem = target.closest('.trade-item');
-                if (!tradeItem) return;
-                const id = parseInt(tradeItem.dataset.id);
-                if (target.classList.contains('btn-close')) closeOrder(id);
-                else if (target.classList.contains('btn-modify')) alert('修改功能暫未開放。');
-            });
-            DOM.chartWrap.addEventListener('mousemove', handleMouseMove);
-            DOM.chartWrap.addEventListener('mouseleave', handleMouseLeave);
-            DOM.chartWrap.addEventListener('wheel', handleMouseWheel, { passive: false });
-            DOM.chartWrap.addEventListener('mousedown', handleDragStart);
-            window.addEventListener('mousemove', handleDragging);
-            window.addEventListener('mouseup', handleDragEnd);
-            DOM.chartWrap.addEventListener('touchstart', handleTouchStart, { passive: false });
-            window.addEventListener('touchmove', handleTouchMove, { passive: false });
-            window.addEventListener('touchend', handleTouchEnd);
-            document.getElementById('restartButton').addEventListener('click', startGame);
-        }
-
-        function handleEndGameClick() {
-            if (state.isEnded) return;
-            if (state.isPlaying) togglePlayPause();
-            if (confirm("確定要提前結束本次挑戰嗎？")) endGame();
-        }
-
+        function drawChartAlertAnimations(ctx) { const now = performance.now(); let animationsRunning = false; const { left, right, top, bottom } = CONFIG.CHART_PADDING; const { width, height } = state.chart; for (let i = chartAlertAnimations.length - 1; i >= 0; i--) { const anim = chartAlertAnimations[i]; const elapsed = now - anim.startTime; const progress = Math.min(1, elapsed / anim.duration); const opacity = progress < 0.7 ? 1 : 1 - ((progress - 0.7) / 0.3); const y = priceToY(anim.price); let color, text; if (anim.type === 'BREAKOUT') { color = '#FFD700'; text = '💥 突破 7 日新高！'; } else { color = getComputedStyle(document.documentElement).getPropertyValue('--color-danger').trim(); text = '🔻 跌破 7 日新低！'; } ctx.globalAlpha = opacity * 0.8; ctx.strokeStyle = color; ctx.lineWidth = 2 + Math.sin(progress * Math.PI * 8) * 0.5; ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(width - right, y); ctx.stroke(); ctx.globalAlpha = opacity; const fontSize = 16; const padding = 8; const floatDistance = progress * 30 + 20; const chartAreaWidth = width - left - right; const textX = left + chartAreaWidth / 2; let floatY = y - floatDistance; ctx.font = `bold ${fontSize}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const textMetrics = ctx.measureText(text); const rectHeight = fontSize + padding * 2; const halfHeight = rectHeight / 2; if (floatY - halfHeight < top) { floatY = y + floatDistance; if (floatY + halfHeight > height - bottom) { if (y < (top + height - bottom) / 2) { floatY = top + halfHeight; } else { floatY = height - bottom - halfHeight; } } } const rectWidth = textMetrics.width + padding * 2; const rectX = textX - rectWidth / 2; const rectY = floatY - halfHeight; ctx.fillStyle = `rgba(50, 50, 50, ${opacity * 0.7})`; ctx.fillRect(rectX, rectY, rectWidth, rectHeight); ctx.fillStyle = color; ctx.fillText(text, textX, floatY); ctx.globalAlpha = 1; ctx.lineWidth = 1; if (progress >= 1) { chartAlertAnimations.splice(i, 1); } else { animationsRunning = true; } } if (animationsRunning && !state.isPlaying) requestAnimationFrame(draw); }
+        function getCurrentPrice() { if (state.gameData.length === 0 || state.currentIndex >= state.gameData.length) return 0; const currentBar = state.gameData[state.currentIndex]; return getAnimatedBar(currentBar).close; }
+        function calculatePotentialProfit(position, targetPrice) { const priceDiff = position.type === 'BUY' ? targetPrice - position.entryPrice : position.entryPrice - targetPrice; return priceDiff * CONFIG.CONTRACT_SIZE * position.lots; }
+        function updateAccountDisplay() { DOM.hudEquity.textContent = `$${state.equity.toFixed(2)}`; DOM.hudPL.textContent = `$${state.floatingPL.toFixed(2)}`; DOM.hudPL.classList.toggle('positive', state.floatingPL > 0); DOM.hudPL.classList.toggle('negative', state.floatingPL < 0); }
+        function updatePositionProfits() { const currentPrice = getCurrentPrice(); if(currentPrice <= 0) return; state.openPositions.forEach(pos => { pos.profit = calculatePotentialProfit(pos, currentPrice); }); }
+        function updateOrderPanel() { DOM.btnCloseAllGlobal.disabled = state.openPositions.length === 0 || state.isEnded; updateEstimatedPL(); }
+        function updateEstimatedPL() { if (!DOM.inputLots || !DOM.inputSL || !DOM.inputTP) return; const lots = parseFloat(DOM.inputLots.value); const slPrice = parseFloat(DOM.inputSL.value); const tpPrice = parseFloat(DOM.inputTP.value); const currentPrice = getCurrentPrice(); DOM.estimateSL.textContent = ''; DOM.estimateTP.textContent = ''; if (isNaN(lots) || lots <= 0 || currentPrice <= 0) return; if (!isNaN(slPrice) && slPrice > 0) { const slPL = Math.abs(currentPrice - slPrice) * CONFIG.CONTRACT_SIZE * lots; DOM.estimateSL.textContent = `SL: -$${slPL.toFixed(2)}`; } if (!isNaN(tpPrice) && tpPrice > 0) { const tpPL = Math.abs(currentPrice - tpPrice) * CONFIG.CONTRACT_SIZE * lots; DOM.estimateTP.textContent = `TP: +$${tpPL.toFixed(2)}`; } }
+        function updateHUD() { if (state.gameData.length === 0 || state.currentIndex >= state.gameData.length) return; const currentDate = new Date(state.gameData[state.currentIndex].time); DOM.hudDate.textContent = currentDate.toLocaleString('zh-TW', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }); updateAccountDisplay(); const progress = (state.currentIndex / (state.gameData.length - 1)) * 100; DOM.hudProgress.style.width = `${Math.min(100, progress)}%`; }
+        function updatePositionsPanel() { DOM.positionsCount.textContent = state.openPositions.length; if (DOM.positionsCountNav) DOM.positionsCountNav.textContent = state.openPositions.length; DOM.emptyPositions.style.display = state.openPositions.length === 0 ? 'flex' : 'none'; const existingItems = DOM.positionsList.querySelectorAll('.trade-item'); const currentIds = new Set(state.openPositions.map(p => p.id)); existingItems.forEach(item => { if (!currentIds.has(parseInt(item.dataset.id))) DOM.positionsList.removeChild(item); }); state.openPositions.forEach(pos => { let item = DOM.positionsList.querySelector(`[data-id="${pos.id}"]`); if (!item) { item = document.createElement('div'); item.className = 'trade-item'; item.dataset.id = pos.id; item.innerHTML = `<div class="trade-header"><span class="trade-type ${pos.type}">#${pos.id} ${pos.type === 'BUY' ? '買入' : '賣出'} ${pos.lots.toFixed(2)}手</span><span class="trade-profit"></span></div><div class="trade-details"><div><div class="trade-detail-label">進場價</div><div>${pos.entryPrice.toFixed(2)}</div></div><div><div class="trade-detail-label">停損(SL)</div><div class="trade-sl"></div></div><div><div class="trade-detail-label">停利(TP)</div><div class="trade-tp"></div></div></div><div class="trade-actions-buttons"><button class="btn btn-small btn-secondary btn-modify" disabled>修改</button><button class="btn btn-small btn-danger btn-close">平倉</button></div>`; DOM.positionsList.insertBefore(item, DOM.emptyPositions); } const profitElement = item.querySelector('.trade-profit'); profitElement.textContent = `$${pos.profit.toFixed(2)}`; profitElement.style.color = pos.profit >= 0 ? 'var(--color-success)' : 'var(--color-danger)'; item.querySelector('.trade-sl').textContent = pos.sl ? pos.sl.toFixed(2) : 'N/A'; item.querySelector('.trade-tp').textContent = pos.tp ? pos.tp.toFixed(2) : 'N/A'; }); }
+        function updateHistoryPanel() { DOM.emptyHistory.style.display = state.tradeHistory.length === 0 ? 'flex' : 'none'; const tradeItemCount = DOM.historyList.querySelectorAll('.trade-item').length; if (tradeItemCount === state.tradeHistory.length) return; DOM.historyList.querySelectorAll('.trade-item').forEach(item => item.remove()); [...state.tradeHistory].reverse().forEach(trade => { const item = document.createElement('div'); item.className = 'trade-item'; item.innerHTML = `<div class="trade-header"><span class="trade-type ${trade.type}">#${trade.id} ${trade.type === 'BUY' ? '買入' : '賣出'} ${trade.lots.toFixed(2)}手</span><span style="color: ${trade.profit >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}">$${trade.profit.toFixed(2)}</span></div><div class="trade-details"><div><div class="trade-detail-label">開倉價</div><div>${trade.entryPrice.toFixed(2)}</div></div><div><div class="trade-detail-label">平倉價</div><div>${trade.closePrice.toFixed(2)}</div></div><div><div class="trade-detail-label">持有時間</div><div>${formatDuration(trade.closeTime - trade.entryTime)}</div></div></div>`; DOM.historyList.insertBefore(item, DOM.emptyHistory); }); }
+        function updateControls() { DOM.btnPlayPause.textContent = state.isPlaying ? '⏸️ 暫停' : '▶️ 播放'; DOM.btnStepForward.disabled = state.isPlaying || state.isEnded; DOM.btnPlayPause.disabled = state.isEnded; document.getElementById('btnBuy').disabled = state.isEnded; document.getElementById('btnSell').disabled = state.isEnded; document.getElementById('btnEndGame').disabled = state.isEnded; }
+        function setupEventListeners() { window.addEventListener('resize', resizeCanvas); DOM.btnPlayPause.addEventListener('click', togglePlayPause); DOM.btnStepForward.addEventListener('click', stepForward); DOM.speedSelector.addEventListener('click', handleSpeedChange); document.getElementById('btnZoomIn').addEventListener('click', () => zoomChart(1.2)); document.getElementById('btnZoomOut').addEventListener('click', () => zoomChart(1/1.2)); document.getElementById('btnEndGame').addEventListener('click', handleEndGameClick); document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', handleInternalTabSwitch)); document.querySelectorAll('.nav-btn-v9').forEach(btn => btn.addEventListener('click', handleNavigationTabSwitch)); DOM.btnToggleControls.addEventListener('click', toggleCollapsibleControls); setupInputScrubbing(); DOM.inputLots.addEventListener('input', updateOrderPanel); DOM.inputSL.addEventListener('input', updateOrderPanel); DOM.inputTP.addEventListener('input', updateOrderPanel); document.getElementById('btnBuy').addEventListener('click', () => handleTrade('BUY')); document.getElementById('btnSell').addEventListener('click', () => handleTrade('SELL')); DOM.btnCloseAllGlobal.addEventListener('click', closeAllOrders); DOM.positionsList.addEventListener('click', (e) => { const target = e.target; const tradeItem = target.closest('.trade-item'); if (!tradeItem) return; const id = parseInt(tradeItem.dataset.id); if (target.classList.contains('btn-close')) closeOrder(id); else if (target.classList.contains('btn-modify')) alert('修改功能暫未開放。'); }); DOM.chartWrap.addEventListener('mousemove', handleMouseMove); DOM.chartWrap.addEventListener('mouseleave', handleMouseLeave); DOM.chartWrap.addEventListener('wheel', handleMouseWheel, { passive: false }); DOM.chartWrap.addEventListener('mousedown', handleDragStart); window.addEventListener('mousemove', handleDragging); window.addEventListener('mouseup', handleDragEnd); DOM.chartWrap.addEventListener('touchstart', handleTouchStart, { passive: false }); window.addEventListener('touchmove', handleTouchMove, { passive: false }); window.addEventListener('touchend', handleTouchEnd); document.getElementById('restartButton').addEventListener('click', startGame); document.getElementById('eventContinueBtn').addEventListener('click', continueFromEvent); }
+        function handleEndGameClick() { if (state.isEnded) return; if (state.isPlaying) togglePlayPause(); if (confirm("確定要提前結束本次挑戰嗎？")) endGame(); }
         function toggleCollapsibleControls() { DOM.chartControls.classList.toggle('controls-collapsed'); DOM.btnToggleControls.textContent = DOM.chartControls.classList.contains('controls-collapsed') ? '展開設定' : '隱藏設定'; setTimeout(resizeCanvas, 50); }
-
-        function togglePlayPause() {
-            if (state.isEnded) return;
-            state.isPlaying = !state.isPlaying;
-            if (state.isPlaying) { lastTickTime = 0; animationFrameId = requestAnimationFrame(gameLoop); }
-            else { cancelAnimationFrame(animationFrameId); }
-            updateControls();
-        }
-
+        function togglePlayPause() { if (state.isEnded) return; state.isPlaying = !state.isPlaying; if (state.isPlaying) { lastTickTime = 0; animationFrameId = requestAnimationFrame(gameLoop); } else { cancelAnimationFrame(animationFrameId); } updateControls(); }
         function handleSpeedChange(e) { if (e.target.classList.contains('speed-btn')) { document.querySelectorAll('.speed-btn').forEach(btn => btn.classList.remove('active')); e.target.classList.add('active'); state.speedMultiplier = parseInt(e.target.dataset.speed); lastTickTime = 0; } }
         function handleNavigationTabSwitch(e) { const target = e.target.closest('.nav-btn-v9'); if (!target) return; const targetId = target.dataset.target; document.querySelectorAll('.nav-btn-v9').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content-v9').forEach(c => c.classList.remove('active')); target.classList.add('active'); document.getElementById(targetId).classList.add('active'); setTimeout(resizeCanvas, 50); if (state.tutorialActive) setTimeout(showTutorialStep, 50); }
         function handleInternalTabSwitch(e) { const target = e.target.closest('.tab-btn'); if (!target) return; document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); target.classList.add('active'); document.getElementById(target.dataset.target).classList.add('active'); if (state.tutorialActive) setTimeout(showTutorialStep, 50); }
-
-        function handleTrade(type) {
-            const lots = parseFloat(DOM.inputLots.value);
-            const sl = DOM.inputSL.value ? parseFloat(DOM.inputSL.value) : null;
-            const tp = DOM.inputTP.value ? parseFloat(DOM.inputTP.value) : null;
-            if (isNaN(lots) || lots < 0.01) { alert("請輸入有效的手數 (Lots)，最小為 0.01。"); return; }
-            if ((sl !== null && (isNaN(sl) || sl <= 0)) || (tp !== null && (isNaN(tp) || tp <= 0))) { alert("停損/停利價格必須是正數。"); return; }
-            openOrder(type, lots, sl, tp);
-        }
-
-        // --- Chart Interaction handlers (unchanged) ---
+        function handleTrade(type) { const lots = parseFloat(DOM.inputLots.value); const sl = DOM.inputSL.value ? parseFloat(DOM.inputSL.value) : null; const tp = DOM.inputTP.value ? parseFloat(DOM.inputTP.value) : null; if (isNaN(lots) || lots < 0.01) { alert("請輸入有效的手數 (Lots)，最小為 0.01。"); return; } if ((sl !== null && (isNaN(sl) || sl <= 0)) || (tp !== null && (isNaN(tp) || tp <= 0))) { alert("停損/停利價格必須是正數。"); return; } openOrder(type, lots, sl, tp); }
         function handleMouseMove(e) { const rect = DOM.chartWrap.getBoundingClientRect(); state.mouse.x = e.clientX - rect.left; state.mouse.y = e.clientY - rect.top; state.mouse.isOverChart = true; if (state.chart.isCrosshairPinned && !state.isMobile) state.chart.isCrosshairPinned = false; updateCursorStyle(); if (!state.isPlaying && !state.chart.isDragging) requestAnimationFrame(draw); }
         function handleMouseLeave() { state.mouse.isOverChart = false; updateCursorStyle(); if (!state.isPlaying && !state.chart.isDragging) requestAnimationFrame(draw); }
         function handleMouseWheel(e) { e.preventDefault(); zoomChart(e.deltaY > 0 ? 1 / 1.1 : 1.1); }
@@ -949,13 +470,6 @@
         function performDrag(clientX, clientY) { state.chart.dragCurrentX = clientX; state.chart.dragCurrentY = clientY; if (state.chart.draggedLineType) { const rect = DOM.chartWrap.getBoundingClientRect(); const chartY = clientY - rect.top; const newPrice = yToPrice(chartY); if (newPrice > 0) { const inputField = state.chart.draggedLineType === 'SL' ? DOM.inputSL : DOM.inputTP; inputField.value = newPrice.toFixed(2); updateUI(); } } else { const dx = clientX - state.chart.dragStartX; const candleUnitWidth = state.chart.candleWidth + state.chart.candleSpacing; if (candleUnitWidth <= 0) return; state.chart.scrollOffset = state.chart.dragStartScroll + Math.round(dx / candleUnitWidth); validateScrollOffset(); requestAnimationFrame(draw); } }
         function endDrag() { state.chart.isDragging = false; state.chart.draggedLineType = null; updateCursorStyle(); if (!state.isPlaying) requestAnimationFrame(draw); }
         function validateScrollOffset() { if (state.gameData.length === 0) { state.chart.scrollOffset = 0; return; } const visibleCandles = calculateVisibleCandles(); const maxOffset = Math.max(0, state.currentIndex + 1 - visibleCandles); state.chart.scrollOffset = Math.max(0, Math.min(maxOffset, state.chart.scrollOffset)); }
-
-        // ----------------------------------------------------------------------------
-        // 7. GAMIFICATION & MODALS (Kept on Frontend, logic simplified)
-        // ----------------------------------------------------------------------------
-        // NOTE: Achievement logic remains on the frontend for now.
-        // A more robust implementation would move this logic to the backend as well.
-        function showEndGameModal() { const finalRoR = (state.equity - CONFIG.INITIAL_BALANCE) / CONFIG.INITIAL_BALANCE; let simulationDays = 30; if (state.gameData.length > 1) { simulationDays = (state.gameData[state.gameData.length-1].time - state.gameData[0].time) / 86400000; } document.getElementById('finalScore').textContent = `$${state.equity.toFixed(2)}`; document.getElementById('finalRoR').innerHTML = `模擬回報率: ${(finalRoR * 100).toFixed(2)}%`; document.getElementById('finalRoR').style.color = finalRoR >= 0 ? 'var(--color-success)' : 'var(--color-danger)'; const minutes = Math.floor(state.elapsedTime / 60); const seconds = state.elapsedTime % 60; document.getElementById('finalTime').textContent = `總花費時間: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`; const totalTrades = state.tradeHistory.length; const winRate = totalTrades > 0 ? (state.tradeHistory.filter(t => t.profit > 0).length / totalTrades) * 100 : 0; const totalProfit = state.tradeHistory.reduce((sum, t) => sum + t.profit, 0); document.getElementById('endGameStats').innerHTML = `<div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--color-border); text-align: left;"><p><strong>交易統計：</strong></p><ul style="list-style-position: inside; padding-left: 10px;"><li>總交易次數: ${totalTrades}</li><li>勝率: ${winRate.toFixed(2)}%</li><li>模擬總損益: $${totalProfit.toFixed(2)}</li><li>模擬期間: 約 ${Math.round(simulationDays)} 天</li></ul></div>`; displayAchievements(); DOM.endGameModal.classList.add('active'); }
         function unlockAchievement(key) { if (!state.unlockedAchievements.has(key)) { state.unlockedAchievements.add(key); const achievement = ACHIEVEMENTS[key]; if (achievement) showNotification(`🏆 成就解鎖: ${achievement.title}`, achievement.description); } }
         function updateAchievementStats(closedTrade) { if (closedTrade.profit > 0) { state.achievementStats.consecutiveWins++; state.achievementStats.consecutiveLosses = 0; } else if (closedTrade.profit < 0) { state.achievementStats.consecutiveLosses++; state.achievementStats.consecutiveWins = 0; } }
         function checkTradeAchievements(trade) { if (state.tradeHistory.length >= 1) unlockAchievement('FIRST_TRADE'); if (state.tradeHistory.length >= 10) unlockAchievement('TRADER_10'); if (trade.profit > 3000) unlockAchievement('BIG_WIN'); if (trade.profit < -3000) unlockAchievement('BIG_LOSS'); if (state.achievementStats.consecutiveWins >= 3) unlockAchievement('WIN_STREAK_3'); if (state.achievementStats.consecutiveLosses >= 3) unlockAchievement('LOSS_STREAK_3'); if (trade.profit > 0 && (trade.closeTime - trade.entryTime) <= 3600000) unlockAchievement('QUICK_DRAW'); }
@@ -965,7 +479,6 @@
         function displayAchievements() { const listElement = document.getElementById('achievementsList'); const sectionElement = document.getElementById('achievementsSection'); listElement.innerHTML = ''; if (state.unlockedAchievements.size === 0) { sectionElement.style.display = 'none'; return; } sectionElement.style.display = 'block'; state.unlockedAchievements.forEach(key => { const achievement = ACHIEVEMENTS[key]; if (achievement) { const item = document.createElement('li'); item.className = 'achievement-item'; item.innerHTML = `<span class="achievement-icon">${achievement.icon}</span><div><strong>${achievement.title}</strong><p style="font-size: 12px; color: var(--color-text-secondary);">${achievement.description}</p></div>`; listElement.appendChild(item); } }); }
         function showNotification(title, message) { if (!DOM.notificationContainer) return; const toast = document.createElement('div'); toast.className = 'notification-toast'; toast.innerHTML = `<strong>${title}</strong><p>${message}</p>`; DOM.notificationContainer.insertBefore(toast, DOM.notificationContainer.firstChild); setTimeout(() => toast.classList.add('show'), 10); setTimeout(() => { toast.classList.remove('show'); setTimeout(() => { if (DOM.notificationContainer.contains(toast)) DOM.notificationContainer.removeChild(toast); }, 500); }, 5000); }
         function formatDuration(ms) { if (ms < 0) ms = 0; const minutes = Math.floor(ms / 60000); const hours = Math.floor(minutes / 60); const days = Math.floor(hours / 24); if (days > 0) return `${days}天 ${hours % 24}小時`; if (hours > 0) return `${hours}小時 ${minutes % 60}分鐘`; if (minutes === 0) return `${Math.floor(ms / 1000)}秒`; return `${minutes}分鐘`; }
-        // Tutorial functions (unchanged)
         const TUTORIAL_STEPS = [ { selector: '.header', message: '歡迎！本次模擬挑戰目標是在30天內學習交易並提升績效。您可以在頂部追蹤虛擬帳戶狀態和進度。', action: 'next' }, { selector: '.chart-container-v9', message: '圖表區域已最大化。拖曳查看歷史數據，使用滑鼠滾輪或手機雙指縮放 (Pinch-to-Zoom) 查看細節。', action: 'next' }, { selector: '#btnToggleControls', message: '圖表設定預設已收合並以半透明顯示。點擊此按鈕展開速度控制和縮放選項。', action: 'next' }, { dynamicSelector: () => state.isMobile ? '.bottom-nav-bar-v9' : '.main-container-v9 .bottom-nav-bar-v9', dynamicMessage: () => state.isMobile ? '使用底部導航欄切換「下單」和「倉位/紀錄」頁面。' : '使用側邊欄頂部的頁籤切換「下單」和「倉位/紀錄」面板。', action: 'next' }, { selector: '#tabOrder', message: '下單介面集中在此。', action: 'ensureActiveTabOrder', skipDraw: true }, { selector: '.order-controls', message: '設定停損(SL)、手數和停利(TP)。在輸入框上按住並左右拖動 (Scrubbing) 可快速調整數值。', action: 'next' }, { selector: '.chart-wrap', message: '當您設定 SL/TP 價格後，圖表上會顯示對應的價格線。您可以直接【拖曳】這些線條來快速微調價格。', action: 'demoSLTPInput' }, { selector: '.trade-actions', message: '點擊「賣出」、「全部平倉」或「買入」進行交易。', action: 'next' }, { selector: '.order-info-bar', message: '您可以在此查看預估的停損/停利金額。祝您模擬順利！', action: 'next' }, ];
         let currentTutorialStep = 0;
         function startTutorial() { if (state.isPlaying) togglePlayPause(); state.tutorialActive = true; currentTutorialStep = 0; showTutorialStep(); }
@@ -976,10 +489,6 @@
         function endTutorial() { state.tutorialActive = false; state.tutorialCompletedOnce = true; DOM.tutorialHighlight.classList.add('hidden'); DOM.tutorialMessage.classList.add('hidden'); DOM.inputSL.value = ""; DOM.inputTP.value = ""; updateUI(); if (DOM.chartControls.classList.contains('controls-collapsed')) { toggleCollapsibleControls(); } if (!state.isPlaying && !state.isEnded) togglePlayPause(); }
         function highlightElement(element) { const rect = element.getBoundingClientRect(); const padding = 10; if (rect.width === 0 && rect.height === 0) { DOM.tutorialHighlight.classList.add('hidden'); DOM.tutorialMessage.classList.add('hidden'); return; } DOM.tutorialHighlight.classList.remove('hidden'); DOM.tutorialHighlight.style.top = `${rect.top + window.scrollY - padding}px`; DOM.tutorialHighlight.style.left = `${rect.left + window.scrollX - padding}px`; DOM.tutorialHighlight.style.width = `${rect.width + padding * 2}px`; DOM.tutorialHighlight.style.height = `${rect.height + padding * 2}px`; DOM.tutorialMessage.classList.remove('hidden'); DOM.tutorialMessage.style.width = 'auto'; const messageRect = DOM.tutorialMessage.getBoundingClientRect(); let positionAboveTop = rect.top + window.scrollY - messageRect.height - padding - 15; let positionBelowTop = rect.bottom + window.scrollY + padding + 15; const viewportTop = window.scrollY; const viewportBottom = window.scrollY + window.innerHeight; const safetyMargin = 15; const spaceAbove = (rect.top + window.scrollY) - viewportTop; const spaceBelow = viewportBottom - (rect.bottom + window.scrollY); let finalMessageTop; if (spaceBelow >= messageRect.height + safetyMargin * 2) { finalMessageTop = positionBelowTop; } else if (spaceAbove >= messageRect.height + safetyMargin * 2) { finalMessageTop = positionAboveTop; } else { if (spaceBelow >= spaceAbove) { finalMessageTop = viewportBottom - messageRect.height - safetyMargin; } else { finalMessageTop = viewportTop + safetyMargin; } } let messageLeft = rect.left + window.scrollX; if (!state.isMobile && element.closest('.bottom-content-v9')) { messageLeft = rect.left + window.scrollX - messageRect.width - padding - 15; } if (messageLeft + messageRect.width > window.innerWidth - safetyMargin) { messageLeft = window.innerWidth - messageRect.width - safetyMargin; } messageLeft = Math.max(safetyMargin, messageLeft); DOM.tutorialMessage.style.top = `${finalMessageTop}px`; DOM.tutorialMessage.style.left = `${messageLeft}px`; }
         function setupInputScrubbing() { document.querySelectorAll('.input-field.scrubbable').forEach(input => { let isScrubbing = false; let startX = 0; let startValue = 0; const scrubStep = parseFloat(input.dataset.scrubStep) || 1; const inputId = input.id; const isLots = inputId === 'inputLots'; const decimalPlaces = 2; const onScrubMove = (e) => { if (!isScrubbing) return; if (e.cancelable) e.preventDefault(); const clientX = e.clientX || (e.touches && e.touches[0].clientX); const dx = clientX - startX; const sensitivity = 10; const steps = Math.floor(dx / sensitivity); let newValue = startValue + steps * scrubStep; if (isLots) { if (newValue < 0.01) newValue = 0.01; } else { if (newValue < 0) { newValue = 0; } } const precisionFactor = Math.pow(10, decimalPlaces); newValue = Math.round(newValue * precisionFactor) / precisionFactor; if (newValue === 0 && !isLots) { input.value = ''; } else { input.value = newValue.toFixed(decimalPlaces); } updateUI(); }; const onScrubEnd = () => { if (!isScrubbing) return; isScrubbing = false; document.body.style.cursor = ''; window.removeEventListener('mousemove', onScrubMove); window.removeEventListener('mouseup', onScrubEnd); window.removeEventListener('touchmove', onScrubMove); window.removeEventListener('touchend', onScrubEnd); }; const onScrubStart = (e) => { if (e.type === 'mousedown' && e.button !== 0) return; if (document.activeElement === input && window.getSelection().toString()) { return; } if (e.cancelable) e.preventDefault(); isScrubbing = true; startX = e.clientX || (e.touches && e.touches[0].clientX); let currentValue = parseFloat(input.value); if (isNaN(currentValue) || (!isLots && currentValue <= 0)) { if (!isLots) { const currentPrice = getCurrentPrice(); if (currentPrice > 0) { startValue = currentPrice; } else { startValue = 0; } } else { startValue = 0.10; } } else { startValue = currentValue; } document.body.style.cursor = 'ew-resize'; window.addEventListener('mousemove', onScrubMove); window.addEventListener('mouseup', onScrubEnd); window.addEventListener('touchmove', onScrubMove, { passive: false }); window.addEventListener('touchend', onScrubEnd); }; input.addEventListener('mousedown', onScrubStart); input.addEventListener('touchstart', onScrubStart, { passive: false }); }); }
-
-        // ----------------------------------------------------------------------------
-        // 8. APP INITIALIZATION
-        // ----------------------------------------------------------------------------
         document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
