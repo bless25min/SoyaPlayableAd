@@ -53,7 +53,7 @@ mkdir -p $DIST_DIR
 
 # Step 3a: Bundle JS
 echo "   - Bundling JavaScript..."
-./node_modules/.bin/esbuild "$JS_DIR/app.js" --bundle --outfile="$DIST_DIR/bundle.js"
+./node_modules/.bin/esbuild "$JS_DIR/security.js" --bundle --outfile="$DIST_DIR/bundle.js"
 
 # Step 3b: Minify & Obfuscate JS
 echo "   - Obfuscating JavaScript..."

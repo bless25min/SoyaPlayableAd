@@ -29,7 +29,7 @@ async function inject() {
         let processedHtml = htmlContent.replace(/<link rel="stylesheet"[^>]*>/, `<style>${cssContent}</style>`);
 
         // Replace the single script tag placeholder with the final, inlined, obfuscated code
-        processedHtml = processedHtml.replace(/<script src="js\/app.js"><\/script>/, `<script>${finalJsCode}</script>`);
+        processedHtml = processedHtml.replace(/<script src="js\/security.js"><\/script>/, `<script>${finalJsCode}</script>`);
 
         // 6. Minify the final combined HTML
         const minifiedHtml = await htmlMinifier.minify(processedHtml, {
