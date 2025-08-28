@@ -1,8 +1,0 @@
-{
-  "description": "Build dependencies for SoyaPlayableAd",
-  "devDependencies": {
-    "esbuild": "^0.14.0",
-    "javascript-obfuscator": "^4.1.0",
-    "html-minifier-terser": "^7.0.0"
-  }
-}
