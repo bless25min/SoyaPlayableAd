@@ -1,16 +1,15 @@
 {
-  "name": "trading-sim-serverless",
+  "name": "trading-challenge-cf-pages",
   "version": "1.0.0",
-  "description": "A serverless trading simulator using Cloudflare Pages and Workers.",
-  "private": true,
+  "description": "A trading simulator running on Cloudflare Pages with a client-side authoritative architecture.",
+  "main": "public/index.html",
   "scripts": {
-    "start": "npx wrangler pages dev public",
-    "deploy": "npx wrangler pages deploy public"
+    "start": "wrangler pages dev public",
+    "deploy": "wrangler pages deploy public"
   },
+  "author": "",
+  "license": "UNLICENSED",
   "devDependencies": {
     "wrangler": "^3.0.0"
-  },
-  "dependencies": {
-    "itty-router": "^4.0.23"
   }
 }

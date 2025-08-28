@@ -95,57 +95,30 @@ V4.0 - 藍圖指導下的完全重構
 
 結論: 這次重構不僅解決了 V3.0 的所有技術問題，更產出了一個功能完整、架構清晰、行為可預測的最終穩定版本。它標誌著整個探索與開發過程的圓滿完成，為專案的長期發展奠定了堅實的基礎。
 
-## V5.0 - 架構重構：Cloudflare Pages 全棧 (Full-Stack)
+## 開發與構建流程 (Development and Build Process)
 
-為了實現更高的安全性、可擴展性和更簡易的部署流程，專案已重構為 Cloudflare Pages 的全棧架構。前端和後端 API 被整合在同一個專案中，實現了無縫的開發與部署體驗。
-
-### 架構概述 (Architecture Overview)
-
-*   **前端 (Frontend)**: 位於 `/public` 目錄，由 Cloudflare Pages 提供靜態資源服務。`index.html` 負責所有 UI 渲染和使用者互動。
-*   **後端 (Backend)**: 位於 `/functions` 目錄，由 Cloudflare Pages Functions 提供無伺服器 API 服務。這種模式下，後端 API 與前端專案緊密整合，無需單獨部署或綁定 Worker。
-
-此架構將核心商業邏輯完美地隱藏在後端，前端只負責「顯示」和「請求」，大幅提升了應用的安全性與可維護性。
+本專案已重構，包含一個構建過程，用於混淆和保護原始碼。
 
 ### 目錄結構 (Directory Structure)
 
-*   `/public`: 包含所有前端靜態資源 (`index.html`)。
-*   `/functions`: 包含所有後端 API 邏輯。
-    *   `/functions/api/[[path]].js`: 一個「萬用路由 (catch-all)」檔案，負責處理所有對 `/api/*` 路徑的請求。
-    *   `/functions/XAUUSD_M15.csv`: 遊戲所使用的歷史數據，與後端函式部署在一起。
-*   `package.json`: Node.js 專案設定檔，用於管理開發依賴 (例如 `wrangler`)。
+*   `/src`: 此目錄包含所有原始的、人類可讀的原始碼。所有開發工作都應在此目錄中的文件上進行 (`src/index.html`, `src/css/style.css`, `src/js/*.js`)。
+*   `/dist`: 此目錄包含構建過程最終的、生產就緒的輸出。此目錄的內容是您應該部署到您的網頁伺服器（例如 Cloudflare Pages）的內容。**請勿直接編輯此目錄中的文件**，因為它們會在每次運行構建時被覆蓋。
+*   `/build.sh`: 這是執行構建過程的腳本。
 
-### 本地開發 (Local Development)
+### 構建過程 (Build Process)
 
-您可以在本地電腦上完整地模擬 Cloudflare 環境，同時運行前端和後端。
+構建過程由 `build.sh` 腳本處理。此腳本執行以下操作：
+1.  安裝必要的本地構建工具。
+2.  將所有 JavaScript 文件捆綁成一個單獨的文件。
+3.  對 JavaScript 進行混淆和壓縮，使其難以閱讀。
+4.  將最終的 JavaScript 和所有 CSS 注入到一個單獨的、壓縮後的 `index.html` 文件中。
+5.  將所有必要的資產（如 `.csv` 文件）複製到 `dist` 目錄中。
+6.  創建一個 `_headers` 文件，供 Cloudflare 用於應用重要的安全標頭。
 
-1.  **安裝依賴**:
-    如果尚未安裝，請打開您的終端機 (Terminal)，進入專案根目錄，然後執行 `npm install` 來安裝必要的開發工具。
-    ```bash
-    npm install
-    ```
+要運行構建，請從專案的根目錄執行以下命令：
 
-2.  **啟動本地伺服器**:
-    安裝完成後，執行以下指令來啟動本地開發伺服器：
-    ```bash
-    npm start
-    ```
-    `wrangler` 將會啟動一個伺服器 (通常在 `http://127.0.0.1:8788`)。它會自動提供 `/public` 目錄下的前端頁面，並將所有 `/api/*` 的請求轉發到 `/functions` 目錄下的後端邏輯，完美模擬線上環境。
+```bash
+bash build.sh
+```
 
-### 生產環境部署 (Deployment)
-
-部署流程已大幅簡化。
-
-1.  **透過 Git (推薦)**:
-    *   將您的專案推送到一個 GitHub 或 GitLab 倉庫。
-    *   在 Cloudflare 儀表板上，建立一個新的 Pages 專案並將其連接到您的 Git 倉庫。
-    *   在 **Build settings** (建置設定) 中，進行以下設定：
-        *   **Build command** (建置指令): `npm install`
-        *   **Build output directory** (建置輸出目錄): `/public`
-    *   **完成！** 儲存設定後，Cloudflare 在部署時會先安裝必要的依賴，然後將 `/public` 目錄作為前端，並自動偵測 `/functions` 目錄作為後端 API。
-
-2.  **手動部署 (使用 Wrangler CLI)**:
-    如果您偏好手動部署，可以執行以下指令：
-    ```bash
-    npx wrangler pages deploy public
-    ```
-    此指令會將 `public` 目錄的內容以及 `/functions` 目錄下的 API 函式一同部署。
+構建完成後，`dist` 目錄將包含您應用程式的受保護版本，可供部署。
