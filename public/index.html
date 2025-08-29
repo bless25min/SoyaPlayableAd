@@ -3584,12 +3584,9 @@
         function getPositionNearPoint(y) {
             const proximityThreshold = 10; // pixels
             for (const pos of state.openPositions) {
-                // V12.1 Fix: Only allow dragging for positions that don't have an SL or TP.
-                if (!pos.sl && !pos.tp) {
-                    const yPos = priceToY(pos.entryPrice);
-                    if (Math.abs(y - yPos) < proximityThreshold) {
-                        return pos;
-                    }
+                const yPos = priceToY(pos.entryPrice);
+                if (Math.abs(y - yPos) < proximityThreshold) {
+                    return pos;
                 }
             }
             return null;
