@@ -77,14 +77,15 @@ export async function onRequest(context) {
       try {
         const newEntry = await request.json();
 
-        // Basic validation
-        if (typeof newEntry.name !== 'string' || typeof newEntry.score !== 'number') {
-          return jsonResponse({ error: 'Invalid score format. Requires {name: string, score: number}.' }, 400);
+        // V12.1: Updated validation for new data structure
+        if (typeof newEntry.name !== 'string' || typeof newEntry.score !== 'number' || typeof newEntry.stats !== 'object') {
+          return jsonResponse({ error: 'Invalid score format. Requires {name: string, score: number, stats: object}.' }, 400);
         }
 
         // Sanitize name: trim, limit length, and provide a default.
         const name = newEntry.name.trim().slice(0, 25) || 'Anonymous';
         const score = newEntry.score;
+        const stats = newEntry.stats;
         const timestamp = new Date().toISOString();
 
         // Get current leaderboard, or initialize if it doesn't exist.
@@ -104,19 +105,19 @@ export async function onRequest(context) {
         }
 
         // Add the new entry
-        leaderboard.push({ name, score, timestamp });
+        leaderboard.push({ name, score, timestamp, stats });
 
-        // Sort by score (descending) and then by time (ascending) for tie-breaking.
+        // V12.1: Sort by score (P&L) descending, then by time ascending.
         leaderboard.sort((a, b) => {
           const scoreA = a.score || 0;
           const scoreB = b.score || 0;
           if (scoreB !== scoreA) {
             return scoreB - scoreA;
           }
-          // Use getTime() for reliable numeric comparison, default to 0 if timestamp is missing/invalid.
-          const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-          const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-          return timeA - timeB; // Earlier times (smaller timestamps) come first
+          // Tie-breaker: less time is better.
+          const timeA = a.stats?.time ?? Infinity;
+          const timeB = b.stats?.time ?? Infinity;
+          return timeA - timeB;
         });
 
         // Keep only the top 100 scores to prevent the list from growing indefinitely.
