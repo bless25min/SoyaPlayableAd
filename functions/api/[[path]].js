@@ -83,7 +83,20 @@ export async function onRequest(context) {
         const timestamp = new Date().toISOString();
 
         // Get current leaderboard, or initialize if it doesn't exist.
-        const leaderboard = (await env.DB.get(LEADERBOARD_KEY, 'json')) || [];
+        let leaderboard = [];
+        try {
+            const storedData = await env.DB.get(LEADERBOARD_KEY, 'json');
+            // Ensure the retrieved data is an array before using array methods.
+            if (Array.isArray(storedData)) {
+                leaderboard = storedData;
+            } else if (storedData) {
+                // Log if we get something unexpected that's not an array
+                console.error('Leaderboard data in KV is not an array, resetting to empty.');
+            }
+        } catch (jsonError) {
+            console.error('Failed to parse leaderboard JSON from KV, treating as empty.', jsonError);
+            // If JSON parsing fails, we proceed with an empty leaderboard.
+        }
 
         // Add the new entry
         leaderboard.push({ name, score, timestamp });

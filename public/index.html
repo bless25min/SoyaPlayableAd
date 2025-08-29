@@ -1440,35 +1440,40 @@
         <div class="modal-content">
             <h2 class="modal-title">🎉 挑戰結束！</h2>
 
-            <div class="leaderboard-tabs">
-                <button class="leaderboard-tab-btn active" data-target="result-content">結算畫面</button>
-                <button class="leaderboard-tab-btn" data-target="leaderboard-content">玩家排名榜</button>
-            </div>
-
-            <div id="result-content" class="leaderboard-content active">
-                <div class="modal-body" style="text-align: center;">
-                    <p>您的最終模擬成績：</p>
-                    <h1 id="finalScore" style="font-size: 36px; margin: 10px 0;">$10000.00</h1>
-                    <p id="finalRoR" style="font-size: 20px;"></p>
-                    <p id="finalTime" style="font-size: 16px; color: var(--color-text-secondary);"></p>
-                    <div id="endGameStats"></div>
-                    <div class="achievements-section" id="achievementsSection">
-                        <h3>🏆 已解鎖成就</h3>
-                        <ul class="achievements-list" id="achievementsList"></ul>
-                    </div>
-
-                    <div id="endGameFormContainer">
-                        <div class="end-game-form">
-                            <input type="text" id="playerNameInput" placeholder="輸入您的姓名">
-                            <button class="btn btn-primary" id="saveScoreBtn">儲存成績</button>
-                        </div>
-                         <p id="saveScoreStatus" style="font-size: 14px; margin-top: 10px; height: 16px;"></p>
-                    </div>
-
+            <!-- V12.0: Name input is now the first step -->
+            <div id="nameEntryContainer">
+                 <p class="modal-body">請輸入您的姓名以記錄成績並查看結算畫面。</p>
+                 <div class="end-game-form">
+                    <input type="text" id="playerNameInput" placeholder="輸入您的姓名">
+                    <button class="btn btn-primary" id="showResultsBtn">查看結算</button>
                 </div>
+                <p id="nameError" style="color: var(--color-danger); height: 16px; margin-top: 10px;"></p>
             </div>
 
-            <div id="leaderboard-content" class="leaderboard-content">
+            <!-- V12.0: Main content is hidden until name is entered -->
+            <div id="endGameMainContent" class="hidden">
+                <div class="leaderboard-tabs">
+                    <button class="leaderboard-tab-btn active" data-target="result-content">結算畫面</button>
+                    <button class="leaderboard-tab-btn" data-target="leaderboard-content">玩家排名榜</button>
+                </div>
+
+                <div id="result-content" class="leaderboard-content active">
+                    <div class="modal-body" style="text-align: center;">
+                        <h3 id="playerNameDisplay" style="margin-bottom: 15px; font-size: 22px;"></h3>
+                        <p>您的最終模擬成績：</p>
+                        <h1 id="finalScore" style="font-size: 36px; margin: 10px 0;">$10000.00</h1>
+                        <p id="finalRoR" style="font-size: 20px;"></p>
+                        <p id="finalTime" style="font-size: 16px; color: var(--color-text-secondary);"></p>
+                        <div id="endGameStats"></div>
+                        <div class="achievements-section" id="achievementsSection">
+                            <h3>🏆 已解鎖成就</h3>
+                            <ul class="achievements-list" id="achievementsList"></ul>
+                        </div>
+                        <p id="saveScoreStatus" style="font-size: 14px; margin-top: 20px; height: 16px;"></p>
+                    </div>
+                </div>
+
+                <div id="leaderboard-content" class="leaderboard-content">
                 <div id="leaderboardLoading">
                     <div class="loading-spinner"></div>
                 </div>
@@ -1601,6 +1606,7 @@
                 pinnedCrosshairPos: { x: 0, y: 0 },
                 // V11.0: New state properties for interactions (Feature 1 & 3)
                 draggedLineType: null, // 'SL' or 'TP' (Feature 1)
+                draggedPositionForSLTP: { id: null, startPrice: 0 }, // For new drag-to-set SL/TP feature
                 pinchStartDistance: 0,
                 pinchStartCandleWidth: 0,
                 isPinching: false,
@@ -1635,6 +1641,7 @@
             wasPlayingBeforeEvent: false,
             // V12.0: Add state for leaderboard interaction
             lastSubmittedScore: null,
+            currentPlayerName: '',
         };
 
         const DOM = {};
@@ -1849,13 +1856,17 @@
                 leaderboardTabs: document.querySelector('.leaderboard-tabs'),
                 resultContent: document.getElementById('result-content'),
                 leaderboardContent: document.getElementById('leaderboard-content'),
-                endGameFormContainer: document.getElementById('endGameFormContainer'),
                 playerNameInput: document.getElementById('playerNameInput'),
-                saveScoreBtn: document.getElementById('saveScoreBtn'),
                 saveScoreStatus: document.getElementById('saveScoreStatus'),
                 leaderboardLoading: document.getElementById('leaderboardLoading'),
                 leaderboardContainer: document.getElementById('leaderboardContainer'),
                 leaderboardBody: document.getElementById('leaderboardBody'),
+                // New elements for V12.0 refactor
+                nameEntryContainer: document.getElementById('nameEntryContainer'),
+                endGameMainContent: document.getElementById('endGameMainContent'),
+                showResultsBtn: document.getElementById('showResultsBtn'),
+                playerNameDisplay: document.getElementById('playerNameDisplay'),
+                nameError: document.getElementById('nameError'),
             });
         }
 
@@ -1908,6 +1919,7 @@
             state.chart.isDragging = false;
             state.chart.isPinching = false;
             state.chart.draggedLineType = null;
+            state.chart.draggedPositionForSLTP = { id: null, startPrice: 0 };
             state.lastSubmittedScore = null;
 
             DOM.chartOverlay.innerHTML = '';
@@ -3249,7 +3261,7 @@
 
             // V12.0: Leaderboard event listeners
             DOM.leaderboardTabs.addEventListener('click', handleLeaderboardTabSwitch);
-            DOM.saveScoreBtn.addEventListener('click', saveScore);
+            DOM.showResultsBtn.addEventListener('click', handleShowResults);
         }
 
         function handleEndGameClick() {
@@ -3522,6 +3534,17 @@
         }
 
 
+        function getPositionNearPoint(y) {
+            const proximityThreshold = 10; // pixels
+            for (const pos of state.openPositions) {
+                const yPos = priceToY(pos.entryPrice);
+                if (Math.abs(y - yPos) < proximityThreshold) {
+                    return pos;
+                }
+            }
+            return null;
+        }
+
         function handleDragStart(e) { if (e.button === 0) startDrag(e.clientX, e.clientY); }
         function handleDragging(e) { if (state.chart.isDragging) performDrag(e.clientX, e.clientY); }
 
@@ -3652,25 +3675,34 @@
         }
 
         function startDrag(clientX, clientY) {
-            // V11.0: Check if starting a line drag (Feature 1)
             const rect = DOM.chartWrap.getBoundingClientRect();
             const chartX = clientX - rect.left;
             const chartY = clientY - rect.top;
 
-            const lineType = getLineNearPoint(chartX, chartY);
-            if (lineType) {
+            // Priority 1: Check for dragging a position's entry line to set SL/TP
+            const pos = getPositionNearPoint(chartY);
+            if (pos) {
                 state.chart.isDragging = true;
-                state.chart.draggedLineType = lineType;
-                DOM.chartWrap.style.cursor = 'ns-resize'; // Vertical resize cursor
-            } else {
-                // Default chart panning behavior
-                state.chart.isDragging = true;
-                state.chart.draggedLineType = null;
-                state.chart.dragStartX = clientX;
-                state.chart.dragStartScroll = state.chart.scrollOffset;
-                // Only set 'grabbing' cursor if not pinching (prevents flicker on mobile)
-                if (!state.chart.isPinching) {
-                     DOM.chartWrap.style.cursor = 'grabbing';
+                state.chart.draggedPositionForSLTP = { id: pos.id, startPrice: pos.entryPrice };
+                DOM.chartWrap.style.cursor = 'ns-resize';
+            }
+            // Priority 2: Check for dragging an existing SL/TP setup line
+            else {
+                const lineType = getLineNearPoint(chartX, chartY);
+                if (lineType) {
+                    state.chart.isDragging = true;
+                    state.chart.draggedLineType = lineType;
+                    DOM.chartWrap.style.cursor = 'ns-resize'; // Vertical resize cursor
+                } else {
+                    // Default chart panning behavior
+                    state.chart.isDragging = true;
+                    state.chart.draggedLineType = null;
+                    state.chart.dragStartX = clientX;
+                    state.chart.dragStartScroll = state.chart.scrollOffset;
+                    // Only set 'grabbing' cursor if not pinching (prevents flicker on mobile)
+                    if (!state.chart.isPinching) {
+                         DOM.chartWrap.style.cursor = 'grabbing';
+                    }
                 }
             }
 
@@ -3683,23 +3715,46 @@
         function performDrag(clientX, clientY) {
             state.chart.dragCurrentX = clientX;
             state.chart.dragCurrentY = clientY;
+            const rect = DOM.chartWrap.getBoundingClientRect();
+            const chartY = clientY - rect.top;
+            const newPrice = yToPrice(chartY);
 
-            // V11.0: Handle line dragging (Feature 1)
-            if (state.chart.draggedLineType) {
-                const rect = DOM.chartWrap.getBoundingClientRect();
-                const chartY = clientY - rect.top;
-                // yToPrice handles boundary constraints
-                const newPrice = yToPrice(chartY);
+            // Handle dragging a position's entry line
+            if (state.chart.draggedPositionForSLTP.id !== null) {
+                const pos = state.openPositions.find(p => p.id === state.chart.draggedPositionForSLTP.id);
+                if (!pos) return;
 
+                const startPrice = state.chart.draggedPositionForSLTP.startPrice;
+
+                if (pos.type === 'BUY') {
+                    if (newPrice > startPrice) { // Setting TP
+                        pos.tp = newPrice;
+                        pos.sl = null;
+                    } else { // Setting SL
+                        pos.sl = newPrice;
+                        pos.tp = null;
+                    }
+                } else { // SELL
+                    if (newPrice < startPrice) { // Setting TP
+                        pos.tp = newPrice;
+                        pos.sl = null;
+                    } else { // Setting SL
+                        pos.sl = newPrice;
+                        pos.tp = null;
+                    }
+                }
+                updateUI(); // This will redraw chart and update panels
+            }
+            // Handle dragging a setup line (from input fields)
+            else if (state.chart.draggedLineType) {
                 if (newPrice > 0) {
                     const inputField = state.chart.draggedLineType === 'SL' ? DOM.inputSL : DOM.inputTP;
-                    // Update input field value in real-time
                     inputField.value = newPrice.toFixed(2);
-                    // Update estimates and UI (which redraws the chart)
                     updateUI();
                 }
-            } else {
-                // Default chart panning behavior
+            }
+            // Handle chart panning
+            else {
                 const dx = clientX - state.chart.dragStartX;
                 const candleUnitWidth = state.chart.candleWidth + state.chart.candleSpacing;
                 if (candleUnitWidth <= 0) return;
@@ -3710,10 +3765,14 @@
         }
 
         function endDrag() {
+            // If we were dragging a position line, update the UI to finalize the change in the panel.
+            if (state.chart.draggedPositionForSLTP.id !== null) {
+                updateUI();
+            }
+
             state.chart.isDragging = false;
-            // V11.0: Reset dragged line type (Feature 1)
             state.chart.draggedLineType = null;
-            // V11.0: Restore cursor based on current hover state
+            state.chart.draggedPositionForSLTP = { id: null, startPrice: 0 };
             updateCursorStyle();
             if (!state.isPlaying) requestAnimationFrame(draw);
         }
@@ -3777,63 +3836,62 @@
         }
 
         function showEndGameModal() {
+            // V12.0 Refactor: This function now just sets up the initial state of the modal (name entry).
+            DOM.playerNameInput.value = '';
+            DOM.nameError.textContent = '';
+            DOM.nameEntryContainer.classList.remove('hidden');
+            DOM.endGameMainContent.classList.add('hidden');
+            DOM.endGameModal.classList.add('active');
+        }
+
+        function handleShowResults() {
+            const playerName = DOM.playerNameInput.value.trim();
+            if (!playerName) {
+                DOM.nameError.textContent = '請輸入您的姓名！';
+                return;
+            }
+            DOM.nameError.textContent = '';
+            state.currentPlayerName = playerName;
+
+            // Hide name entry, show main content
+            DOM.nameEntryContainer.classList.add('hidden');
+            DOM.endGameMainContent.classList.remove('hidden');
+
+            // Populate the results
+            populateFinalResults();
+
+            // Save the score automatically
+            saveScore();
+        }
+
+        function populateFinalResults() {
             const finalRoR = (state.equity - CONFIG.INITIAL_BALANCE) / CONFIG.INITIAL_BALANCE;
 
-            // Calculate actual simulation days from data
-            let simulationDays = CONFIG.SIMULATION_DURATION_DAYS;
-            if (state.gameData.length > 1) {
-                simulationDays = (state.gameData[state.gameData.length-1].time - state.gameData[0].time) / 86400000;
-            }
-
-            // Calculate Annualized RoR
-            let annualizedRoR = 0;
-            if (simulationDays > 0) {
-                const annualizationFactor = 365 / simulationDays;
-                if (1 + finalRoR > 0) {
-                    annualizedRoR = Math.pow(1 + finalRoR, annualizationFactor) - 1;
-                } else {
-                    annualizedRoR = -1; // Handle total loss or negative base
-                }
-            }
-
+            DOM.playerNameDisplay.textContent = `玩家: ${escapeHTML(state.currentPlayerName)}`;
             document.getElementById('finalScore').textContent = `$${state.equity.toFixed(2)}`;
-            // 修改：強調模擬性質
-            document.getElementById('finalRoR').innerHTML = `模擬回報率 (Simulated RoR): ${(finalRoR * 100).toFixed(2)}% <br><small style="font-size: 14px; color: var(--color-text-secondary);">(模擬年化報酬率估算: ${(annualizedRoR * 100).toFixed(2)}%)</small>`;
+            document.getElementById('finalRoR').innerHTML = `模擬回報率 (Simulated RoR): ${(finalRoR * 100).toFixed(2)}%`;
             document.getElementById('finalRoR').style.color = finalRoR >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
 
             const minutes = Math.floor(state.elapsedTime / 60);
             const seconds = state.elapsedTime % 60;
             document.getElementById('finalTime').textContent = `總花費時間: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-            // Performance Feedback
-            const feedbackGeneral = getPerformanceFeedback(annualizedRoR, 'GENERAL');
-            const feedbackFund = getPerformanceFeedback(annualizedRoR, 'FUND');
+            const feedbackGeneral = getPerformanceFeedback(finalRoR, 'GENERAL');
+            const feedbackFund = getPerformanceFeedback(finalRoR, 'FUND');
             let feedbackHTML = '';
             if (feedbackGeneral && feedbackFund) {
-                // 修改：標題改為基礎評估與進階評估
                 feedbackHTML = `<div class="performance-feedback" style="text-align: left; margin-top: 20px; padding: 15px; background-color: var(--color-bg); border-radius: var(--radius-main);"><h3 style="text-align: center; margin-bottom: 10px;">📊 模擬表現分析</h3><p style="margin-top: 10px;"><strong>基礎評估：</strong><br>${feedbackGeneral.text}</p><p style="margin-top: 10px;"><strong>進階評估：</strong><br>${feedbackFund.text}</p></div>`;
             }
 
-            // Statistics
             const totalTrades = state.tradeHistory.length;
             const winRate = totalTrades > 0 ? (state.tradeHistory.filter(t => t.profit > 0).length / totalTrades) * 100 : 0;
             const totalProfit = state.tradeHistory.reduce((sum, t) => sum + t.profit, 0);
-            // 修改：標籤強調模擬性質
-            document.getElementById('endGameStats').innerHTML = `${feedbackHTML}<div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--color-border); text-align: left;"><p><strong>交易統計：</strong></p><ul style="list-style-position: inside; padding-left: 10px;"><li>總交易次數: ${totalTrades}</li><li>勝率: ${winRate.toFixed(2)}%</li><li>模擬總損益: $${totalProfit.toFixed(2)}</li><li>模擬期間: 約 ${Math.round(simulationDays)} 天</li></ul></div>`;
+            document.getElementById('endGameStats').innerHTML = `${feedbackHTML}<div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--color-border); text-align: left;"><p><strong>交易統計：</strong></p><ul style="list-style-position: inside; padding-left: 10px;"><li>總交易次數: ${totalTrades}</li><li>勝率: ${winRate.toFixed(2)}%</li><li>模擬總損益: $${totalProfit.toFixed(2)}</li></ul></div>`;
 
             displayAchievements();
 
-            // V12.0: Reset Leaderboard UI
-            DOM.endGameFormContainer.classList.remove('hidden');
-            DOM.saveScoreBtn.disabled = false;
-            DOM.playerNameInput.disabled = false;
-            DOM.playerNameInput.value = '';
-            DOM.saveScoreStatus.textContent = '';
             // Reset to the results tab by default
             DOM.leaderboardTabs.querySelector('[data-target="result-content"]').click();
-
-
-            DOM.endGameModal.classList.add('active');
         }
 
         // V11.0: Updated Tutorial Steps (including new features)
@@ -4246,15 +4304,11 @@
         }
 
         async function saveScore() {
-            const playerName = DOM.playerNameInput.value.trim();
-            if (!playerName) {
-                alert('請輸入您的姓名！');
-                return;
-            }
+            const playerName = state.currentPlayerName;
+            if (!playerName) return; // Should not happen due to the new flow
 
-            DOM.saveScoreBtn.disabled = true;
-            DOM.playerNameInput.disabled = true;
             DOM.saveScoreStatus.textContent = '儲存中...';
+            DOM.saveScoreStatus.style.color = 'var(--color-text-secondary)';
 
             try {
                 const response = await fetch('/api/leaderboard', {
@@ -4264,7 +4318,8 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('無法儲存成績。');
+                    const errorData = await response.json().catch(() => ({ error: '無法儲存成績。' }));
+                    throw new Error(errorData.error || '無法儲存成績。');
                 }
 
                 const result = await response.json();
@@ -4277,15 +4332,13 @@
                 DOM.saveScoreStatus.textContent = '✅ 儲存成功！';
                 DOM.saveScoreStatus.style.color = 'var(--color-success)';
 
-                // Automatically switch to the leaderboard tab
+                // Automatically switch to the leaderboard tab and refresh it
                 DOM.leaderboardTabs.querySelector('[data-target="leaderboard-content"]').click();
 
             } catch (error) {
                 console.error('Save score error:', error);
-                DOM.saveScoreStatus.textContent = `❌ 儲存失敗。`;
+                DOM.saveScoreStatus.textContent = `❌ 儲存失敗: ${error.message}`;
                 DOM.saveScoreStatus.style.color = 'var(--color-danger)';
-                DOM.saveScoreBtn.disabled = false;
-                DOM.playerNameInput.disabled = false;
             }
         }
 
