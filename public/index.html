@@ -1612,6 +1612,7 @@
                 pinchStartCandleWidth: 0,
                 isPinching: false,
                 previewLine: { price: null, type: null, color: '' }, // V12.3 For drag-to-set preview
+                draggedExistingLine: { positionId: null, lineType: null }, // V12.4 For modifying SL/TP
             },
             mouse: { x: -1, y: -1, isOverChart: false },
             isMobile: false,
@@ -1924,6 +1925,7 @@
             state.chart.draggedLineType = null;
             state.chart.draggedPositionForSLTP = { id: null, startPrice: 0 };
             state.chart.previewLine = { price: null, type: null, color: '' };
+            state.chart.draggedExistingLine = { positionId: null, lineType: null };
             state.lastSubmittedScore = null;
 
             DOM.chartOverlay.innerHTML = '';
@@ -3593,6 +3595,25 @@
             return null;
         }
 
+        function getExistingSLTPLineNearPoint(y) {
+            const proximityThreshold = 10; // pixels
+            for (const pos of state.openPositions) {
+                if (pos.sl) {
+                    const yPos = priceToY(pos.sl);
+                    if (Math.abs(y - yPos) < proximityThreshold) {
+                        return { positionId: pos.id, lineType: 'SL' };
+                    }
+                }
+                if (pos.tp) {
+                    const yPos = priceToY(pos.tp);
+                    if (Math.abs(y - yPos) < proximityThreshold) {
+                        return { positionId: pos.id, lineType: 'TP' };
+                    }
+                }
+            }
+            return null;
+        }
+
         function handleDragStart(e) { if (e.button === 0) startDrag(e.clientX, e.clientY); }
         function handleDragging(e) { if (state.chart.isDragging) performDrag(e.clientX, e.clientY); }
 
@@ -3727,36 +3748,36 @@
             const chartX = clientX - rect.left;
             const chartY = clientY - rect.top;
 
-            // Priority 1: Check for dragging a position's entry line to set SL/TP
-            const pos = getPositionNearPoint(chartY);
-            if (pos) {
+            // V12.4: Updated drag start logic with priorities
+            const existingLine = getExistingSLTPLineNearPoint(chartY);
+            const entryLinePos = getPositionNearPoint(chartY);
+            const setupLine = getLineNearPoint(chartX, chartY);
+
+            if (existingLine) { // Priority 1: Modify existing SL/TP
                 state.chart.isDragging = true;
-                state.chart.draggedPositionForSLTP = { id: pos.id, startPrice: pos.entryPrice };
+                state.chart.draggedExistingLine = existingLine;
                 DOM.chartWrap.style.cursor = 'ns-resize';
-            }
-            // Priority 2: Check for dragging an existing SL/TP setup line
-            else {
-                const lineType = getLineNearPoint(chartX, chartY);
-                if (lineType) {
-                    state.chart.isDragging = true;
-                    state.chart.draggedLineType = lineType;
-                    DOM.chartWrap.style.cursor = 'ns-resize'; // Vertical resize cursor
-                } else {
-                    // Default chart panning behavior
-                    state.chart.isDragging = true;
-                    state.chart.draggedLineType = null;
-                    state.chart.dragStartX = clientX;
-                    state.chart.dragStartScroll = state.chart.scrollOffset;
-                    // Only set 'grabbing' cursor if not pinching (prevents flicker on mobile)
-                    if (!state.chart.isPinching) {
-                         DOM.chartWrap.style.cursor = 'grabbing';
-                    }
+            } else if (entryLinePos) { // Priority 2: Create new SL/TP from entry line
+                state.chart.isDragging = true;
+                state.chart.draggedPositionForSLTP = { id: entryLinePos.id, startPrice: entryLinePos.entryPrice };
+                DOM.chartWrap.style.cursor = 'ns-resize';
+            } else if (setupLine) { // Priority 3: Drag setup line from input
+                state.chart.isDragging = true;
+                state.chart.draggedLineType = setupLine;
+                DOM.chartWrap.style.cursor = 'ns-resize';
+            } else { // Priority 4: Pan the chart
+                state.chart.isDragging = true;
+                state.chart.dragStartX = clientX;
+                state.chart.dragStartScroll = state.chart.scrollOffset;
+                if (!state.chart.isPinching) {
+                     DOM.chartWrap.style.cursor = 'grabbing';
                 }
             }
 
             // Common setup
             state.chart.dragCurrentX = clientX;
             state.chart.dragCurrentY = clientY;
+            state.chart.dragStartY = clientY; // Store initial Y for drag threshold check
             state.chart.dragStartTimeStamp = Date.now();
         }
 
@@ -3767,35 +3788,32 @@
             const chartY = clientY - rect.top;
             const newPrice = yToPrice(chartY);
 
-            // Handle dragging a position's entry line to preview SL/TP
-            if (state.chart.draggedPositionForSLTP.id !== null) {
+            // Handle modifying an existing SL/TP line
+            if (state.chart.draggedExistingLine.positionId !== null) {
+                const { positionId, lineType } = state.chart.draggedExistingLine;
+                const pos = state.openPositions.find(p => p.id === positionId);
+                if (pos) {
+                    if (lineType === 'SL') pos.sl = newPrice;
+                    else pos.tp = newPrice;
+                    updateUI();
+                }
+            }
+            // Handle creating a new SL/TP line from entry
+            else if (state.chart.draggedPositionForSLTP.id !== null) {
                 const pos = state.openPositions.find(p => p.id === state.chart.draggedPositionForSLTP.id);
                 if (!pos) return;
-
                 const startPrice = state.chart.draggedPositionForSLTP.startPrice;
                 let lineType, color;
-
                 if (pos.type === 'BUY') {
-                    if (newPrice > startPrice) {
-                        lineType = 'TP';
-                        color = 'var(--color-success)';
-                    } else {
-                        lineType = 'SL';
-                        color = 'var(--color-danger)';
-                    }
+                    lineType = newPrice > startPrice ? 'TP' : 'SL';
                 } else { // SELL
-                    if (newPrice < startPrice) {
-                        lineType = 'TP';
-                        color = 'var(--color-success)';
-                    } else {
-                        lineType = 'SL';
-                        color = 'var(--color-danger)';
-                    }
+                    lineType = newPrice < startPrice ? 'TP' : 'SL';
                 }
+                color = lineType === 'TP' ? 'var(--color-success)' : 'var(--color-danger)';
                 state.chart.previewLine = { price: newPrice, type: lineType, color: color };
                 requestAnimationFrame(draw);
             }
-            // Handle dragging a setup line (from input fields)
+            // Handle dragging a setup line from input fields
             else if (state.chart.draggedLineType) {
                 if (newPrice > 0) {
                     const inputField = state.chart.draggedLineType === 'SL' ? DOM.inputSL : DOM.inputTP;
@@ -3825,10 +3843,8 @@
                 if (pos && price !== null) {
                     if (type === 'SL') {
                         pos.sl = price;
-                        pos.tp = null;
                     } else {
                         pos.tp = price;
-                        pos.sl = null;
                     }
                 }
             }
@@ -3836,6 +3852,7 @@
             state.chart.isDragging = false;
             state.chart.draggedLineType = null;
             state.chart.draggedPositionForSLTP = { id: null, startPrice: 0 };
+            state.chart.draggedExistingLine = { positionId: null, lineType: null };
             state.chart.previewLine = { price: null, type: null, color: '' };
             updateCursorStyle();
             updateUI(); // Full UI update to reflect changes
