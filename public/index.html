@@ -1891,10 +1891,10 @@
             updateUI();
             requestAnimationFrame(draw);
 
-            // V12.1: Tutorial only runs on the very first game start
-            if (state.isFirstRun && !state.tutorialCompletedOnce) {
+            // V12.2: Tutorial only runs on the very first game start.
+            if (state.isFirstRun) {
                 startTutorial();
-                state.isFirstRun = false;
+                state.isFirstRun = false; // This flag is never reset, ensuring it only runs once per session.
             }
         }
 
@@ -1988,39 +1988,55 @@
                 cancelAnimationFrame(animationFrameId);
                 return;
             }
+
             const effectiveInterval = CONFIG.TICK_INTERVAL / state.speedMultiplier;
             if (lastTickTime === 0) lastTickTime = timestamp;
             const deltaTime = timestamp - lastTickTime;
 
-             // Ensure deltaTime is positive before proceeding
-             if (deltaTime > 0) {
-                 const progressIncrement = deltaTime / effectiveInterval;
-                 state.barAnimationProgress = Math.min(1, state.barAnimationProgress + progressIncrement);
+            if (deltaTime > 0) {
+                const progressIncrement = deltaTime / effectiveInterval;
+                state.barAnimationProgress = Math.min(1, state.barAnimationProgress + progressIncrement);
 
-                 // Update systems based on the current (animating) bar
-                 updateDailyStats();
-                 updatePositions();
-                 check7DayBreakout();
-                 updateAccount();
-                 updateUI();
-                 checkDurationAchievements();
-                 checkDrawdownAchievement();
+                // If tutorial is active, only run visual animation, no game logic.
+                if (state.tutorialActive) {
+                    if (state.barAnimationProgress >= 1) {
+                        if (state.currentIndex < state.gameData.length - 1) {
+                            state.currentIndex++;
+                            // V12.2: Also update HUD date/progress during tutorial
+                            updateHUD();
+                        } else {
+                            // If chart reaches the end during tutorial, just pause it.
+                            togglePlayPause();
+                        }
+                        state.barAnimationProgress = 0;
+                    }
+                } else {
+                    // Full game logic when tutorial is not active.
+                    updateDailyStats();
+                    updatePositions();
+                    check7DayBreakout();
+                    updateAccount();
+                    updateUI();
+                    checkDurationAchievements();
+                    checkDrawdownAchievement();
 
-                 if (state.barAnimationProgress >= 1) {
-                    finalizeCurrentBar();
-                    if (!advanceSimulation()) {
-                        endGame();
-                        return;
+                    if (state.barAnimationProgress >= 1) {
+                        finalizeCurrentBar();
+                        if (!advanceSimulation()) {
+                            endGame();
+                            return; // Stop the loop since game has ended
+                        }
+                        state.barAnimationProgress = 0;
+                        checkForEvents();
+                        // Auto-scroll if the chart was already at the latest data
+                        if (state.chart.scrollOffset > 0) {
+                            state.chart.scrollOffset++;
+                        }
                     }
-                    state.barAnimationProgress = 0;
-                    checkForEvents();
-                    // Auto-scroll if the chart was already at the latest data
-                    if (state.chart.scrollOffset > 0) {
-                        state.chart.scrollOffset++;
-                    }
-                 }
-                 lastTickTime = timestamp;
+                }
+                lastTickTime = timestamp;
             }
+
             draw();
             animationFrameId = requestAnimationFrame(gameLoop);
         }
@@ -3940,9 +3956,12 @@
         let currentTutorialStep = 0;
 
         function startTutorial() {
-            // V12.1: Don't pause the game; let it run in the background.
             state.tutorialActive = true;
             currentTutorialStep = 0;
+            // V12.2: Start the game loop for animation, but the loop itself will be restricted.
+            if (!state.isPlaying && !state.isEnded) {
+                togglePlayPause();
+            }
             showTutorialStep();
         }
 
