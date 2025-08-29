@@ -1440,25 +1440,16 @@
         <div class="modal-content">
             <h2 class="modal-title">🎉 挑戰結束！</h2>
 
-            <!-- V12.0: Name input is now the first step -->
-            <div id="nameEntryContainer">
-                 <p class="modal-body">請輸入您的姓名以記錄成績並查看結算畫面。</p>
-                 <div class="end-game-form">
-                    <input type="text" id="playerNameInput" placeholder="輸入您的姓名">
-                    <button class="btn btn-primary" id="showResultsBtn">查看結算</button>
-                </div>
-                <p id="nameError" style="color: var(--color-danger); height: 16px; margin-top: 10px;"></p>
+            <div class="leaderboard-tabs">
+                <button class="leaderboard-tab-btn active" data-target="result-content">結算畫面</button>
+                <button class="leaderboard-tab-btn" data-target="leaderboard-content">玩家排名榜</button>
             </div>
 
-            <!-- V12.0: Main content is hidden until name is entered -->
-            <div id="endGameMainContent" class="hidden">
-                <div class="leaderboard-tabs">
-                    <button class="leaderboard-tab-btn active" data-target="result-content">結算畫面</button>
-                    <button class="leaderboard-tab-btn" data-target="leaderboard-content">玩家排名榜</button>
-                </div>
+            <div id="result-content" class="leaderboard-content active">
+                <div class="modal-body" style="text-align: center;">
 
-                <div id="result-content" class="leaderboard-content active">
-                    <div class="modal-body" style="text-align: center;">
+                    <!-- V12.2: Results are now in a container that can be hidden -->
+                    <div id="finalResultsContainer" class="hidden">
                         <h3 id="playerNameDisplay" style="margin-bottom: 15px; font-size: 22px;"></h3>
                         <p id="finalRoR" style="font-size: 20px;"></p>
                         <p id="finalTime" style="font-size: 16px; color: var(--color-text-secondary); margin-top: 10px;"></p>
@@ -1467,11 +1458,20 @@
                             <h3>🏆 已解鎖成就</h3>
                             <ul class="achievements-list" id="achievementsList"></ul>
                         </div>
-                        <p id="saveScoreStatus" style="font-size: 14px; margin-top: 20px; height: 16px;"></p>
                     </div>
-                </div>
 
-                <div id="leaderboard-content" class="leaderboard-content">
+                    <div id="endGameFormContainer">
+                        <div class="end-game-form">
+                            <input type="text" id="playerNameInput" placeholder="輸入您的姓名">
+                            <button class="btn btn-primary" id="saveScoreBtn">儲存並顯示成績</button>
+                        </div>
+                         <p id="saveScoreStatus" style="font-size: 14px; margin-top: 10px; height: 16px;"></p>
+                    </div>
+
+                </div>
+            </div>
+
+            <div id="leaderboard-content" class="leaderboard-content">
                 <div id="leaderboardLoading">
                     <div class="loading-spinner"></div>
                 </div>
@@ -1643,6 +1643,7 @@
             // V12.0: Add state for leaderboard interaction
             lastSubmittedScore: null,
             currentPlayerName: '',
+            tutorialAnimationId: null, // V12.2: For tutorial animation
         };
 
         const DOM = {};
@@ -1862,12 +1863,11 @@
                 leaderboardLoading: document.getElementById('leaderboardLoading'),
                 leaderboardContainer: document.getElementById('leaderboardContainer'),
                 leaderboardBody: document.getElementById('leaderboardBody'),
-                // New elements for V12.0 refactor
-                nameEntryContainer: document.getElementById('nameEntryContainer'),
-                endGameMainContent: document.getElementById('endGameMainContent'),
-                showResultsBtn: document.getElementById('showResultsBtn'),
+                // V12.2 refactor
+                finalResultsContainer: document.getElementById('finalResultsContainer'),
+                endGameFormContainer: document.getElementById('endGameFormContainer'),
+                saveScoreBtn: document.getElementById('saveScoreBtn'),
                 playerNameDisplay: document.getElementById('playerNameDisplay'),
-                nameError: document.getElementById('nameError'),
             });
         }
 
@@ -1988,55 +1988,39 @@
                 cancelAnimationFrame(animationFrameId);
                 return;
             }
-
             const effectiveInterval = CONFIG.TICK_INTERVAL / state.speedMultiplier;
             if (lastTickTime === 0) lastTickTime = timestamp;
             const deltaTime = timestamp - lastTickTime;
 
-            if (deltaTime > 0) {
-                const progressIncrement = deltaTime / effectiveInterval;
-                state.barAnimationProgress = Math.min(1, state.barAnimationProgress + progressIncrement);
+             // Ensure deltaTime is positive before proceeding
+             if (deltaTime > 0) {
+                 const progressIncrement = deltaTime / effectiveInterval;
+                 state.barAnimationProgress = Math.min(1, state.barAnimationProgress + progressIncrement);
 
-                // If tutorial is active, only run visual animation, no game logic.
-                if (state.tutorialActive) {
-                    if (state.barAnimationProgress >= 1) {
-                        if (state.currentIndex < state.gameData.length - 1) {
-                            state.currentIndex++;
-                            // V12.2: Also update HUD date/progress during tutorial
-                            updateHUD();
-                        } else {
-                            // If chart reaches the end during tutorial, just pause it.
-                            togglePlayPause();
-                        }
-                        state.barAnimationProgress = 0;
-                    }
-                } else {
-                    // Full game logic when tutorial is not active.
-                    updateDailyStats();
-                    updatePositions();
-                    check7DayBreakout();
-                    updateAccount();
-                    updateUI();
-                    checkDurationAchievements();
-                    checkDrawdownAchievement();
+                 // Update systems based on the current (animating) bar
+                 updateDailyStats();
+                 updatePositions();
+                 check7DayBreakout();
+                 updateAccount();
+                 updateUI();
+                 checkDurationAchievements();
+                 checkDrawdownAchievement();
 
-                    if (state.barAnimationProgress >= 1) {
-                        finalizeCurrentBar();
-                        if (!advanceSimulation()) {
-                            endGame();
-                            return; // Stop the loop since game has ended
-                        }
-                        state.barAnimationProgress = 0;
-                        checkForEvents();
-                        // Auto-scroll if the chart was already at the latest data
-                        if (state.chart.scrollOffset > 0) {
-                            state.chart.scrollOffset++;
-                        }
+                 if (state.barAnimationProgress >= 1) {
+                    finalizeCurrentBar();
+                    if (!advanceSimulation()) {
+                        endGame();
+                        return;
                     }
-                }
-                lastTickTime = timestamp;
+                    state.barAnimationProgress = 0;
+                    checkForEvents();
+                    // Auto-scroll if the chart was already at the latest data
+                    if (state.chart.scrollOffset > 0) {
+                        state.chart.scrollOffset++;
+                    }
+                 }
+                 lastTickTime = timestamp;
             }
-
             draw();
             animationFrameId = requestAnimationFrame(gameLoop);
         }
@@ -3285,7 +3269,7 @@
 
             // V12.0: Leaderboard event listeners
             DOM.leaderboardTabs.addEventListener('click', handleLeaderboardTabSwitch);
-            DOM.showResultsBtn.addEventListener('click', handleShowResults);
+            DOM.saveScoreBtn.addEventListener('click', saveScore);
         }
 
         function handleEndGameClick() {
@@ -3863,36 +3847,24 @@
         }
 
         function showEndGameModal() {
-            // V12.0 Refactor: This function now just sets up the initial state of the modal (name entry).
+            // V12.2: Simplified flow. Modal opens, results are populated but hidden.
+            populateFinalResults(); // Populate data first
+            DOM.finalResultsContainer.classList.add('hidden'); // Ensure results are hidden initially
+            DOM.endGameFormContainer.classList.remove('hidden'); // Ensure form is visible
+            DOM.saveScoreBtn.disabled = false;
+            DOM.playerNameInput.disabled = false;
             DOM.playerNameInput.value = '';
-            DOM.nameError.textContent = '';
-            DOM.nameEntryContainer.classList.remove('hidden');
-            DOM.endGameMainContent.classList.add('hidden');
+            DOM.saveScoreStatus.textContent = '';
             DOM.endGameModal.classList.add('active');
-        }
-
-        function handleShowResults() {
-            const playerName = DOM.playerNameInput.value.trim();
-            if (!playerName) {
-                DOM.nameError.textContent = '請輸入您的姓名！';
-                return;
-            }
-            DOM.nameError.textContent = '';
-            state.currentPlayerName = playerName;
-
-            // Hide name entry, show main content
-            DOM.nameEntryContainer.classList.add('hidden');
-            DOM.endGameMainContent.classList.remove('hidden');
-
-            // Populate the results
-            populateFinalResults();
-
-            // Save the score automatically
-            saveScore();
+            // Reset to the results tab by default
+            DOM.leaderboardTabs.querySelector('[data-target="result-content"]').click();
         }
 
         function populateFinalResults() {
             const finalRoR = (state.equity - CONFIG.INITIAL_BALANCE) / CONFIG.INITIAL_BALANCE;
+            const totalTrades = state.tradeHistory.length;
+            const winRate = totalTrades > 0 ? (state.tradeHistory.filter(t => t.profit > 0).length / totalTrades) * 100 : 0;
+            const totalProfit = state.tradeHistory.reduce((sum, t) => sum + t.profit, 0);
 
             DOM.playerNameDisplay.textContent = `玩家: ${escapeHTML(state.currentPlayerName)}`;
             document.getElementById('finalRoR').innerHTML = `您的最終淨值: $${state.equity.toFixed(2)} (模擬回報率: ${(finalRoR * 100).toFixed(2)}%)`;
@@ -3909,15 +3881,9 @@
                 feedbackHTML = `<div class="performance-feedback" style="text-align: left; margin-top: 20px; padding: 15px; background-color: var(--color-bg); border-radius: var(--radius-main);"><h3 style="text-align: center; margin-bottom: 10px;">📊 模擬表現分析</h3><p style="margin-top: 10px;"><strong>基礎評估：</strong><br>${feedbackGeneral.text}</p><p style="margin-top: 10px;"><strong>進階評估：</strong><br>${feedbackFund.text}</p></div>`;
             }
 
-            const totalTrades = state.tradeHistory.length;
-            const winRate = totalTrades > 0 ? (state.tradeHistory.filter(t => t.profit > 0).length / totalTrades) * 100 : 0;
-            const totalProfit = state.tradeHistory.reduce((sum, t) => sum + t.profit, 0);
             document.getElementById('endGameStats').innerHTML = `${feedbackHTML}<div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--color-border); text-align: left;"><p><strong>交易統計：</strong></p><ul style="list-style-position: inside; padding-left: 10px;"><li>總交易次數: ${totalTrades}</li><li>勝率: ${winRate.toFixed(2)}%</li><li>模擬總損益: $${totalProfit.toFixed(2)}</li></ul></div>`;
 
             displayAchievements();
-
-            // Reset to the results tab by default
-            DOM.leaderboardTabs.querySelector('[data-target="result-content"]').click();
         }
 
         // V11.0: Updated Tutorial Steps (including new features)
@@ -3956,12 +3922,29 @@
         let currentTutorialStep = 0;
 
         function startTutorial() {
+            if (state.isPlaying) togglePlayPause(); // Pause main game loop if running
             state.tutorialActive = true;
             currentTutorialStep = 0;
-            // V12.2: Start the game loop for animation, but the loop itself will be restricted.
-            if (!state.isPlaying && !state.isEnded) {
-                togglePlayPause();
-            }
+
+            // V12.2: Start a separate, simple animation loop just for the tutorial.
+            if (state.tutorialAnimationId) clearInterval(state.tutorialAnimationId);
+            state.tutorialAnimationId = setInterval(() => {
+                if (!state.tutorialActive) {
+                    clearInterval(state.tutorialAnimationId);
+                    return;
+                }
+                if (state.currentIndex < state.gameData.length - 1) {
+                    state.currentIndex++;
+                    state.barAnimationProgress = 1;
+                    updateHUD();
+                    draw();
+                } else {
+                    // Stop animation if it reaches the end of data
+                    clearInterval(state.tutorialAnimationId);
+                    state.tutorialAnimationId = null;
+                }
+            }, 500); // Animate one candle every 500ms
+
             showTutorialStep();
         }
 
@@ -4066,6 +4049,13 @@
         function endTutorial() {
             state.tutorialActive = false;
             state.tutorialCompletedOnce = true;
+
+            // V12.2: Stop the tutorial animation loop
+            if (state.tutorialAnimationId) {
+                clearInterval(state.tutorialAnimationId);
+                state.tutorialAnimationId = null;
+            }
+
             DOM.tutorialHighlight.classList.add('hidden');
             DOM.tutorialMessage.classList.add('hidden');
 
@@ -4079,7 +4069,10 @@
                 toggleCollapsibleControls();
             }
 
-            if (!state.isPlaying && !state.isEnded) togglePlayPause();
+            // V12.2: Resume the main game loop
+            if (!state.isPlaying && !state.isEnded) {
+                togglePlayPause();
+            }
         }
 
         // Optimized V7.3 (Kept in V9.0): Robust tutorial positioning
@@ -4333,25 +4326,28 @@
         }
 
         async function saveScore() {
-            const playerName = state.currentPlayerName;
-            if (!playerName) return;
+            const playerName = DOM.playerNameInput.value.trim();
+            if (!playerName) {
+                alert('請輸入您的姓名！');
+                return;
+            }
 
+            // V12.2: Reveal results and disable form before saving.
+            DOM.playerNameDisplay.textContent = `玩家: ${escapeHTML(playerName)}`;
+            DOM.finalResultsContainer.classList.remove('hidden');
+            DOM.saveScoreBtn.disabled = true;
+            DOM.playerNameInput.disabled = true;
             DOM.saveScoreStatus.textContent = '儲存中...';
             DOM.saveScoreStatus.style.color = 'var(--color-text-secondary)';
 
-            // V12.1: Calculate stats for submission
             const totalTrades = state.tradeHistory.length;
             const winRate = totalTrades > 0 ? (state.tradeHistory.filter(t => t.profit > 0).length / totalTrades) * 100 : 0;
             const totalProfit = state.tradeHistory.reduce((sum, t) => sum + t.profit, 0);
 
             const submissionData = {
                 name: playerName,
-                score: totalProfit, // Score is now Total P&L
-                stats: {
-                    trades: totalTrades,
-                    winRate: winRate,
-                    time: state.elapsedTime,
-                }
+                score: totalProfit,
+                stats: { trades: totalTrades, winRate: winRate, time: state.elapsedTime }
             };
 
             try {
@@ -4366,23 +4362,16 @@
                     throw new Error(errorData.error || '無法儲存成績。');
                 }
 
-                const result = await response.json();
-                state.lastSubmittedScore = {
-                    name: playerName,
-                    score: totalProfit,
-                    timestamp: new Date().toISOString() // Approximate timestamp
-                };
-
+                state.lastSubmittedScore = { name: playerName, score: totalProfit, timestamp: new Date().toISOString() };
                 DOM.saveScoreStatus.textContent = '✅ 儲存成功！';
                 DOM.saveScoreStatus.style.color = 'var(--color-success)';
-
-                // Automatically switch to the leaderboard tab and refresh it
                 DOM.leaderboardTabs.querySelector('[data-target="leaderboard-content"]').click();
-
             } catch (error) {
                 console.error('Save score error:', error);
                 DOM.saveScoreStatus.textContent = `❌ 儲存失敗: ${error.message}`;
                 DOM.saveScoreStatus.style.color = 'var(--color-danger)';
+                DOM.saveScoreBtn.disabled = false; // Re-enable on failure
+                DOM.playerNameInput.disabled = false;
             }
         }
 
