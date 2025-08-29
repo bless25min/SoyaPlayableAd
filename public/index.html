@@ -1611,6 +1611,7 @@
                 pinchStartDistance: 0,
                 pinchStartCandleWidth: 0,
                 isPinching: false,
+                previewLine: { price: null, type: null, color: '' }, // V12.3 For drag-to-set preview
             },
             mouse: { x: -1, y: -1, isOverChart: false },
             isMobile: false,
@@ -1643,7 +1644,6 @@
             // V12.0: Add state for leaderboard interaction
             lastSubmittedScore: null,
             currentPlayerName: '',
-            tutorialAnimationId: null, // V12.2: For tutorial animation
         };
 
         const DOM = {};
@@ -1923,6 +1923,7 @@
             state.chart.isPinching = false;
             state.chart.draggedLineType = null;
             state.chart.draggedPositionForSLTP = { id: null, startPrice: 0 };
+            state.chart.previewLine = { price: null, type: null, color: '' };
             state.lastSubmittedScore = null;
 
             DOM.chartOverlay.innerHTML = '';
@@ -1992,34 +1993,45 @@
             if (lastTickTime === 0) lastTickTime = timestamp;
             const deltaTime = timestamp - lastTickTime;
 
-             // Ensure deltaTime is positive before proceeding
              if (deltaTime > 0) {
-                 const progressIncrement = deltaTime / effectiveInterval;
-                 state.barAnimationProgress = Math.min(1, state.barAnimationProgress + progressIncrement);
+                const progressIncrement = deltaTime / effectiveInterval;
+                state.barAnimationProgress = Math.min(1, state.barAnimationProgress + progressIncrement);
 
-                 // Update systems based on the current (animating) bar
-                 updateDailyStats();
-                 updatePositions();
-                 check7DayBreakout();
-                 updateAccount();
-                 updateUI();
-                 checkDurationAchievements();
-                 checkDrawdownAchievement();
+                if (state.tutorialActive) {
+                    // V12.3: Lite loop for smooth tutorial animation
+                    updateHUD(); // Keep date and progress bar moving
+                    if (state.barAnimationProgress >= 1) {
+                        state.barAnimationProgress = 0;
+                        if (state.currentIndex < state.gameData.length - 1) {
+                            state.currentIndex++;
+                        } else {
+                            togglePlayPause(); // End of data, pause animation
+                        }
+                    }
+                } else {
+                    // Full game logic
+                    updateDailyStats();
+                    updatePositions();
+                    check7DayBreakout();
+                    updateAccount();
+                    updateUI();
+                    checkDurationAchievements();
+                    checkDrawdownAchievement();
 
-                 if (state.barAnimationProgress >= 1) {
-                    finalizeCurrentBar();
-                    if (!advanceSimulation()) {
-                        endGame();
-                        return;
+                    if (state.barAnimationProgress >= 1) {
+                        finalizeCurrentBar();
+                        if (!advanceSimulation()) {
+                            endGame();
+                            return;
+                        }
+                        state.barAnimationProgress = 0;
+                        checkForEvents();
+                        if (state.chart.scrollOffset > 0) {
+                            state.chart.scrollOffset++;
+                        }
                     }
-                    state.barAnimationProgress = 0;
-                    checkForEvents();
-                    // Auto-scroll if the chart was already at the latest data
-                    if (state.chart.scrollOffset > 0) {
-                        state.chart.scrollOffset++;
-                    }
-                 }
-                 lastTickTime = timestamp;
+                }
+                lastTickTime = timestamp;
             }
             draw();
             animationFrameId = requestAnimationFrame(gameLoop);
@@ -2145,9 +2157,34 @@
             drawYAxis(ctx);
             drawXAxis(ctx);
             drawCrosshair(ctx);
+            drawPreviewLine(ctx);
             drawTradeAnimations(ctx);
             drawChartAlertAnimations(ctx);
             updatePositionOverlays();
+        }
+
+        function drawPreviewLine(ctx) {
+            const { price, type, color } = state.chart.previewLine;
+            if (price === null) return;
+
+            const y = priceToY(price);
+            const { left, right, top, bottom } = CONFIG.CHART_PADDING;
+            const { width, height } = state.chart;
+
+            if (y < top || y > height - bottom) return;
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([8, 4]);
+            ctx.globalAlpha = 0.75;
+
+            ctx.beginPath();
+            ctx.moveTo(left, y);
+            ctx.lineTo(width - right, y);
+            ctx.stroke();
+
+            ctx.globalAlpha = 1.0;
+            ctx.setLineDash([]);
         }
 
         // V11.0: New function to draw interactive SL/TP lines (Feature 1)
@@ -3730,31 +3767,33 @@
             const chartY = clientY - rect.top;
             const newPrice = yToPrice(chartY);
 
-            // Handle dragging a position's entry line
+            // Handle dragging a position's entry line to preview SL/TP
             if (state.chart.draggedPositionForSLTP.id !== null) {
                 const pos = state.openPositions.find(p => p.id === state.chart.draggedPositionForSLTP.id);
                 if (!pos) return;
 
                 const startPrice = state.chart.draggedPositionForSLTP.startPrice;
+                let lineType, color;
 
                 if (pos.type === 'BUY') {
-                    if (newPrice > startPrice) { // Setting TP
-                        pos.tp = newPrice;
-                        pos.sl = null;
-                    } else { // Setting SL
-                        pos.sl = newPrice;
-                        pos.tp = null;
+                    if (newPrice > startPrice) {
+                        lineType = 'TP';
+                        color = 'var(--color-success)';
+                    } else {
+                        lineType = 'SL';
+                        color = 'var(--color-danger)';
                     }
                 } else { // SELL
-                    if (newPrice < startPrice) { // Setting TP
-                        pos.tp = newPrice;
-                        pos.sl = null;
-                    } else { // Setting SL
-                        pos.sl = newPrice;
-                        pos.tp = null;
+                    if (newPrice < startPrice) {
+                        lineType = 'TP';
+                        color = 'var(--color-success)';
+                    } else {
+                        lineType = 'SL';
+                        color = 'var(--color-danger)';
                     }
                 }
-                updateUI(); // This will redraw chart and update panels
+                state.chart.previewLine = { price: newPrice, type: lineType, color: color };
+                requestAnimationFrame(draw);
             }
             // Handle dragging a setup line (from input fields)
             else if (state.chart.draggedLineType) {
@@ -3776,16 +3815,30 @@
         }
 
         function endDrag() {
-            // If we were dragging a position line, update the UI to finalize the change in the panel.
-            if (state.chart.draggedPositionForSLTP.id !== null) {
-                updateUI();
+            const dragThreshold = 5; // User must drag at least 5 pixels vertically
+            const dy = Math.abs(state.chart.dragCurrentY - state.chart.dragStartY);
+
+            // Commit the previewed line to the position if drag was significant
+            if (state.chart.draggedPositionForSLTP.id !== null && dy > dragThreshold) {
+                const pos = state.openPositions.find(p => p.id === state.chart.draggedPositionForSLTP.id);
+                const { price, type } = state.chart.previewLine;
+                if (pos && price !== null) {
+                    if (type === 'SL') {
+                        pos.sl = price;
+                        pos.tp = null;
+                    } else {
+                        pos.tp = price;
+                        pos.sl = null;
+                    }
+                }
             }
 
             state.chart.isDragging = false;
             state.chart.draggedLineType = null;
             state.chart.draggedPositionForSLTP = { id: null, startPrice: 0 };
+            state.chart.previewLine = { price: null, type: null, color: '' };
             updateCursorStyle();
-            if (!state.isPlaying) requestAnimationFrame(draw);
+            updateUI(); // Full UI update to reflect changes
         }
 
         function validateScrollOffset() {
@@ -3922,29 +3975,13 @@
         let currentTutorialStep = 0;
 
         function startTutorial() {
-            if (state.isPlaying) togglePlayPause(); // Pause main game loop if running
             state.tutorialActive = true;
             currentTutorialStep = 0;
-
-            // V12.2: Start a separate, simple animation loop just for the tutorial.
-            if (state.tutorialAnimationId) clearInterval(state.tutorialAnimationId);
-            state.tutorialAnimationId = setInterval(() => {
-                if (!state.tutorialActive) {
-                    clearInterval(state.tutorialAnimationId);
-                    return;
-                }
-                if (state.currentIndex < state.gameData.length - 1) {
-                    state.currentIndex++;
-                    state.barAnimationProgress = 1;
-                    updateHUD();
-                    draw();
-                } else {
-                    // Stop animation if it reaches the end of data
-                    clearInterval(state.tutorialAnimationId);
-                    state.tutorialAnimationId = null;
-                }
-            }, 500); // Animate one candle every 500ms
-
+            // V12.3: Start the game loop if it's not already running.
+            // The loop will run in "lite" mode due to tutorialActive flag.
+            if (!state.isPlaying && !state.isEnded) {
+                togglePlayPause();
+            }
             showTutorialStep();
         }
 
@@ -4049,13 +4086,6 @@
         function endTutorial() {
             state.tutorialActive = false;
             state.tutorialCompletedOnce = true;
-
-            // V12.2: Stop the tutorial animation loop
-            if (state.tutorialAnimationId) {
-                clearInterval(state.tutorialAnimationId);
-                state.tutorialAnimationId = null;
-            }
-
             DOM.tutorialHighlight.classList.add('hidden');
             DOM.tutorialMessage.classList.add('hidden');
 
@@ -4069,10 +4099,9 @@
                 toggleCollapsibleControls();
             }
 
-            // V12.2: Resume the main game loop
-            if (!state.isPlaying && !state.isEnded) {
-                togglePlayPause();
-            }
+            // The game loop is already running in lite mode, setting tutorialActive
+            // to false will make it switch to full mode on the next frame.
+            // No need to call togglePlayPause().
         }
 
         // Optimized V7.3 (Kept in V9.0): Robust tutorial positioning
