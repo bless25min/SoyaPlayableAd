@@ -59,11 +59,16 @@ export async function onRequest(context) {
     // Handle GET request to fetch the leaderboard
     if (request.method === 'GET') {
       try {
-        const data = await env.DB.get(LEADERBOARD_KEY, 'json');
-        return jsonResponse(data || []); // Return empty array if no data
+        let data = [];
+        const storedData = await env.DB.get(LEADERBOARD_KEY, 'json');
+        if (Array.isArray(storedData)) {
+            data = storedData;
+        }
+        return jsonResponse(data);
       } catch (e) {
-        console.error('Error fetching leaderboard:', e);
-        return jsonResponse({ error: 'Could not fetch leaderboard.' }, 500);
+        console.error('Error fetching leaderboard, returning empty array:', e);
+        // If KV data is corrupted or not valid JSON, gracefully return an empty array.
+        return jsonResponse([]);
       }
     }
 
@@ -83,17 +88,35 @@ export async function onRequest(context) {
         const timestamp = new Date().toISOString();
 
         // Get current leaderboard, or initialize if it doesn't exist.
-        const leaderboard = (await env.DB.get(LEADERBOARD_KEY, 'json')) || [];
+        let leaderboard = [];
+        try {
+            const storedData = await env.DB.get(LEADERBOARD_KEY, 'json');
+            // Ensure the retrieved data is an array before using array methods.
+            if (Array.isArray(storedData)) {
+                leaderboard = storedData;
+            } else if (storedData) {
+                // Log if we get something unexpected that's not an array
+                console.error('Leaderboard data in KV is not an array, resetting to empty.');
+            }
+        } catch (jsonError) {
+            console.error('Failed to parse leaderboard JSON from KV, treating as empty.', jsonError);
+            // If JSON parsing fails, we proceed with an empty leaderboard.
+        }
 
         // Add the new entry
         leaderboard.push({ name, score, timestamp });
 
         // Sort by score (descending) and then by time (ascending) for tie-breaking.
         leaderboard.sort((a, b) => {
-          if (b.score !== a.score) {
-            return b.score - a.score;
+          const scoreA = a.score || 0;
+          const scoreB = b.score || 0;
+          if (scoreB !== scoreA) {
+            return scoreB - scoreA;
           }
-          return new Date(a.timestamp) - new Date(b.timestamp);
+          // Use getTime() for reliable numeric comparison, default to 0 if timestamp is missing/invalid.
+          const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+          const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+          return timeA - timeB; // Earlier times (smaller timestamps) come first
         });
 
         // Keep only the top 100 scores to prevent the list from growing indefinitely.
