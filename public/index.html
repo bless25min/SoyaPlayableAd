@@ -1460,11 +1460,9 @@
                 <div id="result-content" class="leaderboard-content active">
                     <div class="modal-body" style="text-align: center;">
                         <h3 id="playerNameDisplay" style="margin-bottom: 15px; font-size: 22px;"></h3>
-                        <p>您的最終模擬成績：</p>
-                        <h1 id="finalScore" style="font-size: 36px; margin: 10px 0;">$10000.00</h1>
                         <p id="finalRoR" style="font-size: 20px;"></p>
-                        <p id="finalTime" style="font-size: 16px; color: var(--color-text-secondary);"></p>
-                        <div id="endGameStats"></div>
+                        <p id="finalTime" style="font-size: 16px; color: var(--color-text-secondary); margin-top: 10px;"></p>
+                        <div id="endGameStats" style="margin-top: 20px;"></div>
                         <div class="achievements-section" id="achievementsSection">
                             <h3>🏆 已解鎖成就</h3>
                             <ul class="achievements-list" id="achievementsList"></ul>
@@ -1483,8 +1481,10 @@
                             <tr>
                                 <th>#</th>
                                 <th>玩家</th>
-                                <th style="text-align: right;">分數</th>
-                                <th style="text-align: right;">時間</th>
+                                <th style="text-align: right;">總損益</th>
+                                <th style="text-align: right;">勝率</th>
+                                <th style="text-align: right;">總交易</th>
+                                <th style="text-align: right;">花費時間</th>
                             </tr>
                         </thead>
                         <tbody id="leaderboardBody">
@@ -1572,6 +1572,7 @@
         };
 
         const state = {
+            isFirstRun: true, // V12.1: To control initial tutorial launch
             rawData: [],
             gameData: [],
             isLoading: true,
@@ -1890,8 +1891,10 @@
             updateUI();
             requestAnimationFrame(draw);
 
-            if (!state.tutorialCompletedOnce) {
+            // V12.1: Tutorial only runs on the very first game start
+            if (state.isFirstRun && !state.tutorialCompletedOnce) {
                 startTutorial();
+                state.isFirstRun = false;
             }
         }
 
@@ -3029,6 +3032,11 @@
             if (state.equity < state.achievementStats.minEquity) state.achievementStats.minEquity = state.equity;
 
             checkEquityAchievements();
+
+            // V12.1: Game over on zero equity
+            if (state.equity <= 0 && !state.isEnded) {
+                endGame();
+            }
         }
 
         // ----------------------------------------------------------------------------
@@ -3537,9 +3545,12 @@
         function getPositionNearPoint(y) {
             const proximityThreshold = 10; // pixels
             for (const pos of state.openPositions) {
-                const yPos = priceToY(pos.entryPrice);
-                if (Math.abs(y - yPos) < proximityThreshold) {
-                    return pos;
+                // V12.1 Fix: Only allow dragging for positions that don't have an SL or TP.
+                if (!pos.sl && !pos.tp) {
+                    const yPos = priceToY(pos.entryPrice);
+                    if (Math.abs(y - yPos) < proximityThreshold) {
+                        return pos;
+                    }
                 }
             }
             return null;
@@ -3868,8 +3879,7 @@
             const finalRoR = (state.equity - CONFIG.INITIAL_BALANCE) / CONFIG.INITIAL_BALANCE;
 
             DOM.playerNameDisplay.textContent = `玩家: ${escapeHTML(state.currentPlayerName)}`;
-            document.getElementById('finalScore').textContent = `$${state.equity.toFixed(2)}`;
-            document.getElementById('finalRoR').innerHTML = `模擬回報率 (Simulated RoR): ${(finalRoR * 100).toFixed(2)}%`;
+            document.getElementById('finalRoR').innerHTML = `您的最終淨值: $${state.equity.toFixed(2)} (模擬回報率: ${(finalRoR * 100).toFixed(2)}%)`;
             document.getElementById('finalRoR').style.color = finalRoR >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
 
             const minutes = Math.floor(state.elapsedTime / 60);
@@ -3930,7 +3940,7 @@
         let currentTutorialStep = 0;
 
         function startTutorial() {
-            if (state.isPlaying) togglePlayPause();
+            // V12.1: Don't pause the game; let it run in the background.
             state.tutorialActive = true;
             currentTutorialStep = 0;
             showTutorialStep();
@@ -4305,16 +4315,31 @@
 
         async function saveScore() {
             const playerName = state.currentPlayerName;
-            if (!playerName) return; // Should not happen due to the new flow
+            if (!playerName) return;
 
             DOM.saveScoreStatus.textContent = '儲存中...';
             DOM.saveScoreStatus.style.color = 'var(--color-text-secondary)';
+
+            // V12.1: Calculate stats for submission
+            const totalTrades = state.tradeHistory.length;
+            const winRate = totalTrades > 0 ? (state.tradeHistory.filter(t => t.profit > 0).length / totalTrades) * 100 : 0;
+            const totalProfit = state.tradeHistory.reduce((sum, t) => sum + t.profit, 0);
+
+            const submissionData = {
+                name: playerName,
+                score: totalProfit, // Score is now Total P&L
+                stats: {
+                    trades: totalTrades,
+                    winRate: winRate,
+                    time: state.elapsedTime,
+                }
+            };
 
             try {
                 const response = await fetch('/api/leaderboard', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: playerName, score: state.equity }),
+                    body: JSON.stringify(submissionData),
                 });
 
                 if (!response.ok) {
@@ -4325,7 +4350,7 @@
                 const result = await response.json();
                 state.lastSubmittedScore = {
                     name: playerName,
-                    score: state.equity,
+                    score: totalProfit,
                     timestamp: new Date().toISOString() // Approximate timestamp
                 };
 
@@ -4365,7 +4390,7 @@
             tbody.innerHTML = ''; // Clear previous entries
 
             if (!leaderboard || leaderboard.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px;">排行榜目前是空的。</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 20px;">排行榜目前是空的。</td></tr>`;
                 return;
             }
 
@@ -4373,17 +4398,22 @@
                 const row = document.createElement('tr');
                 const isCurrentPlayer = state.lastSubmittedScore &&
                                         entry.name === state.lastSubmittedScore.name &&
-                                        entry.score === state.lastSubmittedScore.score;
+                                        Math.abs(entry.score - state.lastSubmittedScore.score) < 0.01;
 
                 if (isCurrentPlayer) {
                     row.classList.add('current-player');
                 }
 
+                const profitColor = entry.score >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+                const formattedTime = entry.stats?.time ? `${Math.floor(entry.stats.time / 60).toString().padStart(2, '0')}:${(entry.stats.time % 60).toString().padStart(2, '0')}` : 'N/A';
+
                 row.innerHTML = `
                     <td>${index + 1}</td>
                     <td>${escapeHTML(entry.name)}</td>
-                    <td>$${entry.score.toFixed(2)}</td>
-                    <td>${timeAgo(new Date(entry.timestamp))}</td>
+                    <td style="color: ${profitColor}; text-align: right;">$${entry.score.toFixed(2)}</td>
+                    <td style="text-align: right;">${entry.stats?.winRate?.toFixed(2) ?? 'N/A'}%</td>
+                    <td style="text-align: right;">${entry.stats?.trades ?? 'N/A'}</td>
+                    <td style="text-align: right;">${formattedTime}</td>
                 `;
                 tbody.appendChild(row);
             });
