@@ -1158,6 +1158,103 @@
             border: 1px solid var(--color-border);
             max-width: 450px;
         }
+
+        /* V12.0: Leaderboard & End Game Form Styles */
+        .end-game-form {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .end-game-form input {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-main);
+            flex-grow: 1;
+            text-align: center;
+        }
+
+        .leaderboard-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--color-border);
+            margin-bottom: 15px;
+        }
+
+        .leaderboard-tab-btn {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            background-color: transparent;
+            border: none;
+            font-weight: bold;
+            font-size: 16px;
+            color: var(--color-text-secondary);
+            border-bottom: 2px solid transparent;
+            transition: color 0.2s, border-color 0.2s;
+        }
+
+        .leaderboard-tab-btn.active {
+            color: var(--color-primary);
+            border-bottom-color: var(--color-primary);
+        }
+
+        .leaderboard-content {
+            display: none;
+        }
+
+        .leaderboard-content.active {
+            display: block;
+        }
+
+        #leaderboardContainer {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-main);
+        }
+
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        .leaderboard-table th, .leaderboard-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .leaderboard-table th {
+            background-color: var(--color-bg);
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--color-text-secondary);
+        }
+
+        .leaderboard-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .leaderboard-table td:nth-child(1) { width: 40px; text-align: center; font-weight: bold; }
+        .leaderboard-table td:nth-child(3) { text-align: right; }
+        .leaderboard-table td:nth-child(4) { font-size: 12px; color: var(--color-text-secondary); text-align: right; }
+
+        .leaderboard-table .current-player {
+            background-color: #eaf5fc; /* A light blue highlight */
+            font-weight: bold;
+        }
+
+        #leaderboardLoading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+        }
+
     </style>
 </head>
 <body>
@@ -1342,25 +1439,60 @@
     <div class="modal-overlay" id="endGameModal">
         <div class="modal-content">
             <h2 class="modal-title">🎉 挑戰結束！</h2>
-            <div class="modal-body" style="text-align: center;">
-                <!-- 修改：強調模擬成績 -->
-                <p>您的最終模擬成績：</p>
-                <h1 id="finalScore" style="font-size: 36px; margin: 10px 0;">$10000.00</h1>
-                <p id="finalRoR" style="font-size: 20px;"></p>
-                <p id="finalTime" style="font-size: 16px; color: var(--color-text-secondary);"></p>
 
-                <div id="endGameStats"></div>
-
-                <div class="achievements-section" id="achievementsSection">
-                    <h3>🏆 已解鎖成就</h3>
-                    <ul class="achievements-list" id="achievementsList">
-                        </ul>
-                </div>
-
+            <div class="leaderboard-tabs">
+                <button class="leaderboard-tab-btn active" data-target="result-content">結算畫面</button>
+                <button class="leaderboard-tab-btn" data-target="leaderboard-content">玩家排名榜</button>
             </div>
-            <!-- 修改：CTA 按鈕文字保持中性、教育性 -->
-            <a href="https://www.massenlighten.com/soya%E5%A5%B3%E7%A5%9E" target="_blank" class="btn cta-button" id="ctaButton">了解更多交易知識</a>
-            <button class="btn btn-secondary" id="restartButton" style="margin-top: 15px;">重新挑戰</button>
+
+            <div id="result-content" class="leaderboard-content active">
+                <div class="modal-body" style="text-align: center;">
+                    <p>您的最終模擬成績：</p>
+                    <h1 id="finalScore" style="font-size: 36px; margin: 10px 0;">$10000.00</h1>
+                    <p id="finalRoR" style="font-size: 20px;"></p>
+                    <p id="finalTime" style="font-size: 16px; color: var(--color-text-secondary);"></p>
+                    <div id="endGameStats"></div>
+                    <div class="achievements-section" id="achievementsSection">
+                        <h3>🏆 已解鎖成就</h3>
+                        <ul class="achievements-list" id="achievementsList"></ul>
+                    </div>
+
+                    <div id="endGameFormContainer">
+                        <div class="end-game-form">
+                            <input type="text" id="playerNameInput" placeholder="輸入您的姓名">
+                            <button class="btn btn-primary" id="saveScoreBtn">儲存成績</button>
+                        </div>
+                         <p id="saveScoreStatus" style="font-size: 14px; margin-top: 10px; height: 16px;"></p>
+                    </div>
+
+                </div>
+            </div>
+
+            <div id="leaderboard-content" class="leaderboard-content">
+                <div id="leaderboardLoading">
+                    <div class="loading-spinner"></div>
+                </div>
+                <div id="leaderboardContainer" class="hidden">
+                    <table class="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>玩家</th>
+                                <th style="text-align: right;">分數</th>
+                                <th style="text-align: right;">時間</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboardBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div style="margin-top: 25px; text-align: center;">
+                 <a href="https://www.massenlighten.com/soya%E5%A5%B3%E7%A5%9E" target="_blank" class="btn cta-button" id="ctaButton">了解更多交易知識</a>
+                 <button class="btn btn-secondary" id="restartButton" style="margin-top: 15px;">重新挑戰</button>
+            </div>
+
         </div>
     </div>
 
@@ -1501,6 +1633,8 @@
             ],
             triggeredEvents: new Set(),
             wasPlayingBeforeEvent: false,
+            // V12.0: Add state for leaderboard interaction
+            lastSubmittedScore: null,
         };
 
         const DOM = {};
@@ -1710,6 +1844,19 @@
                 tutorialNextBtn: document.getElementById('tutorialNextBtn'),
                 notificationContainer: document.getElementById('notification-container'),
             });
+            // V12.0: Cache leaderboard elements
+            Object.assign(DOM, {
+                leaderboardTabs: document.querySelector('.leaderboard-tabs'),
+                resultContent: document.getElementById('result-content'),
+                leaderboardContent: document.getElementById('leaderboard-content'),
+                endGameFormContainer: document.getElementById('endGameFormContainer'),
+                playerNameInput: document.getElementById('playerNameInput'),
+                saveScoreBtn: document.getElementById('saveScoreBtn'),
+                saveScoreStatus: document.getElementById('saveScoreStatus'),
+                leaderboardLoading: document.getElementById('leaderboardLoading'),
+                leaderboardContainer: document.getElementById('leaderboardContainer'),
+                leaderboardBody: document.getElementById('leaderboardBody'),
+            });
         }
 
         function startGame() {
@@ -1761,6 +1908,7 @@
             state.chart.isDragging = false;
             state.chart.isPinching = false;
             state.chart.draggedLineType = null;
+            state.lastSubmittedScore = null;
 
             DOM.chartOverlay.innerHTML = '';
 
@@ -3098,6 +3246,10 @@
 
             document.getElementById('eventContinueBtn').addEventListener('click', continueFromEvent);
             document.getElementById('restartButton').addEventListener('click', startGame);
+
+            // V12.0: Leaderboard event listeners
+            DOM.leaderboardTabs.addEventListener('click', handleLeaderboardTabSwitch);
+            DOM.saveScoreBtn.addEventListener('click', saveScore);
         }
 
         function handleEndGameClick() {
@@ -3670,6 +3822,17 @@
             document.getElementById('endGameStats').innerHTML = `${feedbackHTML}<div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--color-border); text-align: left;"><p><strong>交易統計：</strong></p><ul style="list-style-position: inside; padding-left: 10px;"><li>總交易次數: ${totalTrades}</li><li>勝率: ${winRate.toFixed(2)}%</li><li>模擬總損益: $${totalProfit.toFixed(2)}</li><li>模擬期間: 約 ${Math.round(simulationDays)} 天</li></ul></div>`;
 
             displayAchievements();
+
+            // V12.0: Reset Leaderboard UI
+            DOM.endGameFormContainer.classList.remove('hidden');
+            DOM.saveScoreBtn.disabled = false;
+            DOM.playerNameInput.disabled = false;
+            DOM.playerNameInput.value = '';
+            DOM.saveScoreStatus.textContent = '';
+            // Reset to the results tab by default
+            DOM.leaderboardTabs.querySelector('[data-target="result-content"]').click();
+
+
             DOM.endGameModal.classList.add('active');
         }
 
@@ -4060,8 +4223,144 @@
         }
 
         // ----------------------------------------------------------------------------
+        // V12.0: Leaderboard Functions
+        // ----------------------------------------------------------------------------
+
+        function handleLeaderboardTabSwitch(e) {
+            const target = e.target.closest('.leaderboard-tab-btn');
+            if (!target) return;
+
+            // Update tab buttons
+            DOM.leaderboardTabs.querySelectorAll('.leaderboard-tab-btn').forEach(btn => btn.classList.remove('active'));
+            target.classList.add('active');
+
+            // Update content visibility
+            document.querySelectorAll('.leaderboard-content').forEach(content => content.classList.remove('active'));
+            const contentId = target.dataset.target;
+            document.getElementById(contentId).classList.add('active');
+
+            // Fetch data if switching to leaderboard tab
+            if (contentId === 'leaderboard-content') {
+                fetchAndDisplayLeaderboard();
+            }
+        }
+
+        async function saveScore() {
+            const playerName = DOM.playerNameInput.value.trim();
+            if (!playerName) {
+                alert('請輸入您的姓名！');
+                return;
+            }
+
+            DOM.saveScoreBtn.disabled = true;
+            DOM.playerNameInput.disabled = true;
+            DOM.saveScoreStatus.textContent = '儲存中...';
+
+            try {
+                const response = await fetch('/api/leaderboard', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: playerName, score: state.equity }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('無法儲存成績。');
+                }
+
+                const result = await response.json();
+                state.lastSubmittedScore = {
+                    name: playerName,
+                    score: state.equity,
+                    timestamp: new Date().toISOString() // Approximate timestamp
+                };
+
+                DOM.saveScoreStatus.textContent = '✅ 儲存成功！';
+                DOM.saveScoreStatus.style.color = 'var(--color-success)';
+
+                // Automatically switch to the leaderboard tab
+                DOM.leaderboardTabs.querySelector('[data-target="leaderboard-content"]').click();
+
+            } catch (error) {
+                console.error('Save score error:', error);
+                DOM.saveScoreStatus.textContent = `❌ 儲存失敗。`;
+                DOM.saveScoreStatus.style.color = 'var(--color-danger)';
+                DOM.saveScoreBtn.disabled = false;
+                DOM.playerNameInput.disabled = false;
+            }
+        }
+
+        async function fetchAndDisplayLeaderboard() {
+            DOM.leaderboardLoading.classList.remove('hidden');
+            DOM.leaderboardContainer.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/leaderboard');
+                if (!response.ok) throw new Error('Could not fetch leaderboard');
+                const leaderboardData = await response.json();
+                renderLeaderboard(leaderboardData);
+            } catch (error) {
+                console.error('Fetch leaderboard error:', error);
+                DOM.leaderboardBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px;">無法載入排行榜。</td></tr>`;
+            } finally {
+                DOM.leaderboardLoading.classList.add('hidden');
+                DOM.leaderboardContainer.classList.remove('hidden');
+            }
+        }
+
+        function renderLeaderboard(leaderboard) {
+            const tbody = DOM.leaderboardBody;
+            tbody.innerHTML = ''; // Clear previous entries
+
+            if (!leaderboard || leaderboard.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px;">排行榜目前是空的。</td></tr>`;
+                return;
+            }
+
+            leaderboard.forEach((entry, index) => {
+                const row = document.createElement('tr');
+                const isCurrentPlayer = state.lastSubmittedScore &&
+                                        entry.name === state.lastSubmittedScore.name &&
+                                        entry.score === state.lastSubmittedScore.score;
+
+                if (isCurrentPlayer) {
+                    row.classList.add('current-player');
+                }
+
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${escapeHTML(entry.name)}</td>
+                    <td>$${entry.score.toFixed(2)}</td>
+                    <td>${timeAgo(new Date(entry.timestamp))}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function timeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            let interval = seconds / 31536000;
+            if (interval > 1) return Math.floor(interval) + " 年前";
+            interval = seconds / 2592000;
+            if (interval > 1) return Math.floor(interval) + " 個月前";
+            interval = seconds / 86400;
+            if (interval > 1) return Math.floor(interval) + " 天前";
+            interval = seconds / 3600;
+            if (interval > 1) return Math.floor(interval) + " 小時前";
+            interval = seconds / 60;
+            if (interval > 1) return Math.floor(interval) + " 分鐘前";
+            return "剛剛";
+        }
+
+
+        // ----------------------------------------------------------------------------
         // 9. 輔助函式 (Utility Functions)
         // ----------------------------------------------------------------------------
+
+        function escapeHTML(str) {
+            const p = document.createElement('p');
+            p.appendChild(document.createTextNode(str));
+            return p.innerHTML;
+        }
 
         // Scrubbing functionality (V11.0 Update)
         function setupInputScrubbing() {
