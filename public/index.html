@@ -6,31 +6,35 @@
     <!-- 標題調整為強調模擬學習 -->
     <title>交易技巧模擬學習挑戰 (V11.0)</title>
     <style>
-        /* 1. Reset & Variables */
+        /* 1. Reset & Variables -- CYBERPUNK THEME */
         :root {
-            --color-bg: #f5f7fa;
-            --color-panel-bg: #ffffff;
-            --color-border: #e0e3eb;
-            --color-text-primary: #333333;
-            --color-text-secondary: #7f8c8d;
-            --color-primary: #3498db;
-            --color-primary-dark: #2980b9;
-            --color-success: #2ecc71;
-            --color-danger: #e74c3c;
-            /* V10.0: Define neutral color for Close All button */
-            --color-neutral-bg: #95a5a6;
-            --color-warning: #f1c40f;
-            --font-main: 'Helvetica Neue', Arial, sans-serif;
-            --shadow-main: 0 4px 12px rgba(0, 0, 0, 0.05);
-            --radius-main: 8px;
+            /* Core Palette */
+            --color-bg: #0A0F1E; /* Deep, dark blue */
+            --color-panel-bg: rgba(18, 28, 58, 0.75); /* Semi-transparent panel background */
+            --color-border: #00BFFF; /* Neon blue for borders */
+            --color-text-primary: #E0FBFC; /* Light cyan for primary text */
+            --color-text-secondary: #8698B5; /* Muted, grayish-blue */
+            --color-primary: #00E5FF; /* Electric cyan for highlights */
+            --color-primary-dark: #00B8CC; /* Darker cyan for hover */
+            --color-warning: #FFD700; /* Gold from logo */
+
+            /* Trading Palette */
+            --color-success: #00F0B0; /* Vibrant blue-green for up/buy */
+            --color-danger: #9D00FF;  /* Vibrant lightning purple for down/sell */
+            --color-bull: var(--color-success);
+            --color-bear: var(--color-danger);
+
+            /* Neutral & UI Elements */
+            --color-neutral-bg: #5F6C6D;
+            --font-main: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            --shadow-main: 0 4px 15px rgba(0, 229, 255, 0.1); /* Neon glow shadow */
+            --radius-main: 6px; /* Slightly sharper radius */
 
             /* Chart Specific */
-            --chart-bg: #ffffff;
-            --chart-grid: #f0f0f0;
-            --chart-date-separator: #cccccc;
-            --chart-crosshair: #777777;
-            --color-bull: #26a69a;
-            --color-bear: #ef5350;
+            --chart-bg: #121C3A; /* Solid dark blue for chart background */
+            --chart-grid: rgba(0, 191, 255, 0.15); /* Faint neon grid */
+            --chart-date-separator: rgba(0, 191, 255, 0.3); /* Slightly more prominent separator */
+            --chart-crosshair: #FFD700; /* Gold crosshair */
 
             /* V9.0: Layout variables */
             --side-panel-width: 320px;
@@ -44,33 +48,46 @@
 
         body {
             font-family: var(--font-main);
-            background-color: var(--color-bg);
             color: var(--color-text-primary);
-            /* V9.0: Ensure body takes full height and is structured for the app layout */
             display: flex;
             flex-direction: column;
-            /* V10.0: Use dvh for better mobile viewport handling, fallback to 100vh */
             height: 100dvh;
             /* Fallback for older browsers */
             @supports not (height: 100dvh) {
                 height: 100vh;
             }
             overflow: hidden;
+
+            /* CYBERPUNK BACKGROUND */
+            background-color: var(--color-bg);
+            --circuit-color: rgba(0, 229, 255, 0.06);
+            background-image:
+                linear-gradient(to right, var(--circuit-color) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--circuit-color) 1px, transparent 1px);
+            background-size: 30px 30px;
+            animation: bg-pan 4s linear infinite;
+            text-shadow: 0 0 1px rgba(224, 251, 252, 0.5); /* Subtle glow for all text */
+        }
+
+        @keyframes bg-pan {
+            from { background-position: 0 0; }
+            to { background-position: 30px 30px; }
         }
 
         /* 2. Layout Structure (V10.0 Overhaul - Dynamic Grid/Flex Hybrid) */
         .header {
             background-color: var(--color-panel-bg);
             padding: 8px 15px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            box-shadow: var(--shadow-main);
             z-index: 10;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-shrink: 0; /* Prevent shrinking */
-            /* V9.0 (R1): Implement flex-wrap for natural responsiveness */
             flex-wrap: wrap;
             gap: 5px 15px; /* row-gap column-gap */
+            border-bottom: 1px solid var(--color-border);
+            backdrop-filter: blur(10px);
         }
 
         /* V10.0: New main container structure */
@@ -101,10 +118,8 @@
             border-top: 1px solid var(--color-border);
             display: flex;
             flex-direction: column;
-            /* flex-shrink: 0; <-- Removed, managed by grid */
-            /* V10.0 Mobile (Default): Height is 'auto' based on grid track */
-            /* height: 35vh; <-- Removed */
-            /* max-height: 400px; <-- Removed */
+            backdrop-filter: blur(10px);
+            box-shadow: var(--shadow-main);
         }
 
         /* V10.0: Ensure the Positions/History tab doesn't become excessively tall on mobile when active */
@@ -303,6 +318,7 @@
         .hud-value {
             font-size: 15px;
             font-weight: bold;
+            text-shadow: 0 0 5px rgba(224, 251, 252, 0.7);
         }
 
         #hud-pl.positive { color: var(--color-success); }
@@ -346,6 +362,7 @@
             cursor: crosshair;
             /* V11.0: Crucial for preventing default browser zoom/pan behavior (Feature 3) */
             touch-action: none;
+            border: 1px solid var(--color-border);
         }
 
         #chartCanvas {
@@ -419,23 +436,19 @@
             align-items: center;
             gap: 10px;
             pointer-events: auto;
-            /* V11.0: Use slightly transparent background and backdrop filter (Feature 2) */
-            background-color: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(5px);
+            background-color: var(--color-panel-bg);
+            backdrop-filter: blur(10px);
             padding: 8px;
             border-radius: var(--radius-main);
             box-shadow: var(--shadow-main);
-            /* V11.0: Transition for opacity changes */
+            border: 1px solid var(--color-border);
             transition: opacity 0.3s ease, background-color 0.3s ease;
         }
 
         /* V11.0: Styling for collapsed state (Feature 2) */
         .controls-collapsed {
-            /* Reduce opacity when collapsed (Using 0.6 for slightly better visibility than 0.5) */
             opacity: 0.6;
-            /* Reduce background intensity */
-            background-color: rgba(255, 255, 255, 0.5);
-            /* Apply specific blur as requested */
+            background-color: rgba(18, 28, 58, 0.5);
             backdrop-filter: blur(2px);
         }
 
@@ -443,8 +456,8 @@
         .controls:hover,
         .controls:focus-within {
             opacity: 1;
-            background-color: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(5px);
+            background-color: var(--color-panel-bg);
+            backdrop-filter: blur(10px);
         }
 
         .collapsible-controls {
@@ -479,11 +492,11 @@
 
         .btn {
             padding: 8px 12px;
-            border: none;
+            border: 1px solid var(--color-primary);
             border-radius: var(--radius-main);
             cursor: pointer;
             font-weight: bold;
-            transition: transform 0.1s, background-color 0.2s;
+            transition: transform 0.2s, background-color 0.2s, color 0.2s, box-shadow 0.2s, text-shadow 0.2s;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -491,34 +504,66 @@
             user-select: none;
             line-height: 1.2;
             min-height: 32px;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0));
+            color: var(--color-primary);
+            text-shadow: 0 0 3px var(--color-primary);
+            box-shadow: inset 0 0 5px rgba(0, 229, 255, 0.2), 0 0 5px rgba(0, 229, 255, 0.2);
         }
 
         .btn:hover:not(:disabled) {
-            opacity: 0.9;
+            color: var(--color-bg);
+            background-color: var(--color-primary);
+            box-shadow: inset 0 0 10px rgba(0, 229, 255, 0.5), 0 0 15px rgba(0, 229, 255, 0.5);
+            text-shadow: 0 0 5px var(--color-bg);
         }
 
         .btn:active:not(:disabled) {
-            transform: scale(0.98);
+            transform: scale(0.97);
+            filter: brightness(1.2);
         }
         .btn:disabled {
-            opacity: 0.5;
+            opacity: 0.4;
             cursor: default;
             transform: scale(1);
+            background-color: transparent;
+            color: var(--color-text-secondary);
+            border-color: var(--color-text-secondary);
+            box-shadow: none;
+            text-shadow: none;
         }
 
         .btn-primary {
             background-color: var(--color-primary);
-            color: white;
+            color: var(--color-bg);
+            border-color: var(--color-primary);
+        }
+        .btn-primary:hover:not(:disabled) {
+            filter: brightness(1.2);
         }
 
         .btn-secondary {
-            background-color: var(--color-border);
-            color: var(--color-text-primary);
+            border-color: var(--color-text-secondary);
+            color: var(--color-text-secondary);
+            text-shadow: none;
+            box-shadow: none;
+        }
+        .btn-secondary:hover:not(:disabled) {
+            background-color: var(--color-text-secondary);
+            color: var(--color-bg);
+            border-color: var(--color-text-secondary);
         }
 
         .btn-danger {
+            border-color: var(--color-danger);
+            color: var(--color-danger);
+            text-shadow: 0 0 3px var(--color-danger);
+            box-shadow: inset 0 0 5px rgba(157, 0, 255, 0.2), 0 0 5px rgba(157, 0, 255, 0.2);
+        }
+        .btn-danger:hover:not(:disabled) {
             background-color: var(--color-danger);
             color: white;
+            box-shadow: inset 0 0 10px rgba(157, 0, 255, 0.5), 0 0 15px rgba(157, 0, 255, 0.5);
+            text-shadow: 0 0 5px white;
         }
 
         /* V10.0: New style for the neutral Close All button */
@@ -528,13 +573,17 @@
         }
 
         .btn-end-game {
-             background-color: var(--color-panel-bg);
-             color: var(--color-danger);
-             border: 1px solid var(--color-danger);
+             --end-game-color: #FF003C; /* Specific red for this button */
+             border-color: var(--end-game-color);
+             color: var(--end-game-color);
+             text-shadow: 0 0 3px var(--end-game-color);
+             box-shadow: inset 0 0 5px rgba(255, 0, 60, 0.3), 0 0 5px rgba(255, 0, 60, 0.3);
         }
         .btn-end-game:hover:not(:disabled) {
-            background-color: var(--color-danger);
+            background-color: var(--end-game-color);
             color: white;
+            box-shadow: inset 0 0 10px rgba(255, 0, 60, 0.5), 0 0 15px rgba(255, 0, 60, 0.5);
+            text-shadow: 0 0 5px white;
         }
 
         .speed-selector {
@@ -546,15 +595,17 @@
 
         .speed-btn {
             padding: 8px 10px;
-            background-color: var(--color-panel-bg);
+            background-color: transparent;
             border: none;
             cursor: pointer;
             font-size: 14px;
+            color: var(--color-text-secondary);
         }
 
         .speed-btn.active {
             background-color: var(--color-primary);
-            color: white;
+            color: var(--color-bg);
+            text-shadow: 0 0 3px var(--color-bg);
         }
 
         .speed-btn:not(:last-child) {
@@ -583,7 +634,6 @@
             font-size: 14px;
             color: var(--color-text-secondary);
             white-space: nowrap;
-            /* V9.0 Desktop (Default): Define width for labels in vertical stack */
             width: 50px;
         }
 
@@ -592,12 +642,19 @@
             border: 1px solid var(--color-border);
             font-size: 16px;
             text-align: center;
-            /* V9.0: Remove fixed width, allow it to fill the container */
             width: auto;
             flex: 1;
             height: 36px;
-             -moz-appearance: textfield;
-             border-radius: var(--radius-main);
+            -moz-appearance: textfield;
+            border-radius: var(--radius-main);
+            background-color: rgba(10, 15, 30, 0.5);
+            color: var(--color-text-primary);
+            box-shadow: inset 0 0 8px rgba(0, 229, 255, 0.2);
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: inset 0 0 10px rgba(0, 229, 255, 0.5), 0 0 10px rgba(0, 229, 255, 0.4);
         }
 
         .input-field.scrubbable {
@@ -617,18 +674,27 @@
         }
 
         .btn-trade {
-            padding: 12px 10px; /* Reduced horizontal padding slightly in V10.0 for the 3-button layout */
+            padding: 12px 10px;
             font-size: 18px;
-            color: white;
+            color: var(--color-bg);
             flex: 1;
+            text-shadow: 0 0 5px var(--color-bg);
         }
 
         .btn-buy {
             background-color: var(--color-bull);
+            border-color: var(--color-bull);
+        }
+        .btn-buy:hover:not(:disabled) {
+            filter: brightness(1.2);
         }
 
         .btn-sell {
             background-color: var(--color-bear);
+            border-color: var(--color-bear);
+        }
+        .btn-sell:hover:not(:disabled) {
+            filter: brightness(1.2);
         }
 
 
@@ -762,11 +828,13 @@
         }
 
         .trade-item {
-            background-color: var(--color-bg);
+            background-color: rgba(18, 28, 58, 0.5); /* Use a slightly more transparent panel color */
             border: 1px solid var(--color-border);
             border-radius: var(--radius-main);
             padding: 10px;
             font-size: 14px;
+            backdrop-filter: blur(5px);
+            box-shadow: var(--shadow-main);
         }
 
         .trade-header {
@@ -979,6 +1047,8 @@
             transition: transform 0.3s ease;
             max-height: 90vh;
             overflow-y: auto;
+            border: 1px solid var(--color-border);
+            backdrop-filter: blur(10px);
         }
 
         .modal-overlay.active .modal-content {
