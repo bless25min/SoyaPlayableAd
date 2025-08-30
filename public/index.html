@@ -3393,7 +3393,7 @@
         function handleEndGameClick() {
             if (state.isEnded) return;
             if (state.isPlaying) togglePlayPause();
-            if (confirm("確定要提前結束本次挑戰嗎？")) endGame();
+            endGame();
         }
 
         function toggleCollapsibleControls() {
@@ -3496,9 +3496,6 @@
 
         function closeAllOrders() {
             if (state.openPositions.length === 0 || state.isEnded) return;
-
-            // V10.0: Added confirmation for closing all orders (Good practice)
-            if (!confirm(`確定要關閉所有 ${state.openPositions.length} 個持倉嗎？`)) return;
 
             const currentPrice = getCurrentPrice();
             // Iterate over a copy of the array as closeOrder modifies the original array
