@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <!-- 標題調整為強調模擬學習 -->
     <title>交易技巧模擬學習挑戰 (V11.0)</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <style>
         /* 1. Reset & Variables -- CYBERPUNK THEME */
         :root {
@@ -1229,6 +1230,18 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* V13.0: Special effect animations */
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        .shake-effect {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
         .file-upload-prompt {
             background-color: var(--color-panel-bg);
             padding: 30px;
@@ -2151,7 +2164,7 @@
                 const closePrice = state.gameData[closeIndex].close;
                 while(state.openPositions.length > 0) {
                     // Skip final achievement check during forced closure at game end
-                    closeOrder(state.openPositions[0].id, closePrice, false);
+                    closeOrder(state.openPositions[0].id, closePrice, { skipAchievementCheck: false, reason: 'manual' });
                 }
             }
             checkFinalAchievements();
@@ -3057,7 +3070,40 @@
             if (!state.isPlaying) requestAnimationFrame(draw);
         }
 
-        function closeOrder(id, closePrice, skipAchievementCheck = false) {
+        function triggerScreenShake() {
+            const body = document.body;
+            if (body.classList.contains('shake-effect')) return;
+
+            body.classList.add('shake-effect');
+            setTimeout(() => {
+                body.classList.remove('shake-effect');
+            }, 500);
+        }
+
+        function triggerTakeProfitAnimation() {
+            const duration = 3 * 1000;
+            const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1001 };
+
+            function randomInRange(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+
+            const interval = setInterval(function() {
+                const timeLeft = animationEnd - Date.now();
+
+                if (timeLeft <= 0) {
+                    return clearInterval(interval);
+                }
+
+                const particleCount = 50 * (timeLeft / duration);
+                confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+                confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+            }, 250);
+        }
+
+        function closeOrder(id, closePrice, options = {}) {
+            const { skipAchievementCheck = false, reason = null } = options;
             const index = state.openPositions.findIndex(p => p.id === id);
             if (index === -1) return;
 
@@ -3081,6 +3127,12 @@
             if (!skipAchievementCheck) {
                 updateAchievementStats(historyEntry);
                 checkTradeAchievements(historyEntry);
+            }
+
+            if (reason === 'SL') {
+                triggerScreenShake();
+            } else if (reason === 'TP' || (reason === 'manual' && profit > 0)) {
+                triggerTakeProfitAnimation();
             }
 
             addTradeAnimation('CLOSE', closePrice, Math.min(state.currentIndex, state.gameData.length - 1), profit);
@@ -3135,7 +3187,7 @@
             const closedIds = new Set();
             positionsToClose.forEach(order => {
                 if (!closedIds.has(order.id)) {
-                    closeOrder(order.id, order.price);
+                    closeOrder(order.id, order.price, { reason: order.reason });
                     closedIds.add(order.id);
                 }
             });
@@ -3365,7 +3417,7 @@
                 if (!tradeItem) return;
                 const id = parseInt(tradeItem.dataset.id);
                 if (!state.openPositions.find(p => p.id === id)) return;
-                if (target.classList.contains('btn-close')) closeOrder(id, getCurrentPrice());
+                if (target.classList.contains('btn-close')) closeOrder(id, getCurrentPrice(), { reason: 'manual' });
                 else if (target.classList.contains('btn-modify')) modifyOrder(id);
             });
 
@@ -3499,7 +3551,7 @@
 
             const currentPrice = getCurrentPrice();
             // Iterate over a copy of the array as closeOrder modifies the original array
-            [...state.openPositions].forEach(pos => closeOrder(pos.id, currentPrice));
+            [...state.openPositions].forEach(pos => closeOrder(pos.id, currentPrice, { reason: 'manual' }));
         }
 
         function modifyOrder(id) {
