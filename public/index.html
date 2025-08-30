@@ -1081,7 +1081,7 @@
         .tutorial-message {
             position: absolute;
             background-color: var(--color-primary);
-            color: #FF003C; /* Red complement for cyan bg */
+            color: white; /* Use white text for better contrast */
             padding: 15px;
             border-radius: var(--radius-main);
             max-width: 300px;
@@ -1612,7 +1612,7 @@
     <div class="tutorial-highlight hidden" id="tutorialHighlight"></div>
     <div class="tutorial-message hidden" id="tutorialMessage">
         <p id="tutorialText"></p>
-        <button class="btn btn-small" id="tutorialNextBtn" style="margin-top: 10px; background-color: white; color: #FF007F;">下一步</button>
+        <button class="btn btn-small" id="tutorialNextBtn" style="margin-top: 10px; background-color: white; color: var(--color-primary); border-color: white;">下一步</button>
     </div>
 
     <script>
@@ -4950,29 +4950,25 @@
             const root = document.documentElement;
 
             const STAGES = {
-                buttons: {
-                    keys: ['--color-bull', '--color-bear', '--color-neutral-bg'],
-                    range: [0.0, 0.2]
+                buttonsAndText: {
+                    keys: [
+                        '--color-bull', '--color-bear', '--color-neutral-bg',
+                        '--color-text-primary', '--color-text-secondary'
+                    ],
+                    range: [0.0, 0.35]
                 },
                 candles: {
                     keys: ['--color-candle-bull', '--color-candle-bear'],
-                    range: [0.2, 0.4]
+                    range: [0.35, 0.70]
                 },
-                text: {
-                    keys: ['--color-text-primary', '--color-text-secondary'],
-                    range: [0.4, 0.6]
-                },
-                panels: {
-                    keys: ['--color-bg', '--color-panel-bg', '--chart-bg'],
-                    range: [0.6, 0.8]
-                },
-                borders: {
+                backgroundsAndBorders: {
                     keys: [
+                        '--color-bg', '--color-panel-bg', '--chart-bg',
                         '--color-border', '--color-primary', '--color-primary-dark',
                         '--color-warning', '--chart-grid', '--chart-date-separator',
                         '--chart-crosshair', '--shadow-main'
                     ],
-                    range: [0.8, 1.0]
+                    range: [0.70, 1.0]
                 }
             };
 
@@ -5004,7 +5000,7 @@
         function updateTheme(profitPercentage) {
             const themes = ['simplicity', 'overgrowth', 'deepOcean', 'solarFlare', 'cyberpunk'];
             const numTiers = themes.length - 1;
-            const tierSize = 0.25; // Each theme unlocks at 25% profit intervals
+            const tierSize = 1.0; // Each theme unlocks at 100% profit intervals
 
             // Determine current tier and theme name
             const currentTier = Math.min(Math.floor(profitPercentage / tierSize), numTiers - 1);
