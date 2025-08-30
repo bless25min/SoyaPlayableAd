@@ -153,7 +153,7 @@
         }
 
         .nav-btn-v9.active {
-            color: var(--color-primary);
+            color: #FF007F; /* Magenta complement */
             font-weight: bold;
             /* V9.0 Mobile (Default): Top border indicator */
             box-shadow: inset 0 2px 0 0 var(--color-primary);
@@ -676,14 +676,15 @@
         .btn-trade {
             padding: 12px 10px;
             font-size: 18px;
-            color: var(--color-bg);
             flex: 1;
-            text-shadow: 0 0 5px var(--color-bg);
+            text-shadow: 0 0 8px rgba(0,0,0,0.7);
         }
 
         .btn-buy {
             background-color: var(--color-bull);
             border-color: var(--color-bull);
+            color: #FF007F; /* Magenta complement */
+            text-shadow: 0 0 5px rgba(0,0,0,0.7);
         }
         .btn-buy:hover:not(:disabled) {
             filter: brightness(1.2);
@@ -692,6 +693,8 @@
         .btn-sell {
             background-color: var(--color-bear);
             border-color: var(--color-bear);
+            color: var(--color-warning); /* Gold complement */
+            text-shadow: 0 0 5px rgba(0,0,0,0.7);
         }
         .btn-sell:hover:not(:disabled) {
             filter: brightness(1.2);
@@ -781,7 +784,7 @@
 
         .tab-btn.active {
             background-color: var(--color-panel-bg);
-            color: var(--color-text-primary);
+            color: #FF007F; /* Magenta complement */
             border-bottom: 2px solid var(--color-primary);
         }
 
@@ -1574,7 +1577,7 @@
     <div class="tutorial-highlight hidden" id="tutorialHighlight"></div>
     <div class="tutorial-message hidden" id="tutorialMessage">
         <p id="tutorialText"></p>
-        <button class="btn btn-small" id="tutorialNextBtn" style="margin-top: 10px; background-color: white; color: var(--color-primary);">下一步</button>
+        <button class="btn btn-small" id="tutorialNextBtn" style="margin-top: 10px; background-color: white; color: #FF007F;">下一步</button>
     </div>
 
     <script>
