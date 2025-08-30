@@ -1338,6 +1338,7 @@
         .leaderboard-table .current-player {
             background-color: #eaf5fc; /* A light blue highlight */
             font-weight: bold;
+            color: var(--color-bg); /* V13.0: Add dark text for contrast */
         }
 
         #leaderboardLoading {
@@ -3129,7 +3130,7 @@
                 checkTradeAchievements(historyEntry);
             }
 
-            if (reason === 'SL') {
+            if (reason === 'SL' || (reason === 'manual' && profit < 0)) {
                 triggerScreenShake();
             } else if (reason === 'TP' || (reason === 'manual' && profit > 0)) {
                 triggerTakeProfitAnimation();
@@ -4536,6 +4537,8 @@
                 state.lastSubmittedScore = { name: playerName, score: totalProfit, timestamp: new Date().toISOString() };
                 DOM.saveScoreStatus.textContent = '✅ 儲存成功！';
                 DOM.saveScoreStatus.style.color = 'var(--color-success)';
+                // V13.0: Hide the form after successful submission
+                DOM.endGameFormContainer.classList.add('hidden');
                 DOM.leaderboardTabs.querySelector('[data-target="leaderboard-content"]').click();
             } catch (error) {
                 console.error('Save score error:', error);
